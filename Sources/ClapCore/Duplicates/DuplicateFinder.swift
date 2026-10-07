@@ -8,6 +8,7 @@ public struct DuplicateGroup: Identifiable, Sendable, Equatable {
     /// True when the files are byte-for-byte alike as far as the fingerprint can tell;
     /// false when they only sound the same (re-exports, different formats, tiny edits).
     public let identical: Bool
+    public init(id: Int, ids: [Int64], identical: Bool) { self.id = id; self.ids = ids; self.identical = identical }
     public var keeper: Int64 { ids[0] }
     public var extras: [Int64] { Array(ids.dropFirst()) }
 }

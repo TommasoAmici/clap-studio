@@ -32,7 +32,7 @@ struct SidebarView: View {
     var body: some View {
         List(selection: selection) {
             Section("Filters") {
-                ForEach(SmartFilter.allCases) { filter in
+                ForEach(SmartFilter.allCases.filter { $0 != .hidden || model.hiddenCount > 0 }) { filter in
                     Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
                 }
             }
@@ -66,9 +66,14 @@ struct SidebarView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button { model.chooseFolder() } label: { Label("Add Folder…", systemImage: "plus") }
-                .buttonStyle(.borderless).padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Button { model.chooseFolder() } label: { Label("Add Folder…", systemImage: "plus") }
+                Spacer()
+                Button { model.showDuplicates = true } label: { Label("Duplicates", systemImage: "square.on.square") }
+                    .help("Find copies of the same sound")
+                    .disabled(model.samples.isEmpty)
+            }
+            .buttonStyle(.borderless).padding(10)
         }
     }
 }

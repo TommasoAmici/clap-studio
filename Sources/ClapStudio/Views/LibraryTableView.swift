@@ -50,6 +50,10 @@ struct LibraryTableView: View {
                 Text(s.brightnessText).monospacedDigit().foregroundStyle(.secondary)
             }
             .width(64)
+            TableColumn("Category", value: \.categorySort) { s in
+                Text(s.effectiveCategory ?? "").foregroundStyle(.secondary).lineLimit(1)
+            }
+            .width(min: 60, ideal: 90)
             TableColumn("Cues", value: \.cueCount) { s in
                 Text(s.cueCount == 0 ? "" : "\(s.cueCount)").monospacedDigit().foregroundStyle(.secondary)
             }
@@ -63,6 +67,12 @@ struct LibraryTableView: View {
             if let id = ids.first, let s = model.sampleByID[id] {
                 Button("Find Similar Sounds") { model.showSimilar(to: id) }
                 Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([s.url]) }
+                Divider()
+                if s.hidden {
+                    Button("Show in Library Again") { model.unhide([id]) }
+                } else {
+                    Button("Hide from Library") { model.hide([id]) }
+                }
             }
         } primaryAction: { ids in
             if let id = ids.first { model.select(id, play: true) }

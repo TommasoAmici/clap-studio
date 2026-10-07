@@ -9,7 +9,7 @@ enum ViewMode: String, CaseIterable, Identifiable {
 }
 
 enum SmartFilter: String, CaseIterable, Identifiable {
-    case all = "All Samples", mostUsed = "Most Used", neverUsed = "Never Used", recentlyGrabbed = "Recently Grabbed"
+    case all = "All Samples", mostUsed = "Most Used", neverUsed = "Never Used", recentlyGrabbed = "Recently Grabbed", hidden = "Hidden"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -17,6 +17,7 @@ enum SmartFilter: String, CaseIterable, Identifiable {
         case .mostUsed: return "flame"
         case .neverUsed: return "circle.dashed"
         case .recentlyGrabbed: return "clock"
+        case .hidden: return "eye.slash"
         }
     }
 }
@@ -56,6 +57,10 @@ final class AppModel {
     var filterVersion = 0       // bumps whenever `visible` is recomputed (the map follows it)
     var filtersActive = false
     var folderTree: [FolderNode] = []
+    var hiddenCount = 0
+    var duplicateGroups: [DuplicateGroup]?
+    var duplicateSearchRunning = false
+    var showDuplicates = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
     // MARK: filters
@@ -190,6 +195,7 @@ final class AppModel {
         sampleByID = Dictionary(uniqueKeysWithValues: samples.map { ($0.id, $0) })
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
+        updateHiddenCount()
         refilter()
         if let id = selectedID, sampleByID[id] == nil { selectedID = nil }
     }
@@ -198,9 +204,9 @@ final class AppModel {
         // While a semantic search is running, keep showing the previous results (list and map)
         // instead of flashing a partial or empty set; the finished search calls refilter() again.
         if searchPending { return }
-        var list = samples
+        var list = smartFilter == .hidden ? samples.filter(\.hidden) : samples.filter { !$0.hidden }
         switch smartFilter {
-        case .all: break
+        case .all, .hidden: break
         case .mostUsed: list = list.filter { $0.useCount > 0 }
         case .neverUsed: list = list.filter { $0.useCount == 0 }
         case .recentlyGrabbed: list = list.filter { $0.lastUsed != nil }
@@ -232,7 +238,7 @@ final class AppModel {
 
     private func publish(_ list: [SampleRecord]) {
         visible = list
-        filtersActive = smartFilter != .all || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filtersActive = smartFilter != .all || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1
     }
 

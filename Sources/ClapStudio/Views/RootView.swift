@@ -44,6 +44,7 @@ struct RootView: View {
                 }
             }
         }
+        .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {
