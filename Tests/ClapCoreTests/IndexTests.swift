@@ -112,3 +112,26 @@ func makeBlobs(clusters: Int, perCluster: Int, dim: Int, spread: Float = 0.05, s
         #expect(few.count == 10 && few.allSatisfy { $0.isFinite })
     }
 }
+
+@Suite struct SpatialGridTests {
+    @Test func nearestMatchesBruteForce() {
+        var rng = SplitMix64(seed: 11)
+        let n = 5000
+        let xy = (0..<(n * 2)).map { _ in rng.nextFloat() * 2 - 1 }
+        let grid = SpatialGrid(xy: xy)
+        for _ in 0..<200 {
+            let p = SIMD2<Float>(rng.nextFloat() * 2 - 1, rng.nextFloat() * 2 - 1)
+            let r: Float = 0.03
+            let expected = (0..<n).filter { hypotf(xy[$0 * 2] - p.x, xy[$0 * 2 + 1] - p.y) <= r }
+                .min { hypotf(xy[$0 * 2] - p.x, xy[$0 * 2 + 1] - p.y) < hypotf(xy[$1 * 2] - p.x, xy[$1 * 2 + 1] - p.y) }
+            #expect(grid.nearest(to: p, within: r) == expected)
+        }
+    }
+
+    @Test func emptyAndFarQueries() {
+        #expect(SpatialGrid(xy: []).nearest(to: .zero, within: 1) == nil)
+        let g = SpatialGrid(xy: [0, 0, 1, 1])
+        #expect(g.nearest(to: SIMD2(50, 50), within: 0.5) == nil)
+        #expect(g.nearest(to: SIMD2(0.9, 1.1), within: 0.5) == 1)
+    }
+}
