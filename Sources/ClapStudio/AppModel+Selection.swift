@@ -101,7 +101,6 @@ extension AppModel {
     func reloadCues() {
         guard let store, let id = selectedID else { cues = []; return }
         cues = store.cues(sampleID: id)
-        cuesDirty = store.cuesDirty(sampleID: id)
         mutate(id) { $0.cueCount = self.cues.count }
     }
 
@@ -111,7 +110,7 @@ extension AppModel {
 
     func addCue(atFrame frame: Int64) {
         guard let id = selectedID, let editor = cueEditor else { return }
-        run { let cue = try editor.add(sampleID: id, frame: frame); self.selectedCueID = cue.id }
+        editSelected { let cue = try editor.add(sampleID: id, frame: frame); self.selectedCueID = cue.id }
     }
 
     func addCueAtPlayhead() { addCue(atSeconds: playback.playhead() ?? 0) }
@@ -134,21 +133,21 @@ extension AppModel {
 
     func moveCue(_ id: Int64, toSeconds seconds: Double) {
         guard let editor = cueEditor else { return }
-        run { try editor.move(id: id, to: Int64(max(0, seconds) * self.nativeRate)) }
+        editSelected { try editor.move(id: id, to: Int64(max(0, seconds) * self.nativeRate)) }
     }
 
     func renameCue(_ id: Int64, to label: String) {
         guard let editor = cueEditor else { return }
-        run { try editor.rename(id: id, to: label) }
+        editSelected { try editor.rename(id: id, to: label) }
     }
 
     func removeCue(_ id: Int64) {
         guard let editor = cueEditor else { return }
-        run { try editor.remove(id: id); if self.selectedCueID == id { self.selectedCueID = nil } }
+        editSelected { try editor.remove(id: id); if self.selectedCueID == id { self.selectedCueID = nil } }
     }
 
-    func undoCue() { guard let editor = cueEditor else { return }; run { try editor.undo() } }
-    func redoCue() { guard let editor = cueEditor else { return }; run { try editor.redo() } }
+    func undoCue() { guard let editor = cueEditor else { return }; run(affecting: { try editor.undo() }) }
+    func redoCue() { guard let editor = cueEditor else { return }; run(affecting: { try editor.redo() }) }
 
     func playCue(_ cue: CuePoint) {
         selectedCueID = cue.id
@@ -162,29 +161,37 @@ extension AppModel {
 
     func seconds(for cue: CuePoint) -> Double { Double(cue.positionFrames) / nativeRate }
 
-    /// Explicit, confirmed action: embeds the app's cues into the WAV file.
-    func writeCuesToFile(keepBackup: Bool) {
-        guard let store, let sample = selectedSample else { return }
+    /// Why the selected sample's cues are not (or not yet) stored in its file, if they are not.
+    var cueFileNote: String? {
+        guard let sample = selectedSample else { return nil }
+        if let problem = cueSyncIssues[sample.id] { return "Could not save cues into the file (\(problem)). They are kept in Clap Studio." }
+        if !cues.isEmpty && !CueFileSync.canStoreCues(ext: sample.ext) {
+            return "Only WAV files can hold cues, so these stay in Clap Studio."
+        }
+        return nil
+    }
+
+    func handleCueSync(_ outcome: CueFileSync.Outcome) {
+        switch outcome {
+        case .written(let id):
+            cueSyncIssues[id] = nil
+            if let fresh = store?.sample(id: id) { mutate(id) { $0.size = fresh.size; $0.mtime = fresh.mtime } }
+        case .appOnly(let id): cueSyncIssues[id] = nil
+        case .failed(let id, let message): cueSyncIssues[id] = message
+        }
+    }
+
+    /// Runs a cue edit on the selected sample, refreshes the list and schedules the file update.
+    private func editSelected(_ body: () throws -> Void) {
+        run(affecting: { try body(); return self.selectedID })
+    }
+
+    /// `body` returns the id of the sample it changed (undo/redo may touch one that is no longer selected).
+    private func run(affecting body: () throws -> Int64?) {
         do {
-            try store.writeCuesToFile(sample: sample, keepBackup: keepBackup)
-            if let refreshed = store.loadSamples().first(where: { $0.id == sample.id }) {
-                mutate(sample.id) { $0.size = refreshed.size; $0.mtime = refreshed.mtime }
-            }
+            let changed = try body()
             reloadCues()
+            if let changed { cueSync?.markChanged(sampleID: changed) }
         } catch { errorMessage = String(describing: error) }
-    }
-
-    func reloadCuesFromFile() {
-        guard let store, let sample = selectedSample else { return }
-        do { try store.reloadCuesFromFile(sample: sample); reloadCues() } catch { errorMessage = String(describing: error) }
-    }
-
-    var canWriteCuesToFile: Bool {
-        guard let ext = selectedSample?.ext else { return false }
-        return ext == "wav" || ext == "wave"
-    }
-
-    private func run(_ body: () throws -> Void) {
-        do { try body(); reloadCues() } catch { errorMessage = String(describing: error) }
     }
 }

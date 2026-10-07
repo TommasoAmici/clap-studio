@@ -206,7 +206,13 @@ public final class LibraryStore: @unchecked Sendable {
 
     // MARK: loading
 
-    public func loadSamples() -> [SampleRecord] {
+    public func loadSamples() -> [SampleRecord] { querySamples(extraFilter: "", params: []) }
+
+    public func sample(id: Int64) -> SampleRecord? {
+        querySamples(extraFilter: "AND s.id = ?", params: [.int(id)]).first
+    }
+
+    private func querySamples(extraFilter: String, params: [SQLValue]) -> [SampleRecord] {
         (try? db.query("""
             SELECT s.id, s.root_id, r.path, s.rel_path, s.name, s.ext,
                    COALESCE(s.duration, 0), COALESCE(s.sample_rate, 0), COALESCE(s.channels, 0),
@@ -215,8 +221,8 @@ public final class LibraryStore: @unchecked Sendable {
                    (SELECT MAX(ts) FROM usage_events u WHERE u.sample_id = s.id),
                    (SELECT COUNT(*) FROM cue_points c WHERE c.sample_id = s.id)
             FROM samples s JOIN roots r ON r.id = s.root_id
-            WHERE s.status IN ('ok', 'pending')
-            """) {
+            WHERE s.status IN ('ok', 'pending') \(extraFilter)
+            """, params) {
             SampleRecord(
                 id: $0.int(0), rootID: $0.int(1), rootPath: $0.text(2), relPath: $0.text(3),
                 name: $0.text(4), ext: $0.text(5), duration: $0.double(6), sampleRate: $0.double(7),

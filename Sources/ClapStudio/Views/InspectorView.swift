@@ -100,8 +100,6 @@ struct SimilarList: View {
 
 struct CuePanel: View {
     @Environment(AppModel.self) private var model
-    @State private var confirmWrite = false
-    @State private var keepBackup = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -128,27 +126,9 @@ struct CuePanel: View {
                 CueRow(cue: cue, number: index + 1)
             }
 
-            if model.canWriteCuesToFile || !model.cues.isEmpty {
-                HStack {
-                    if model.cuesDirty {
-                        Label("Changes live in the app only", systemImage: "externaldrive.badge.xmark")
-                            .font(.caption).foregroundStyle(.orange)
-                    }
-                    Spacer()
-                    Button("Re-read File") { model.reloadCuesFromFile() }.controlSize(.small)
-                    Button("Write to File…") { confirmWrite = true }
-                        .controlSize(.small).disabled(!model.canWriteCuesToFile)
-                        .help(model.canWriteCuesToFile ? "Embed cues into the WAV file" : "Only WAV files can be written")
-                }
+            if let note = model.cueFileNote {
+                Label(note, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
             }
-        }
-        .confirmationDialog("Write cue points into \(model.selectedSample?.name ?? "this file")?",
-                            isPresented: $confirmWrite, titleVisibility: .visible) {
-            Button("Write and Keep Backup (.bak)") { model.writeCuesToFile(keepBackup: true) }
-            Button("Write Without Backup", role: .destructive) { model.writeCuesToFile(keepBackup: false) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This modifies the audio file on disk. Only the cue chunks are rewritten; the audio data is verified to be unchanged.")
         }
     }
 }

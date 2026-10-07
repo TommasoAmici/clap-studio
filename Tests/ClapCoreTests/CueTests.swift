@@ -178,3 +178,83 @@ func didThrow(_ body: () throws -> Any?) -> Bool {
         #expect(store.cues(sampleID: id).isEmpty)
     }
 }
+
+private final class OutcomeLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [CueFileSync.Outcome] = []
+    func add(_ o: CueFileSync.Outcome) { lock.lock(); items.append(o); lock.unlock() }
+    var all: [CueFileSync.Outcome] { lock.lock(); defer { lock.unlock() }; return items }
+}
+
+@Suite struct CueFileSyncTests {
+    private func library(files: [String]) throws -> (LibraryStore, URL) {
+        let dir = TestSupport.tempDir()
+        for f in files {
+            if f.hasSuffix(".wav") { try makeWav().write(to: dir.appendingPathComponent(f)) }
+            else { try Data(count: 64).write(to: dir.appendingPathComponent(f)) }
+        }
+        let store = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        return (store, dir)
+    }
+
+    @Test func editsAreWrittenToTheWavAfterTheDebounce() async throws {
+        let (store, dir) = try library(files: ["a.wav"])
+        let log = OutcomeLog()
+        let sync = CueFileSync(store: store, delay: 0.05) { log.add($0) }
+        let sample = try #require(store.loadSamples().first)
+        let editor = CueEditor(store: store)
+
+        try editor.add(sampleID: sample.id, frame: 100); sync.markChanged(sampleID: sample.id)
+        try editor.add(sampleID: sample.id, frame: 700, label: "snare"); sync.markChanged(sampleID: sample.id)
+        try await Task.sleep(for: .milliseconds(500))
+
+        let url = dir.appendingPathComponent("a.wav")
+        #expect(CueFileReader.read(url: url).map(\.frame) == [100, 700])
+        #expect(CueFileReader.read(url: url).last?.label == "snare")
+        #expect(log.all == [.written(sampleID: sample.id)], "two quick edits coalesce into one write")
+        #expect(!store.cuesDirty(sampleID: sample.id))
+
+        // Deleting every cue clears them from the file as well.
+        for cue in store.cues(sampleID: sample.id) { try editor.remove(id: cue.id) }
+        sync.markChanged(sampleID: sample.id)
+        sync.flush()
+        #expect(CueFileReader.read(url: url).isEmpty)
+    }
+
+    @Test func flushWritesPendingEditsImmediately() throws {
+        let (store, dir) = try library(files: ["a.wav"])
+        let sync = CueFileSync(store: store, delay: 60)
+        let sample = try #require(store.loadSamples().first)
+        try CueEditor(store: store).add(sampleID: sample.id, frame: 321)
+        sync.markChanged(sampleID: sample.id)
+        sync.flush()
+        #expect(CueFileReader.read(url: dir.appendingPathComponent("a.wav")).map(\.frame) == [321])
+    }
+
+    @Test func otherFormatsStayAppOnlyAndUntouched() async throws {
+        let (store, dir) = try library(files: ["b.aif"])
+        let log = OutcomeLog()
+        let sync = CueFileSync(store: store, delay: 0.02) { log.add($0) }
+        let sample = try #require(store.loadSamples().first)
+        try CueEditor(store: store).add(sampleID: sample.id, frame: 5)
+        sync.markChanged(sampleID: sample.id)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(log.all == [.appOnly(sampleID: sample.id)])
+        #expect(try Data(contentsOf: dir.appendingPathComponent("b.aif")) == Data(count: 64))
+        #expect(store.cues(sampleID: sample.id).count == 1)
+    }
+
+    @Test func leftoverUnsavedCuesAreSyncedOnStartup() throws {
+        let (store, dir) = try library(files: ["a.wav"])
+        let sample = try #require(store.loadSamples().first)
+        try CueEditor(store: store).add(sampleID: sample.id, frame: 42)   // "previous session": never written
+        #expect(store.dirtyCueSampleIDs().isEmpty, "pending samples are not eligible until indexed")
+        try store.db.run("UPDATE samples SET status = 'ok' WHERE id = ?", [.int(sample.id)])
+        let sync = CueFileSync(store: store, delay: 0.01)
+        sync.syncAllDirty()
+        sync.flush()
+        #expect(CueFileReader.read(url: dir.appendingPathComponent("a.wav")).map(\.frame) == [42])
+    }
+}

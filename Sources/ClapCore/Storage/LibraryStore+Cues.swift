@@ -1,7 +1,6 @@
 import Foundation
 
-/// Cue point persistence. The DB is the source of truth; files are only touched by
-/// the explicit `writeCuesToFile` action.
+/// Cue point persistence. The DB is the source of truth; `CueFileSync` mirrors edits into WAV files.
 extension LibraryStore {
     public func cues(sampleID: Int64) -> [CuePoint] {
         (try? db.query("""
@@ -15,6 +14,11 @@ extension LibraryStore {
 
     public func cuesDirty(sampleID: Int64) -> Bool {
         ((try? db.scalarInt("SELECT cues_dirty FROM samples WHERE id = ?", [.int(sampleID)])) ?? 0) != 0
+    }
+
+    /// Samples whose cues changed in the app and have not been written to their file yet.
+    public func dirtyCueSampleIDs() -> [Int64] {
+        (try? db.query("SELECT id FROM samples WHERE cues_dirty = 1 AND status = 'ok' ORDER BY id") { $0.int(0) }) ?? []
     }
 
     private func markDirty(_ sampleID: Int64) throws {
@@ -78,7 +82,7 @@ extension LibraryStore {
         }
     }
 
-    /// Writes the app's cues into a WAV file (explicit user action) and keeps the DB
+    /// Writes the app's cues into a WAV file and keeps the DB
     /// consistent so the file is not re-embedded afterwards.
     @discardableResult
     public func writeCuesToFile(sample: SampleRecord, keepBackup: Bool) throws -> URL? {
@@ -94,15 +98,5 @@ extension LibraryStore {
             try db.run("UPDATE samples SET cues_dirty = 0 WHERE id = ?", [.int(sample.id)])
         }
         return backup
-    }
-
-    /// Re-reads cues from the file, replacing the app's cue list for this sample.
-    public func reloadCuesFromFile(sample: SampleRecord) throws {
-        let fileCues = CueFileReader.read(url: sample.url)
-        try db.transaction {
-            try db.run("DELETE FROM cue_points WHERE sample_id = ?", [.int(sample.id)])
-            try db.run("UPDATE samples SET cues_dirty = 0 WHERE id = ?", [.int(sample.id)])
-            for fc in fileCues { try insertCue(sampleID: sample.id, frame: fc.frame, label: fc.label, source: .file, fileSynced: true) }
-        }
     }
 }

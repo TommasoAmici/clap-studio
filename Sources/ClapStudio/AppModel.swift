@@ -45,6 +45,7 @@ final class AppModel {
     @ObservationIgnored var store: LibraryStore?
     @ObservationIgnored var analyzer: LibraryAnalyzer?
     @ObservationIgnored var cueEditor: CueEditor?
+    @ObservationIgnored var cueSync: CueFileSync?
     @ObservationIgnored var embedder: EmbeddingProvider?
     @ObservationIgnored let player = SamplePlayer()
     @ObservationIgnored var cancelToken = CancelToken()
@@ -76,7 +77,7 @@ final class AppModel {
     var similar: [SimilarResult] = []
     var similarRows: [Int] = []
     var cues: [CuePoint] = []
-    var cuesDirty = false
+    var cueSyncIssues: [Int64: String] = [:]
     var waveform: [Float] = []
     var selectedCueID: Int64?
     /// Frame (in the file's own sample rate) where the user last clicked the waveform to audition.
@@ -122,6 +123,13 @@ final class AppModel {
             self.store = store
             analyzer = LibraryAnalyzer(store: store)
             cueEditor = CueEditor(store: store)
+            let sync = CueFileSync(store: store) { [weak self] outcome in
+                Task { @MainActor in self?.handleCueSync(outcome) }
+            }
+            cueSync = sync
+            sync.syncAllDirty()
+            NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
+                                                   queue: nil) { _ in sync.flush() }
             roots = store.roots()
             reloadSamples()
             failedCount = store.failedCount()
