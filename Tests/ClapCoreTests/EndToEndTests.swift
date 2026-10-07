@@ -162,3 +162,34 @@ extension EndToEndTests {
         }
     }
 }
+
+extension EndToEndTests {
+    @Test func fileOutsideTheLibraryFindsItsTwin() async throws {
+        let choice = EmbedderFactory.make()
+        let dir = TestSupport.tempDir(), outside = TestSupport.tempDir()
+        var rng = SplitMix64(seed: 11)
+        func tone(_ f: Double) -> (Double) -> Float { { t in Float(sin(2 * .pi * f * t)) * Float(exp(-t * 4)) * 0.7 } }
+        func noise() -> (Double) -> Float {
+            let n = (0..<44_100).map { _ in rng.nextFloat() * 2 - 1 }
+            return { t in n[min(n.count - 1, Int(t * 44_100))] * Float(exp(-t * 30)) * 0.7 }
+        }
+        let low = tone(110), high = tone(3000), hat = noise(), query = tone(115)
+        try writeTestWav(dir.appendingPathComponent("low.wav"), seconds: 0.8) { low($0) }
+        try writeTestWav(dir.appendingPathComponent("high.wav"), seconds: 0.8) { high($0) }
+        try writeTestWav(dir.appendingPathComponent("hat.wav"), seconds: 0.2) { hat($0) }
+        try writeTestWav(outside.appendingPathComponent("query.wav"), seconds: 0.8) { query($0) }
+
+        let store = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        _ = await IndexingPipeline(store: store, embedder: choice.provider).run(onProgress: { _ in })
+        try store.setMeta("model_version", choice.provider.version)
+        let names = Dictionary(uniqueKeysWithValues: store.loadSamples().map { ($0.id, $0.name) })
+
+        let searcher = ExampleSearcher(store: store)
+        let hits = try searcher.similar(to: outside.appendingPathComponent("query.wav"), limit: 3)
+        #expect(hits.count == 3)
+        #expect(names[hits[0].sampleID] == "low", "ranked \(hits.map { names[$0.sampleID] ?? "?" })")
+        #expect(throws: ExampleSearchError.self) { try searcher.similar(to: outside.appendingPathComponent("notes.txt")) }
+    }
+}

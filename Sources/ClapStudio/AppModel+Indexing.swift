@@ -125,6 +125,7 @@ extension AppModel {
         if layoutChanged { mapVersion += 1 }
         clusterVersion += 1
         textSearcher?.invalidate()
+        exampleSearcher?.invalidate()
         prepareTextSearch()
         hoverRow = nil
         buildClusterInfo()

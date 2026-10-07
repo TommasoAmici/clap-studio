@@ -59,6 +59,9 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    var sweepList: [Int64] = []             // the neighbours being stepped through with ← →
+    var exampleQuery: ExampleQuery?          // set while the list shows sounds similar to a dropped file
+    @ObservationIgnored var exampleSearcher: ExampleSearcher?
     var collections: [CollectionRecord] = []
     var collectionSelection: Int64? { didSet { reloadCollections(); refilter() } }
     var collectionMembers: Set<Int64> = []
@@ -70,7 +73,7 @@ final class AppModel {
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
     // MARK: filters
-    var searchText = "" { didSet { scheduleSoundSearch(); refilter() } }
+    var searchText = "" { didSet { if !searchText.isEmpty { exampleQuery = nil }; scheduleSoundSearch(); refilter() } }
     var textSearchAvailable = false
     var soundScores: [Int64: Float] = [:]       // semantic similarity of every sample to `soundScoresQuery`
     var soundScoresQuery = ""
@@ -131,6 +134,7 @@ final class AppModel {
             self.store = store
             analyzer = LibraryAnalyzer(store: store)
             cueEditor = CueEditor(store: store)
+            exampleSearcher = ExampleSearcher(store: store)
             let sync = CueFileSync(store: store) { [weak self] outcome in
                 Task { @MainActor in self?.handleCueSync(outcome) }
             }
@@ -224,6 +228,11 @@ final class AppModel {
             list = list.filter { $0.rootID == node.rootID && ($0.relPath.hasPrefix(node.path) || node.path.isEmpty) }
         }
         if descriptorFilter.isActive { list = list.filter(descriptorFilter.matches) }
+        if let example = exampleQuery {
+            let ranked = list.filter { example.scores[$0.id] != nil }.sorted { example.scores[$0.id]! > example.scores[$1.id]! }
+            publish(ranked)
+            return
+        }
         let query = searchText.trimmingCharacters(in: .whitespaces)
         if !query.isEmpty {
             let named = Set(list.filter {
@@ -247,7 +256,7 @@ final class AppModel {
 
     private func publish(_ list: [SampleRecord]) {
         visible = list
-        filtersActive = smartFilter != .all || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filtersActive = smartFilter != .all || exampleQuery != nil || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1
     }
 

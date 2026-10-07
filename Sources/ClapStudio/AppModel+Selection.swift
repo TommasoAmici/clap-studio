@@ -4,8 +4,9 @@ import Foundation
 extension AppModel {
     // MARK: selection and similarity
 
-    func select(_ id: Int64?, play: Bool = false) {
+    func select(_ id: Int64?, play: Bool = false, keepSweep: Bool = false) {
         guard id != selectedID || play else { return }
+        if !keepSweep { sweepList = [] }
         if id != selectedID { startMarkerFrame = nil }
         selectedID = id
         selectedCueID = nil

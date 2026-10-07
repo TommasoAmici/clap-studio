@@ -45,11 +45,26 @@ struct RootView: View {
                 }
             }
         }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let file = urls.first(where: { FolderScanner.isSupported($0) }) else { return false }
+            model.findSimilar(toFileAt: file)
+            return true
+        }
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {
             model.togglePlayback()
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            guard model.selectedID != nil else { return .ignored }
+            model.sweep(1)
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            guard model.selectedID != nil else { return .ignored }
+            model.sweep(-1)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "f")) { _ in

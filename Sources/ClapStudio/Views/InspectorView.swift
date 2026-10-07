@@ -75,7 +75,14 @@ struct SimilarList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Similar sounds").font(.subheadline.bold())
+            HStack {
+                Text("Similar sounds").font(.subheadline.bold())
+                Spacer()
+                if let sweep = model.sweepPosition {
+                    Text("\(sweep.index) of \(sweep.count)").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
+                Text("← → to step through").font(.caption2).foregroundStyle(.tertiary)
+            }
             if model.snapshot == nil {
                 Text(model.isIndexing ? "Available once indexing finishes." : "Not analysed yet.")
                     .font(.caption).foregroundStyle(.secondary)

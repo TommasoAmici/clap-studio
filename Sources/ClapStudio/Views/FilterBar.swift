@@ -32,6 +32,15 @@ struct FilterBar: View {
 
             CategoryFilterMenu()
 
+            if let example = model.exampleQuery {
+                HStack(spacing: 4) {
+                    Image(systemName: "waveform.badge.magnifyingglass")
+                    Text("Like \(example.name)").lineLimit(1)
+                    Button { model.clearExample() } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(Color.accentColor.opacity(0.18), in: Capsule())
+            }
             Spacer()
             if model.descriptorFilter.isActive {
                 Button("Clear") { model.descriptorFilter.reset() }.buttonStyle(.borderless)
