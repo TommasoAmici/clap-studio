@@ -74,13 +74,13 @@ struct RootView: View {
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "f")) { _ in
-            guard let id = model.selectedID else { return .ignored }
-            model.toggleFavorite([id])
+            guard !model.actionTargets.isEmpty else { return .ignored }
+            model.toggleFavorite(model.actionTargets)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "t")) { _ in
-            guard let id = model.selectedID else { return .ignored }
-            model.addToTray([id])
+            guard !model.actionTargets.isEmpty else { return .ignored }
+            model.addToTray(model.actionTargets)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "m")) { _ in

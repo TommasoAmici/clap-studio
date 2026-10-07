@@ -9,6 +9,7 @@ extension AppModel {
         if !keepSweep { sweepList = [] }
         if id != selectedID { startMarkerFrame = nil }
         selectedID = id
+        if tableSelection != (id.map { [$0] } ?? []) { tableSelection = id.map { [$0] } ?? [] }
         selectedCueID = nil
         guard let id, let sample = sampleByID[id] else {
             similar = []; similarRows = []; cues = []; waveform = []
@@ -18,6 +19,12 @@ extension AppModel {
         updateSimilar(for: id)
         loadWaveform(sample)
         if play && autoplay { playSample(sample) }
+    }
+
+    /// What a command acts on: every highlighted row, or just the selected sample.
+    var actionTargets: [Int64] {
+        if tableSelection.count > 1 { return Array(tableSelection) }
+        return selectedID.map { [$0] } ?? []
     }
 
     func updateSimilar(for id: Int64) {

@@ -6,7 +6,9 @@ struct LibraryTableView: View {
 
     var body: some View {
         @Bindable var model = model
-        let selection = Binding<Int64?>(get: { model.selectedID }, set: { model.select($0, play: true) })
+        let selection = Binding<Set<Int64>>(get: { model.tableSelection }, set: { new in
+            if new.count == 1 { model.select(new.first, play: true) } else { model.tableSelection = new }
+        })
 
         // The name and folder cells are drag sources (for dropping into a DAW). A drag source swallows the
         // click that would normally select the row, so those cells select and preview explicitly.
@@ -65,25 +67,29 @@ struct LibraryTableView: View {
             .width(56)
         }
         .contextMenu(forSelectionType: Int64.self) { ids in
-            if let id = ids.first, let s = model.sampleByID[id] {
-                Button("Find Similar Sounds") { model.showSimilar(to: id) }
-                Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([s.url]) }
+            let list = Array(ids)
+            let samples = list.compactMap { model.sampleByID[$0] }
+            if let first = samples.first {
+                if list.count == 1 {
+                    Button("Find Similar Sounds") { model.showSimilar(to: first.id) }
+                }
+                Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) }
                 Divider()
-                Button(s.favorite ? "Remove from Favorites" : "Add to Favorites") { model.toggleFavorite([id]) }
+                Button(samples.allSatisfy(\.favorite) ? "Remove from Favorites" : "Add to Favorites") { model.toggleFavorite(list) }
                 Menu("Add to Collection") {
-                    ForEach(model.collections) { c in Button(c.name) { model.add([id], toCollection: c.id) } }
+                    ForEach(model.collections) { c in Button(c.name) { model.add(list, toCollection: c.id) } }
                     if !model.collections.isEmpty { Divider() }
-                    Button("New Collection…") { model.newCollectionSeed = [id] }
+                    Button("New Collection…") { model.newCollectionSeed = list }
                 }
                 if let current = model.collectionSelection {
-                    Button("Remove from This Collection") { model.remove([id], fromCollection: current) }
+                    Button("Remove from This Collection") { model.remove(list, fromCollection: current) }
                 }
-                Button("Add to Tray") { model.addToTray([id]) }
+                Button("Add to Tray") { model.addToTray(list) }
                 Divider()
-                if s.hidden {
-                    Button("Show in Library Again") { model.unhide([id]) }
+                if samples.allSatisfy(\.hidden) {
+                    Button("Show in Library Again") { model.unhide(list) }
                 } else {
-                    Button("Hide from Library") { model.hide([id]) }
+                    Button("Hide from Library") { model.hide(list) }
                 }
             }
         } primaryAction: { ids in

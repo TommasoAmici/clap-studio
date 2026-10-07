@@ -86,6 +86,7 @@ final class AppModel {
     // MARK: selection and similarity
     var viewMode: ViewMode = .library
     var selectedID: Int64?
+    var tableSelection: Set<Int64> = []     // rows highlighted in the list (more than one for batch actions)
     var similar: [SimilarResult] = []
     var similarRows: [Int] = []
     var cues: [CuePoint] = []
