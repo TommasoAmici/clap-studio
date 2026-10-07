@@ -52,9 +52,31 @@ struct LibraryTableView: View {
             if let id = ids.first { model.select(id, play: true) }
         }
         .overlay {
-            if model.visible.isEmpty && !model.isIndexing {
-                ContentUnavailableView(model.samples.isEmpty ? "No samples yet" : "No matches",
-                                       systemImage: "magnifyingglass")
+            if model.visible.isEmpty {
+                if model.searchPending {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("Searching…").foregroundStyle(.secondary)
+                    }
+                } else if !model.isIndexing {
+                    ContentUnavailableView(model.samples.isEmpty ? "No samples yet" : "No matches",
+                                           systemImage: "magnifyingglass")
+                }
+            }
+        }
+        .overlay(alignment: .top) {
+            // Name matches are shown at once; the semantic results join them when ready.
+            if model.searchPending && !model.visible.isEmpty {
+                Label {
+                    Text("Finding similar sounds…")
+                } icon: {
+                    ProgressView().controlSize(.small)
+                }
+                .font(.caption)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(.regularMaterial, in: Capsule())
+                .padding(.top, 34)
+                .allowsHitTesting(false)
             }
         }
     }

@@ -7,6 +7,12 @@ extension AppModel {
         textSearchAvailable && !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// True from the first keystroke until the semantic results for the current text have arrived,
+    /// so the UI can show progress instead of an empty or partial list.
+    var searchPending: Bool {
+        soundSearchActive && soundScoresQuery != searchText.trimmingCharacters(in: .whitespaces)
+    }
+
     /// Loads the CLAP text encoder when the library was embedded with CLAP.
     func prepareTextSearch() {
         guard let store, store.meta("model_version") == ClapEmbedder.versionTag else {
