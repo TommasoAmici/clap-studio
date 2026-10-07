@@ -15,6 +15,7 @@ struct RootView: View {
                 if model.roots.isEmpty {
                     OnboardingView()
                 } else {
+                    FilterBar()
                     switch model.viewMode {
                     case .library: LibraryTableView()
                     case .map: MapPanel()

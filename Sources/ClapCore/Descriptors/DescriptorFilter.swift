@@ -1,0 +1,47 @@
+import Foundation
+
+/// Filters on measured properties, applied together with the sidebar and search filters.
+public struct DescriptorFilter: Equatable, Sendable {
+    public enum Kind: String, CaseIterable, Sendable { case any = "All", oneShot = "One-shots", loop = "Loops" }
+
+    public var kind: Kind = .any
+    public var bpmMin: Double?
+    public var bpmMax: Double?
+    /// Tonic such as "A" or "C#"; matches both note names ("A1") and keys ("A minor").
+    public var tonic: String?
+    public var category: String?
+
+    public init() {}
+
+    public var isActive: Bool { self != DescriptorFilter() }
+
+    public mutating func reset() { self = DescriptorFilter() }
+
+    public func matches(_ s: SampleRecord) -> Bool {
+        switch kind {
+        case .any: break
+        case .oneShot: if s.isLoop == true { return false }
+        case .loop: if s.isLoop != true { return false }
+        }
+        if bpmMin != nil || bpmMax != nil {
+            guard let bpm = s.effectiveBPM else { return false }
+            if let lo = bpmMin, bpm < lo { return false }
+            if let hi = bpmMax, bpm > hi { return false }
+        }
+        if let tonic {
+            guard let name = s.keyName, Self.tonic(of: name) == tonic else { return false }
+        }
+        if let category, s.effectiveCategory != category { return false }
+        return true
+    }
+
+    /// "A1" -> "A", "C# major" -> "C#".
+    public static func tonic(of keyName: String) -> String? {
+        guard let first = keyName.first, first.isLetter else { return nil }
+        var tonic = String(first)
+        if keyName.dropFirst().first == "#" { tonic += "#" }
+        return tonic
+    }
+
+    public static let tonics = NoteNames.sharps
+}

@@ -63,6 +63,7 @@ final class AppModel {
     var soundScores: [Int64: Float] = [:]       // semantic similarity of every sample to `soundScoresQuery`
     var soundScoresQuery = ""
     var smartFilter: SmartFilter = .all { didSet { refilter() } }
+    var descriptorFilter = DescriptorFilter() { didSet { refilter() } }
     var folderSelection: String? { didSet { refilter() } }   // FolderNode.id, nil = everything
     var sortOrder = [KeyPathComparator(\SampleRecord.name, comparator: .localizedStandard)] { didSet { refilter() } }
 
@@ -205,6 +206,7 @@ final class AppModel {
         if let sel = folderSelection, let node = FolderNode.find(sel, in: folderTree) {
             list = list.filter { $0.rootID == node.rootID && ($0.relPath.hasPrefix(node.path) || node.path.isEmpty) }
         }
+        if descriptorFilter.isActive { list = list.filter(descriptorFilter.matches) }
         let query = searchText.trimmingCharacters(in: .whitespaces)
         if !query.isEmpty {
             let named = Set(list.filter {
@@ -228,7 +230,7 @@ final class AppModel {
 
     private func publish(_ list: [SampleRecord]) {
         visible = list
-        filtersActive = smartFilter != .all || folderSelection != nil || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filtersActive = smartFilter != .all || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1
     }
 

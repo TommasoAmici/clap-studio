@@ -34,6 +34,22 @@ struct LibraryTableView: View {
                 Text(Format.duration(s.duration)).monospacedDigit().foregroundStyle(.secondary)
             }
             .width(60)
+            TableColumn("BPM", value: \.bpmSort) { s in
+                Text(s.bpmText).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .width(52)
+            TableColumn("Key", value: \.keySort) { s in
+                Text(s.keyName ?? "").foregroundStyle(.secondary).lineLimit(1)
+            }
+            .width(min: 40, ideal: 72)
+            TableColumn("Level", value: \.levelSort) { s in
+                Text(s.levelText).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .width(62)
+            TableColumn("Bright", value: \.brightnessSort) { s in
+                Text(s.brightnessText).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .width(64)
             TableColumn("Cues", value: \.cueCount) { s in
                 Text(s.cueCount == 0 ? "" : "\(s.cueCount)").monospacedDigit().foregroundStyle(.secondary)
             }

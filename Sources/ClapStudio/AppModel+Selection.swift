@@ -89,6 +89,16 @@ extension AppModel {
         if let i = visible.firstIndex(where: { $0.id == id }) { change(&visible[i]) }
     }
 
+    // MARK: properties
+
+    /// Sets (or with nil clears) the user's BPM for a loop; the detected value is kept.
+    func setBPM(_ id: Int64, _ bpm: Double?) {
+        guard let store else { return }
+        do { try store.setManualBPM(sampleID: id, bpm) } catch { errorMessage = "Could not save the tempo: \(error)"; return }
+        mutate(id) { $0.bpmManual = bpm }
+        if descriptorFilter.isActive { refilter() }
+    }
+
     // MARK: cues
 
     private var nativeRate: Double { (selectedSample?.sampleRate ?? 0) > 0 ? selectedSample!.sampleRate : 44_100 }

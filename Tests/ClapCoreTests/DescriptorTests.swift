@@ -100,3 +100,37 @@ import Testing
         #expect(NoteNames.name(forHz: 5) == nil)
     }
 }
+
+@Suite struct DescriptorFilterTests {
+    private func sample(loop: Bool?, bpm: Double? = nil, manual: Double? = nil, key: String? = nil) -> SampleRecord {
+        SampleRecord(id: 1, rootID: 1, rootPath: "/", relPath: "a.wav", name: "a", ext: "wav", duration: 1, sampleRate: 44100,
+                     channels: 1, size: 1, mtime: 0, status: .ok, useCount: 0, lastUsed: nil, cueCount: 0,
+                     isLoop: loop, bpm: bpm, bpmManual: manual, keyName: key)
+    }
+
+    @Test func kindAndTempo() {
+        var f = DescriptorFilter()
+        #expect(!f.isActive)
+        f.kind = .loop
+        #expect(f.matches(sample(loop: true)) && !f.matches(sample(loop: false)) && !f.matches(sample(loop: nil)))
+        f.kind = .oneShot
+        #expect(f.matches(sample(loop: false)) && f.matches(sample(loop: nil)) && !f.matches(sample(loop: true)))
+
+        f = DescriptorFilter(); f.bpmMin = 100; f.bpmMax = 130
+        #expect(f.matches(sample(loop: true, bpm: 120)))
+        #expect(!f.matches(sample(loop: true, bpm: 140)))
+        #expect(f.matches(sample(loop: true, bpm: 140, manual: 110)), "the user's value wins")
+        #expect(!f.matches(sample(loop: false)), "no tempo, no match")
+    }
+
+    @Test func tonicMatchesNotesAndKeys() {
+        var f = DescriptorFilter(); f.tonic = "A"
+        #expect(f.matches(sample(loop: false, key: "A1")))
+        #expect(f.matches(sample(loop: true, key: "A minor")))
+        #expect(!f.matches(sample(loop: false, key: "A#1")), "A# is a different tonic")
+        #expect(!f.matches(sample(loop: false, key: nil)))
+        f.tonic = "C#"
+        #expect(f.matches(sample(loop: true, key: "C# major")))
+        #expect(DescriptorFilter.tonic(of: "G minor") == "G")
+    }
+}
