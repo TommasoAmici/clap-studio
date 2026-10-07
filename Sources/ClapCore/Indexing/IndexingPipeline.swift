@@ -61,7 +61,7 @@ public final class IndexingPipeline: @unchecked Sendable {
         return await withTaskGroup(of: [IndexResult].self) { group in
             for _ in 0..<min(workers, jobs.count) {
                 group.addTask {
-                    let extractor = LogMelExtractor()
+                    let extractor = LogMelExtractor(config: embedder.frontEnd)
                     var local: [IndexResult] = []
                     while !isCancelled(), let job = queue.next() {
                         local.append(Self.embedOne(job, extractor: extractor, embedder: embedder))
@@ -78,7 +78,9 @@ public final class IndexingPipeline: @unchecked Sendable {
 
     static func embedOne(_ job: IndexJob, extractor: LogMelExtractor, embedder: EmbeddingProvider) -> IndexResult {
         do {
-            let audio = try AudioDecoder.decodeForAnalysis(url: job.url)
+            let fe = embedder.frontEnd
+            let audio = try AudioDecoder.decodeForAnalysis(url: job.url, maxSeconds: fe.analysisSeconds,
+                                                           sampleRate: Double(fe.sampleRate))
             let mel = extractor.extract(signal: audio.samples)
             let vector = try embedder.embed(mel)
             return .success(id: job.id, duration: audio.duration, sampleRate: audio.sampleRate,

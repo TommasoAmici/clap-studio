@@ -13,7 +13,7 @@ public enum AudioDecodeError: Error, CustomStringConvertible {
 }
 
 public struct AnalysisAudio: Sendable {
-    /// Mono samples at `AudioDecoder.analysisRate`, at most `maxSeconds` long.
+    /// Mono samples at the requested analysis rate, at most `maxSeconds` long.
     public let samples: [Float]
     /// Duration of the whole file in seconds.
     public let duration: Double
@@ -22,10 +22,9 @@ public struct AnalysisAudio: Sendable {
 }
 
 public enum AudioDecoder {
-    public static let analysisRate = 32_000.0
-
-    /// Decodes the first `maxSeconds` of a file to mono 32 kHz float for analysis.
-    public static func decodeForAnalysis(url: URL, maxSeconds: Double = 4) throws -> AnalysisAudio {
+    /// Decodes the first `maxSeconds` of a file to mono float at `sampleRate` for analysis.
+    public static func decodeForAnalysis(url: URL, maxSeconds: Double = 4,
+                                         sampleRate analysisRate: Double = 32_000) throws -> AnalysisAudio {
         let file = try AVAudioFile(forReading: url)
         let format = file.processingFormat
         let total = file.length
@@ -38,12 +37,12 @@ public enum AudioDecoder {
         try file.read(into: input, frameCount: frames)
 
         let duration = Double(total) / format.sampleRate
-        let mono = try toMono32k(input)
+        let mono = try toMono(input, rate: analysisRate)
         return AnalysisAudio(samples: mono, duration: duration,
                              sampleRate: format.sampleRate, channels: Int(format.channelCount))
     }
 
-    static func toMono32k(_ input: AVAudioPCMBuffer) throws -> [Float] {
+    static func toMono(_ input: AVAudioPCMBuffer, rate analysisRate: Double) throws -> [Float] {
         let src = input.format
         guard let dst = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: analysisRate,
                                       channels: 1, interleaved: false) else {
