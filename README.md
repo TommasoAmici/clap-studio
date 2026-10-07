@@ -8,6 +8,13 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 - **Preview**: select a row (or press space) to hear it; clicking the waveform plays from that point.
 - **Drag and drop** any sample (table row, map dot, inspector handle, similar-sounds list) into Ableton or any DAW. Each drag is counted; the "Uses" column and the *Most used* / *Never used* / *Recently grabbed* filters show which samples you keep reusing.
 - **Cue points**: read from WAV/AIFF files, edit in the app (click the waveform to audition from a spot, `M` sets a cue exactly there, option-click, drag flags, 1-9 to jump, undo/redo). Edits are saved automatically: the app's database is updated at once and, a moment later, WAV files get the cues embedded (only the cue chunks change; the write is verified and atomic) so other software sees them. Other formats keep their cues in the app only.
+- **Sound properties**: loudness, brightness, tempo (loops), pitch or key, and loop vs one-shot are measured at indexing time. They show as sortable columns and filter from the bar above the list and map; the tempo can be corrected in the inspector.
+- **Categories**: with CLAP, every sample is sorted into one of 20 categories (kick, snare, pad, vocal, ...) by comparing it to text descriptions. They appear in the sidebar and can be overridden per sample.
+- **Duplicates**: the sidebar's duplicates button finds identical files and near-identical sounds, keeps the best copy and hides the rest (reversible from the *Hidden* filter; files are never deleted).
+- **Favorites, collections and tray**: star samples (`F`), group them into collections, or put them in the tray (`T`) to drag several into your DAW at once, copy them to a folder, or save them as a collection.
+- **Sweep**: with a sample selected, `←` and `→` step through its closest sounds, previewing each. Drop any audio file on the window to find library sounds like it.
+- **Ideas**: the lightbulb lists never-used sounds that sit next to the samples you grab most.
+- **Project tempo and key**: set them in the toolbar; loops then preview time-stretched to the tempo and tonal sounds transposed to the key (previews only; dragged files are untouched).
 
 ## Persistence
 
