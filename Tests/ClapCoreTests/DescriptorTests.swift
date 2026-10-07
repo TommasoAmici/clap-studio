@@ -231,3 +231,30 @@ import Testing
         #expect(!store.loadSamples()[0].hidden)
     }
 }
+
+@Suite struct ReuseInsightsTests {
+    private func record(_ id: Int64, uses: Int, hidden: Bool = false) -> SampleRecord {
+        var s = SampleRecord(id: id, rootID: 1, rootPath: "/", relPath: "s\(id).wav", name: "s\(id)", ext: "wav", duration: 1,
+                             sampleRate: 44100, channels: 1, size: 1, mtime: 0, status: .ok, useCount: uses, lastUsed: nil, cueCount: 0)
+        s.hidden = hidden
+        return s
+    }
+
+    @Test func suggestsUnusedNeighboursOfHeavilyUsedSamples() {
+        // 1 and 2 are close; 3 is close to 1; 4 is far away; 5 is close but hidden.
+        let vectors: [[Float]] = [[1, 0, 0], [0.95, 0.31, 0], [0.9, 0, 0.43], [0, 1, 0], [0.99, 0.1, 0]]
+        let flat = vectors.flatMap { v -> [Float] in let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot(); return v.map { $0 / n } }
+        let index = VectorIndex(ids: [1, 2, 3, 4, 5], vectors: flat, dim: 3)
+        let samples = [record(1, uses: 4), record(2, uses: 0), record(3, uses: 0), record(4, uses: 0), record(5, uses: 0, hidden: true)]
+        let result = ReuseInsights.suggestions(samples: samples, index: index, perSample: 2)
+        #expect(result.count == 1)
+        #expect(result[0].favoriteID == 1 && result[0].uses == 4)
+        #expect(result[0].alternatives.map(\.id) == [2, 3], "closest first, hidden skipped, far ones after")
+    }
+
+    @Test func usedNeighboursAreNotAlternatives() {
+        let index = VectorIndex(ids: [1, 2], vectors: [1, 0, 1, 0], dim: 2)
+        let result = ReuseInsights.suggestions(samples: [record(1, uses: 3), record(2, uses: 1)], index: index)
+        #expect(result.filter { $0.favoriteID == 1 }.isEmpty, "everything similar was already used")
+    }
+}
