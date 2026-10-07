@@ -44,11 +44,7 @@ struct RootView: View {
             }
         }
         .searchable(text: $model.searchText, placement: .toolbar,
-                    prompt: model.searchMode == .sound ? "Describe a sound, e.g. punchy 808 kick" : "Search samples")
-        .searchScopes($model.searchMode) {
-            Text("Name").tag(SearchMode.name)
-            if model.textSearchAvailable { Text("Sound").tag(SearchMode.sound) }
-        }
+                    prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {
             model.togglePlayback()
             return .handled

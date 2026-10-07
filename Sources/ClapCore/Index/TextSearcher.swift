@@ -29,6 +29,16 @@ public final class TextSearcher: @unchecked Sendable {
         return vectors.topK(query: embedded, limit: limit).map { TextHit(sampleID: vectors.ids[$0.row], score: $0.score) }
     }
 
+    /// Similarity of the description to every embedded sample, so the UI can combine it with other
+    /// filters and re-rank without searching again.
+    public func scores(for text: String, store: LibraryStore) throws -> [Int64: Float] {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [:] }
+        let vectors = try loadIndex(store: store)
+        let all = vectors.topK(query: try encoder.embed(query), limit: vectors.count)
+        return Dictionary(uniqueKeysWithValues: all.map { (vectors.ids[$0.row], $0.score) })
+    }
+
     private func loadIndex(store: LibraryStore) throws -> VectorIndex {
         lock.lock(); defer { lock.unlock() }
         if let index { return index }

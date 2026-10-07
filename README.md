@@ -30,7 +30,7 @@ swift run -c release ClapBench 50000 2048   # scale benchmark
 
 Three embedders sit behind one protocol:
 
-1. **LAION-CLAP on Core ML** (preferred; HTSAT audio tower, 512-d, trained on audio/text pairs). Create it once with `tools/export_clap.py` (the docstring has the `uv` commands). It also exports the text tower and tokenizer files, which enables the **Sound** search scope: type "punchy 808 kick" or "warm analog pad" and samples are ranked by how well they match the description.
+1. **LAION-CLAP on Core ML** (preferred; HTSAT audio tower, 512-d, trained on audio/text pairs). Create it once with `tools/export_clap.py` (the docstring has the `uv` commands). It also exports the text tower and tokenizer files, which makes the one search box semantic: type "punchy 808 kick" or "warm analog pad" and you get files with that name first, then the sounds that best match the description.
 2. **PANNs CNN14 on Core ML** (AudioSet classifier trunk, 2048-d). Create it with `tools/export_model.py`. Used when CLAP is absent.
 3. **Built-in DSP features** (log-mel band statistics, envelope, centroid). Used automatically when no model is exported; the status bar says so. Good for coarse grouping, noticeably weaker than the neural models.
 

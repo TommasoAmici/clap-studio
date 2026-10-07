@@ -142,3 +142,17 @@ func makeBlobs(clusters: Int, perCluster: Int, dim: Int, spread: Float = 0.05, s
         #expect(g.nearest(to: SIMD2(0.9, 1.1), within: 0.5) == 1)
     }
 }
+
+@Suite struct HybridSearchTests {
+    @Test func nameMatchesComeFirstThenClosestMeaning() {
+        let scores: [Int64: Float] = [1: 0.1, 2: 0.9, 3: 0.5, 4: 0.7, 5: 0.2]
+        let order = HybridSearch.rank(ids: [1, 2, 3, 4, 5], nameMatches: [1, 5], scores: scores, limit: 2)
+        #expect(order == [5, 1, 2, 4], "named files (best score first), then the top 2 by meaning")
+    }
+
+    @Test func respectsCandidatesAndMissingScores() {
+        let order = HybridSearch.rank(ids: [10, 11], nameMatches: [11], scores: [10: 0.3, 99: 1.0])
+        #expect(order == [11, 10])
+        #expect(HybridSearch.rank(ids: [7], nameMatches: [], scores: [:]).isEmpty)
+    }
+}

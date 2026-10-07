@@ -21,11 +21,6 @@ enum SmartFilter: String, CaseIterable, Identifiable {
     }
 }
 
-enum SearchMode: String, CaseIterable, Identifiable {
-    case name = "Name", sound = "Sound"
-    var id: String { rawValue }
-}
-
 struct SimilarResult: Identifiable {
     let sample: SampleRecord
     let score: Float
@@ -64,9 +59,9 @@ final class AppModel {
 
     // MARK: filters
     var searchText = "" { didSet { scheduleSoundSearch(); refilter() } }
-    var searchMode: SearchMode = .name { didSet { scheduleSoundSearch(); refilter() } }
     var textSearchAvailable = false
-    var soundScores: [Int64: Float] = [:]
+    var soundScores: [Int64: Float] = [:]       // semantic similarity of every sample to `soundScoresQuery`
+    var soundScoresQuery = ""
     var smartFilter: SmartFilter = .all { didSet { refilter() } }
     var folderSelection: String? { didSet { refilter() } }   // FolderNode.id, nil = everything
     var sortOrder = [KeyPathComparator(\SampleRecord.name, comparator: .localizedStandard)] { didSet { refilter() } }
@@ -208,14 +203,17 @@ final class AppModel {
             list = list.filter { $0.rootID == node.rootID && ($0.relPath.hasPrefix(node.path) || node.path.isEmpty) }
         }
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        if soundSearchActive {
-            list = list.filter { soundScores[$0.id] != nil }
-            list.sort { (soundScores[$0.id] ?? 0) > (soundScores[$1.id] ?? 0) }
-            publish(list)
-            return
-        }
         if !query.isEmpty {
-            list = list.filter { $0.name.localizedCaseInsensitiveContains(query) || $0.relPath.localizedCaseInsensitiveContains(query) }
+            let named = Set(list.filter {
+                $0.name.localizedCaseInsensitiveContains(query) || $0.relPath.localizedCaseInsensitiveContains(query)
+            }.map(\.id))
+            if soundSearchActive && soundScoresQuery == query {
+                // One search box: file-name matches first, then sounds that match the description.
+                let order = HybridSearch.rank(ids: list.map(\.id), nameMatches: named, scores: soundScores)
+                publish(order.compactMap { sampleByID[$0] })
+                return
+            }
+            list = list.filter { named.contains($0.id) }     // names only until the semantic scores arrive
         }
         switch smartFilter {
         case .mostUsed: list.sort { $0.useCount > $1.useCount }
