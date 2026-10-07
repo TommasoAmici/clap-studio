@@ -8,6 +8,7 @@ struct MetalMapView: NSViewRepresentable {
     final class Coordinator {
         var layoutVersion = -1
         var clusterVersion = -1
+        var filterVersion = -1
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -31,13 +32,18 @@ struct MetalMapView: NSViewRepresentable {
     func updateNSView(_ view: MapMTKView, context: Context) {
         guard let snap = model.snapshot else { return }
         let c = context.coordinator
-        if c.layoutVersion != model.mapVersion {
+        let layoutChanged = c.layoutVersion != model.mapVersion
+        if layoutChanged {
             c.layoutVersion = model.mapVersion
             c.clusterVersion = model.clusterVersion
             view.setData(xy: snap.xy, clusters: snap.clusters, refit: true)
         } else if c.clusterVersion != model.clusterVersion {
             c.clusterVersion = model.clusterVersion
             view.setClusters(snap.clusters)
+        }
+        if c.filterVersion != model.filterVersion || layoutChanged {
+            c.filterVersion = model.filterVersion
+            view.setVisibility(model.mapMask(for: snap))
         }
         let selectedRow = model.selectedID.flatMap { snap.index.row(forID: $0) }
         view.setSelection(selected: selectedRow, similar: model.similarRows)

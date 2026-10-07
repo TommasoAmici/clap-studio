@@ -21,7 +21,7 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: selection) {
-            Section("Library") {
+            Section("Filters") {
                 ForEach(SmartFilter.allCases) { filter in
                     Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
                 }

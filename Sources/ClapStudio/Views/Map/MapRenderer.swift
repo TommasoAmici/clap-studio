@@ -42,10 +42,12 @@ struct VOut { float4 position [[position]]; float size [[point_size]]; float4 co
 vertex VOut vmain(uint vid [[vertex_id]],
                   const device float2* pos [[buffer(0)]],
                   const device uchar* cl [[buffer(1)]],
+                  const device uchar* vis [[buffer(2)]],
                   constant Uniforms& u [[buffer(3)]],
                   constant float4* palette [[buffer(4)]]) {
     VOut o;
     float2 p = (pos[vid] - u.center) * u.scale * 2.0 / u.viewport;
+    if (vis[vid] == 0) { p = float2(4.0, 4.0); }   // filtered out: move outside the clip volume
     o.position = float4(p, 0.0, 1.0);
     o.size = u.pointSize;
     float4 c = palette[cl[vid] % 24];
@@ -93,6 +95,7 @@ final class MapRenderer: NSObject, MTKViewDelegate {
     private let highlightPipeline: MTLRenderPipelineState
     private var positions: MTLBuffer?
     private var clusters: MTLBuffer?
+    private var visibility: MTLBuffer?
     private var highlights: MTLBuffer?
     private var highlightCount = 0
     private(set) var pointCount = 0
@@ -133,8 +136,15 @@ final class MapRenderer: NSObject, MTKViewDelegate {
 
     func setPoints(xy: [Float], clusters ids: [UInt8]) {
         pointCount = ids.count
+        setVisibility(nil)
         positions = xy.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: max(8, $0.count), options: .storageModeShared) }
         setClusters(ids)
+    }
+
+    /// One flag per point; nil shows everything. Hidden points are not drawn.
+    func setVisibility(_ mask: [Bool]?) {
+        let bytes = (mask ?? [Bool](repeating: true, count: pointCount)).map { UInt8($0 ? 1 : 0) }
+        visibility = bytes.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: max(1, $0.count), options: .storageModeShared) }
     }
 
     func setClusters(_ ids: [UInt8]) {
@@ -153,11 +163,12 @@ final class MapRenderer: NSObject, MTKViewDelegate {
     func draw(in view: MTKView) {
         guard let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
               let cmd = queue.makeCommandBuffer(), let enc = cmd.makeRenderCommandEncoder(descriptor: pass) else { return }
-        if let positions, let clusters, pointCount > 0 {
+        if let positions, let clusters, let visibility, pointCount > 0 {
             var u = uniformsProvider()
             enc.setRenderPipelineState(normalPipeline)
             enc.setVertexBuffer(positions, offset: 0, index: 0)
             enc.setVertexBuffer(clusters, offset: 0, index: 1)
+            enc.setVertexBuffer(visibility, offset: 0, index: 2)
             enc.setVertexBytes(&u, length: MemoryLayout<MapUniforms>.stride, index: 3)
             palette.withUnsafeBytes { enc.setVertexBytes($0.baseAddress!, length: $0.count, index: 4) }
             enc.drawPrimitives(type: .point, vertexStart: 0, vertexCount: pointCount)

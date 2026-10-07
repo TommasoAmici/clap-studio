@@ -128,6 +128,13 @@ func makeBlobs(clusters: Int, perCluster: Int, dim: Int, spread: Float = 0.05, s
         }
     }
 
+    @Test func nearestSkipsFilteredOutPoints() {
+        let grid = SpatialGrid(xy: [0, 0, 0.01, 0, 0.5, 0.5])
+        #expect(grid.nearest(to: SIMD2(0, 0), within: 0.1) == 0)
+        #expect(grid.nearest(to: SIMD2(0, 0), within: 0.1, isIncluded: { $0 != 0 }) == 1)
+        #expect(grid.nearest(to: SIMD2(0, 0), within: 0.1, isIncluded: { $0 == 2 }) == nil)
+    }
+
     @Test func emptyAndFarQueries() {
         #expect(SpatialGrid(xy: []).nearest(to: .zero, within: 1) == nil)
         let g = SpatialGrid(xy: [0, 0, 1, 1])

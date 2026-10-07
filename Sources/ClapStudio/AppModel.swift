@@ -57,6 +57,8 @@ final class AppModel {
     var samples: [SampleRecord] = []
     var sampleByID: [Int64: SampleRecord] = [:]
     var visible: [SampleRecord] = []
+    var filterVersion = 0       // bumps whenever `visible` is recomputed (the map follows it)
+    var filtersActive = false
     var folderTree: [FolderNode] = []
 
     // MARK: filters
@@ -198,7 +200,7 @@ final class AppModel {
         if soundSearchActive {
             list = list.filter { soundScores[$0.id] != nil }
             list.sort { (soundScores[$0.id] ?? 0) > (soundScores[$1.id] ?? 0) }
-            visible = list
+            publish(list)
             return
         }
         if !query.isEmpty {
@@ -209,7 +211,20 @@ final class AppModel {
         case .recentlyGrabbed: list.sort { ($0.lastUsed ?? 0) > ($1.lastUsed ?? 0) }
         default: list.sort(using: sortOrder)
         }
+        publish(list)
+    }
+
+    private func publish(_ list: [SampleRecord]) {
         visible = list
+        filtersActive = smartFilter != .all || folderSelection != nil || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filterVersion += 1
+    }
+
+    /// Which map dots pass the sidebar and search filters; nil when nothing is filtered.
+    func mapMask(for snapshot: AnalysisSnapshot) -> [Bool]? {
+        guard filtersActive else { return nil }
+        let allowed = Set(visible.map(\.id))
+        return snapshot.index.ids.map { allowed.contains($0) }
     }
 }
 

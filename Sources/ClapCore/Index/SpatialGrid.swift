@@ -43,8 +43,8 @@ public struct SpatialGrid: Sendable {
         items = placed
     }
 
-    /// Nearest point within `radius` of `p`, or nil.
-    public func nearest(to p: SIMD2<Float>, within radius: Float) -> Int? {
+    /// Nearest point within `radius` of `p`, or nil. `isIncluded` skips points (e.g. filtered-out ones).
+    public func nearest(to p: SIMD2<Float>, within radius: Float, isIncluded: ((Int) -> Bool)? = nil) -> Int? {
         guard count > 0 else { return nil }
         let axis = cellsPerAxis
         let x0 = max(0, Int(floorf((p.x - radius - minX) / cellSize))), x1 = min(axis - 1, Int(floorf((p.x + radius - minX) / cellSize)))
@@ -57,6 +57,7 @@ public struct SpatialGrid: Sendable {
                 let c = cy * axis + cx
                 for k in Int(cellStart[c])..<Int(cellStart[c + 1]) {
                     let i = Int(items[k])
+                    if let isIncluded, !isIncluded(i) { continue }
                     let dx = xy[i * 2] - p.x, dy = xy[i * 2 + 1] - p.y
                     let d = dx * dx + dy * dy
                     if d <= bestD { bestD = d; best = i }

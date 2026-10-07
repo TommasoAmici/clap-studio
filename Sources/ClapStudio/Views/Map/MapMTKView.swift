@@ -15,6 +15,7 @@ final class MapMTKView: MTKView, NSDraggingSource {
     private(set) var renderer: MapRenderer?
     private var grid = SpatialGrid(xy: [])
     private var pointCount = 0
+    private var visibleMask: [Bool]?     // nil: every point is shown
 
     // View transform: world point at the view centre, and points per world unit.
     private var center = SIMD2<Float>(0, 0)
@@ -50,11 +51,22 @@ final class MapMTKView: MTKView, NSDraggingSource {
 
     func setData(xy: [Float], clusters: [Int32], refit: Bool) {
         pointCount = clusters.count
+        visibleMask = nil
         renderer?.setPoints(xy: xy, clusters: clusters.map { UInt8(truncatingIfNeeded: $0) })
         grid = SpatialGrid(xy: xy)
         if refit { fitToData() }
         refreshHighlights()
     }
+
+    /// Shows only the flagged points (the sidebar filters); nil shows all. Hover and clicks ignore hidden dots.
+    func setVisibility(_ mask: [Bool]?) {
+        visibleMask = mask
+        renderer?.setVisibility(mask)
+        if let h = hoverRow, !isVisible(h) { setHover(nil) }
+        refreshHighlights()
+    }
+
+    private func isVisible(_ row: Int) -> Bool { visibleMask?[row] ?? true }
 
     func setClusters(_ clusters: [Int32]) {
         renderer?.setClusters(clusters.map { UInt8(truncatingIfNeeded: $0) })
@@ -69,9 +81,9 @@ final class MapMTKView: MTKView, NSDraggingSource {
     }
 
     private func refreshHighlights() {
-        var entries = similarRows.map { HighlightEntry(index: UInt32($0), kind: 1) }
-        if let h = hoverRow { entries.append(HighlightEntry(index: UInt32(h), kind: 3)) }
-        if let s = selectedRow { entries.append(HighlightEntry(index: UInt32(s), kind: 2)) }
+        var entries = similarRows.filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 1) }
+        if let h = hoverRow, isVisible(h) { entries.append(HighlightEntry(index: UInt32(h), kind: 3)) }
+        if let s = selectedRow, isVisible(s) { entries.append(HighlightEntry(index: UInt32(s), kind: 2)) }
         renderer?.setHighlights(entries)
         needsDisplay = true
     }
@@ -109,7 +121,8 @@ final class MapMTKView: MTKView, NSDraggingSource {
     }
 
     private func hit(at p: NSPoint) -> Int? {
-        grid.nearest(to: world(p), within: hitRadiusPoints / scale)
+        guard let mask = visibleMask else { return grid.nearest(to: world(p), within: hitRadiusPoints / scale) }
+        return grid.nearest(to: world(p), within: hitRadiusPoints / scale) { mask[$0] }
     }
 
     // MARK: hover
