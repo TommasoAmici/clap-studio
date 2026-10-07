@@ -59,3 +59,14 @@ import Testing
         #expect(PlaybackState().playhead() == nil)
     }
 }
+
+@Suite struct PlaybackStateTests {
+    @Test func playheadAdvancesAtTheSpeedItPlays() {
+        let start = Date(timeIntervalSince1970: 1000)
+        let normal = PlaybackState(sampleID: 1, startSeconds: 0.5, startedAt: start, duration: 4)
+        #expect(abs(normal.playhead(at: start.addingTimeInterval(1))! - 1.5) < 1e-9)
+        let fast = PlaybackState(sampleID: 1, startSeconds: 0.5, startedAt: start, duration: 4, rate: 1.25)
+        #expect(abs(fast.playhead(at: start.addingTimeInterval(2))! - 3.0) < 1e-9)
+        #expect(fast.playhead(at: start.addingTimeInterval(4)) == nil, "past the end of the file")
+    }
+}

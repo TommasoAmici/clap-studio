@@ -258,3 +258,25 @@ import Testing
         #expect(result.filter { $0.favoriteID == 1 }.isEmpty, "everything similar was already used")
     }
 }
+
+@Suite struct TempoSyncTests {
+    @Test func rateFoldsHalfAndDoubleTime() {
+        #expect(TempoSync.rate(sampleBPM: 120, projectBPM: 120) == 1)
+        #expect(abs(TempoSync.rate(sampleBPM: 100, projectBPM: 110) - 1.1) < 1e-5)
+        #expect(abs(TempoSync.rate(sampleBPM: 70, projectBPM: 140) - 1) < 1e-5, "double time already fits")
+        #expect(abs(TempoSync.rate(sampleBPM: 140, projectBPM: 72) - 1.0286) < 1e-3, "half time folds")
+        #expect(TempoSync.rate(sampleBPM: nil, projectBPM: 120) == 1)
+        #expect(TempoSync.rate(sampleBPM: 120, projectBPM: nil) == 1)
+        #expect(TempoSync.rate(sampleBPM: 0, projectBPM: 120) == 1)
+    }
+
+    @Test func semitonesTakeTheShortWay() {
+        #expect(TempoSync.semitones(sampleKey: "A1", projectTonic: "A") == 0)
+        #expect(TempoSync.semitones(sampleKey: "C major", projectTonic: "D") == 2)
+        #expect(TempoSync.semitones(sampleKey: "A minor", projectTonic: "C") == 3)
+        #expect(TempoSync.semitones(sampleKey: "B1", projectTonic: "C") == 1, "wraps across the octave")
+        #expect(TempoSync.semitones(sampleKey: "C", projectTonic: "B") == -1)
+        #expect(TempoSync.semitones(sampleKey: nil, projectTonic: "C") == 0)
+        #expect(TempoSync.semitones(sampleKey: "F#2", projectTonic: nil) == 0)
+    }
+}

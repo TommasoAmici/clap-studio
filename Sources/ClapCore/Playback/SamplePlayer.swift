@@ -7,16 +7,18 @@ public struct PlaybackState: Sendable, Equatable {
     public var startSeconds: Double = 0
     public var startedAt: Date?
     public var duration: Double = 0
+    /// Playback speed (1 = as recorded); the playhead moves through the file at this rate.
+    public var rate: Double = 1
 
-    public init(sampleID: Int64? = nil, startSeconds: Double = 0, startedAt: Date? = nil, duration: Double = 0) {
+    public init(sampleID: Int64? = nil, startSeconds: Double = 0, startedAt: Date? = nil, duration: Double = 0, rate: Double = 1) {
         self.sampleID = sampleID; self.startSeconds = startSeconds
-        self.startedAt = startedAt; self.duration = duration
+        self.startedAt = startedAt; self.duration = duration; self.rate = rate
     }
 
     /// Current playhead in seconds, or nil when stopped.
     public func playhead(at date: Date = Date()) -> Double? {
         guard sampleID != nil, let startedAt else { return nil }
-        let t = startSeconds + date.timeIntervalSince(startedAt)
+        let t = startSeconds + date.timeIntervalSince(startedAt) * rate
         return t <= duration ? t : nil
     }
 }
@@ -26,6 +28,7 @@ public struct PlaybackState: Sendable, Equatable {
 public final class SamplePlayer: @unchecked Sendable {
     private final class Voice {
         let node = AVAudioPlayerNode()
+        let timePitch = AVAudioUnitTimePitch()
         var busy = false
         var token = 0
     }
@@ -54,7 +57,10 @@ public final class SamplePlayer: @unchecked Sendable {
         for _ in 0..<voiceCount {
             let voice = Voice()
             engine.attach(voice.node)
-            engine.connect(voice.node, to: engine.mainMixerNode, format: cache.format)
+            engine.attach(voice.timePitch)
+            voice.timePitch.bypass = true
+            engine.connect(voice.node, to: voice.timePitch, format: cache.format)
+            engine.connect(voice.timePitch, to: engine.mainMixerNode, format: cache.format)
             voices.append(voice)
         }
         configObserver = NotificationCenter.default.addObserver(
@@ -78,12 +84,14 @@ public final class SamplePlayer: @unchecked Sendable {
 
     /// Plays `url` from `startSeconds`. Decoding happens off the main thread on a cache miss;
     /// a later request supersedes an earlier one that is still decoding.
-    public func play(sampleID: Int64, url: URL, startSeconds: Double = 0,
+    /// `rate` stretches time and `pitchCents` transposes, each without changing the other
+    /// (used to fit a loop to the project's tempo and key). The defaults play the file untouched.
+    public func play(sampleID: Int64, url: URL, startSeconds: Double = 0, rate: Float = 1, pitchCents: Float = 0,
                      completion: (@Sendable (Error?) -> Void)? = nil) {
         lock.lock(); requestToken += 1; let token = requestToken; lock.unlock()
 
         if let buffer = cache.cached(url) {
-            start(buffer, sampleID: sampleID, startSeconds: startSeconds, token: token, completion: completion)
+            start(buffer, sampleID: sampleID, startSeconds: startSeconds, rate: rate, pitchCents: pitchCents, token: token, completion: completion)
             return
         }
         decodeQueue.async { [weak self] in
@@ -93,7 +101,7 @@ public final class SamplePlayer: @unchecked Sendable {
                 self.lock.lock(); let current = self.requestToken; self.lock.unlock()
                 guard current == token else { completion?(nil); return }
                 DispatchQueue.main.async {
-                    self.start(buffer, sampleID: sampleID, startSeconds: startSeconds, token: token, completion: completion)
+                    self.start(buffer, sampleID: sampleID, startSeconds: startSeconds, rate: rate, pitchCents: pitchCents, token: token, completion: completion)
                 }
             } catch { completion?(error) }
         }
@@ -112,7 +120,8 @@ public final class SamplePlayer: @unchecked Sendable {
         setState(PlaybackState())
     }
 
-    private func start(_ buffer: AVAudioPCMBuffer, sampleID: Int64, startSeconds: Double, token: Int,
+    private func start(_ buffer: AVAudioPCMBuffer, sampleID: Int64, startSeconds: Double, rate playbackRate: Float,
+                       pitchCents: Float, token: Int,
                        completion: (@Sendable (Error?) -> Void)?) {
         lock.lock(); let current = requestToken; lock.unlock()
         guard current == token else { completion?(nil); return }
@@ -127,12 +136,17 @@ public final class SamplePlayer: @unchecked Sendable {
             voice.token += 1
             let voiceToken = voice.token
             voice.node.volume = 1
+            let neutral = playbackRate == 1 && pitchCents == 0
+            voice.timePitch.bypass = neutral
+            voice.timePitch.rate = playbackRate
+            voice.timePitch.pitch = pitchCents
             voice.node.scheduleBuffer(slice, at: nil, options: [], completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 DispatchQueue.main.async { self?.finished(voice: voice, voiceToken: voiceToken, sampleID: sampleID) }
             }
             voice.node.play()
             setState(PlaybackState(sampleID: sampleID, startSeconds: Double(startFrame) / rate,
-                                   startedAt: Date(), duration: Double(buffer.frameLength) / rate))
+                                   startedAt: Date(), duration: Double(buffer.frameLength) / rate,
+                                   rate: Double(playbackRate)))
             completion?(nil)
         } catch { completion?(error) }
     }
