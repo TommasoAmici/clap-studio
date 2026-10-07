@@ -51,7 +51,7 @@ final class AppModel {
     @ObservationIgnored var lastGrab: [Int64: Date] = [:]
 
     // MARK: library data
-    var roots: [RootRecord] = []
+    var roots: [RootRecord] = [] { didSet { if oldValue.map(\.path) != roots.map(\.path) { restartWatcher() } } }
     var samples: [SampleRecord] = []
     var sampleByID: [Int64: SampleRecord] = [:]
     var visible: [SampleRecord] = []
@@ -59,6 +59,8 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    @ObservationIgnored var folderWatcher: FolderWatcher?
+    @ObservationIgnored var rescanTask: Task<Void, Never>?
     var undoStack: [LibraryEdit] = []
     var redoStack: [LibraryEdit] = []
     var sweepList: [Int64] = []             // the neighbours being stepped through with ← →
