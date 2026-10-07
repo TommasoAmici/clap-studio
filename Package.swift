@@ -14,6 +14,7 @@ let package = Package(
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .executableTarget(name: "ClapStudio", dependencies: ["ClapCore"]),
+        .executableTarget(name: "ClapBench", dependencies: ["ClapCore"]),
         .testTarget(name: "ClapCoreTests", dependencies: ["ClapCore"]),
     ]
 )
