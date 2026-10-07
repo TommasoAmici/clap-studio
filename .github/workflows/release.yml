@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Only one release build per ref at a time; a newer push supersedes a queued one.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # needed to create the tag and the GitHub release
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcode-select -p
+          swift --version
+
+      - name: Build app bundle
+        run: scripts/bundle.sh
+
+      - name: Stamp version and re-sign
+        id: version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          APP="build/ClapStudio.app"
+          PLIST="$APP/Contents/Info.plist"
+          BASE_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+          # Editing Info.plist invalidates the ad-hoc signature from bundle.sh.
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+          echo "tag=v${BASE_VERSION}-build.${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "asset=ClapStudio-${BASE_VERSION}-build.${BUILD_NUMBER}-macos.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Package app
+        env:
+          ASSET: ${{ steps.version.outputs.asset }}
+        run: |
+          # ditto keeps the bundle's symlinks, permissions and signature intact (plain zip does not).
+          ditto -c -k --sequesterRsrc --keepParent build/ClapStudio.app "$ASSET"
+          shasum -a 256 "$ASSET" | tee "$ASSET.sha256"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          ASSET: ${{ steps.version.outputs.asset }}
+        run: |
+          gh release create "$TAG" "$ASSET" "$ASSET.sha256" \
+            --target "$GITHUB_SHA" \
+            --title "Clap Studio $TAG" \
+            --generate-notes \
+            --notes "The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. Core ML models are not bundled, so this build uses the built-in DSP embedder until models are exported (see README)."
