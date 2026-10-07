@@ -35,6 +35,7 @@ struct RootView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 180)
                 }
+                ToolbarItem { ProjectButton() }
                 ToolbarItem {
                     Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                         .help("Play a sample when it is selected")

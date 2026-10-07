@@ -54,7 +54,9 @@ extension AppModel {
             errorMessage = "\(sample.name) is not available (is the volume mounted?)"
             return
         }
-        player.play(sampleID: sample.id, url: sample.url, startSeconds: seconds) { [weak self] error in
+        let fit = adjustment(for: sample)
+        player.play(sampleID: sample.id, url: sample.url, startSeconds: seconds, rate: fit.rate,
+                    pitchCents: Float(fit.semitones * 100)) { [weak self] error in
             if let error { Task { @MainActor in self?.errorMessage = "Cannot play \(sample.name): \(error.localizedDescription)" } }
         }
     }

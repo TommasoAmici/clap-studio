@@ -54,6 +54,16 @@ struct InspectorView: View {
         }
     }
 
+    /// "Playing at 128 BPM, +2 st" when project matching bends this sample.
+    private func fitNote(for s: SampleRecord) -> String? {
+        let fit = model.adjustment(for: s)
+        guard !fit.isNeutral else { return nil }
+        var parts: [String] = []
+        if fit.rate != 1, let bpm = model.project.bpm { parts.append(String(format: "%.0f BPM (×%.2f)", bpm, fit.rate)) }
+        if fit.semitones != 0 { parts.append(String(format: "%+d st", fit.semitones)) }
+        return "Fitted to project: " + parts.joined(separator: ", ")
+    }
+
     private func transport(_ s: SampleRecord) -> some View {
         HStack {
             Button {
@@ -62,7 +72,8 @@ struct InspectorView: View {
                 Image(systemName: model.playback.sampleID == s.id ? "stop.fill" : "play.fill").frame(width: 20)
             }
             .keyboardShortcut(.return, modifiers: [])
-            Text("Space to play · M adds a cue · 1–9 jumps to a cue").font(.caption2).foregroundStyle(.secondary)
+            Text(fitNote(for: s) ?? "Space to play · M adds a cue · 1–9 jumps to a cue")
+                .font(.caption2).foregroundStyle(fitNote(for: s) == nil ? Color.secondary : Color.accentColor)
             Spacer()
             Button("Find Similar") { model.viewMode = .library; model.showSimilar(to: s.id) }
                 .help("Show this sample's neighbours")

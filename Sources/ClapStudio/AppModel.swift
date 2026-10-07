@@ -97,6 +97,7 @@ final class AppModel {
     var startMarkerFrame: Int64?
     var playback = PlaybackState()
     var autoplay = true
+    var project = ProjectSettings() { didSet { saveProjectSettings() } }
     var hoverPlay = true
     var volume: Float = 0.9 { didSet { player.volume = volume } }
 
@@ -130,6 +131,7 @@ final class AppModel {
 
     /// Opens the persistent store and shows cached data immediately; no audio or ML work happens here.
     func bootstrap() {
+        loadProjectSettings()
         do {
             let store = try LibraryStore(path: try LibraryStore.defaultURL().path)
             self.store = store
