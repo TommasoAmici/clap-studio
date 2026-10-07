@@ -15,6 +15,7 @@ struct LibraryTableView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "waveform").foregroundStyle(.secondary)
                     Text(s.name).lineLimit(1)
+                    if s.favorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
                     if s.status == .pending { ProgressView().controlSize(.mini) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -67,6 +68,17 @@ struct LibraryTableView: View {
             if let id = ids.first, let s = model.sampleByID[id] {
                 Button("Find Similar Sounds") { model.showSimilar(to: id) }
                 Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([s.url]) }
+                Divider()
+                Button(s.favorite ? "Remove from Favorites" : "Add to Favorites") { model.toggleFavorite([id]) }
+                Menu("Add to Collection") {
+                    ForEach(model.collections) { c in Button(c.name) { model.add([id], toCollection: c.id) } }
+                    if !model.collections.isEmpty { Divider() }
+                    Button("New Collection…") { model.newCollectionSeed = [id] }
+                }
+                if let current = model.collectionSelection {
+                    Button("Remove from This Collection") { model.remove([id], fromCollection: current) }
+                }
+                Button("Add to Tray") { model.addToTray([id]) }
                 Divider()
                 if s.hidden {
                     Button("Show in Library Again") { model.unhide([id]) }

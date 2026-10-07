@@ -3,30 +3,11 @@ import SwiftUI
 
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
+    @State private var renaming: CollectionRecord?
+    @State private var renameText = ""
 
     private var selection: Binding<String?> {
-        Binding(
-            get: {
-                if let folder = model.folderSelection { return folder }
-                if let category = model.descriptorFilter.category { return "cat.\(category)" }
-                return "smart.\(model.smartFilter.rawValue)"
-            },
-            set: { new in
-                guard let new else { return }
-                if new.hasPrefix("cat.") {
-                    model.folderSelection = nil
-                    model.smartFilter = .all
-                    model.descriptorFilter.category = String(new.dropFirst(4))
-                } else if new.hasPrefix("smart.") {
-                    model.folderSelection = nil
-                    model.descriptorFilter.category = nil
-                    model.smartFilter = SmartFilter(rawValue: String(new.dropFirst(6))) ?? .all
-                } else {
-                    model.descriptorFilter.category = nil
-                    model.smartFilter = .all
-                    model.folderSelection = new
-                }
-            })
+        Binding(get: { model.sidebarTag }, set: { if let new = $0 { model.selectSidebar(new) } })
     }
 
     var body: some View {
@@ -35,6 +16,22 @@ struct SidebarView: View {
                 ForEach(SmartFilter.allCases.filter { $0 != .hidden || model.hiddenCount > 0 }) { filter in
                     Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
                 }
+            }
+            Section("Collections") {
+                ForEach(model.collections) { collection in
+                    HStack {
+                        Label(collection.name, systemImage: "rectangle.stack")
+                        Spacer()
+                        Text("\(collection.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                    }
+                    .tag("col.\(collection.id)")
+                    .contextMenu {
+                        Button("Rename…") { renaming = collection; renameText = collection.name }
+                        Button("Delete Collection", role: .destructive) { model.delete(collection: collection.id) }
+                    }
+                }
+                Button { model.newCollectionSeed = [] } label: { Label("New Collection", systemImage: "plus") }
+                    .buttonStyle(.borderless).foregroundStyle(.secondary)
             }
             if !model.categoryCounts.isEmpty {
                 Section("Categories") {
@@ -64,6 +61,11 @@ struct SidebarView: View {
                     }
                 }
             }
+        }
+        .alert("Rename Collection", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Name", text: $renameText)
+            Button("Rename") { if let renaming { model.rename(collection: renaming.id, to: renameText) } }
+            Button("Cancel", role: .cancel) {}
         }
         .safeAreaInset(edge: .bottom) {
             HStack {

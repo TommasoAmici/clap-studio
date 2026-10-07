@@ -32,31 +32,39 @@ extension View {
     }
 }
 
-/// An AppKit drag source used for the inspector's "drag to your DAW" handle.
+/// An AppKit drag source: drag one or several files into a DAW.
 struct FileDragHandle: NSViewRepresentable {
-    let url: URL
-    let title: String
+    let urls: [URL]
+    let label: String
     let onBegin: () -> Void
+
+    init(url: URL, onBegin: @escaping () -> Void) {
+        self.init(urls: [url], label: "Drag into Ableton or any DAW", onBegin: onBegin)
+    }
+
+    init(urls: [URL], label: String, onBegin: @escaping () -> Void) {
+        self.urls = urls; self.label = label; self.onBegin = onBegin
+    }
 
     func makeNSView(context: Context) -> DragHandleNSView {
         let v = DragHandleNSView()
-        v.configure(url: url, title: title, onBegin: onBegin)
+        v.configure(urls: urls, label: label, onBegin: onBegin)
         return v
     }
 
     func updateNSView(_ view: DragHandleNSView, context: Context) {
-        view.configure(url: url, title: title, onBegin: onBegin)
+        view.configure(urls: urls, label: label, onBegin: onBegin)
     }
 }
 
 final class DragHandleNSView: NSView, NSDraggingSource {
-    private var url: URL?
-    private var title = ""
+    private var urls: [URL] = []
+    private var label = ""
     private var onBegin: () -> Void = {}
     private var mouseDownPoint: NSPoint?
 
-    func configure(url: URL, title: String, onBegin: @escaping () -> Void) {
-        self.url = url; self.title = title; self.onBegin = onBegin
+    func configure(urls: [URL], label: String, onBegin: @escaping () -> Void) {
+        self.urls = urls; self.label = label; self.onBegin = onBegin
         needsDisplay = true
     }
 
@@ -69,7 +77,7 @@ final class DragHandleNSView: NSView, NSDraggingSource {
         NSColor.controlAccentColor.withAlphaComponent(0.12).setFill(); path.fill()
         NSColor.controlAccentColor.withAlphaComponent(0.6).setStroke()
         path.lineWidth = 1; path.setLineDash([4, 3], count: 2, phase: 0); path.stroke()
-        let text = "Drag into Ableton or any DAW" as NSString
+        let text = label as NSString
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .medium),
                                                     .foregroundColor: NSColor.labelColor]
         let size = text.size(withAttributes: attrs)
@@ -79,15 +87,22 @@ final class DragHandleNSView: NSView, NSDraggingSource {
     override func mouseDown(with event: NSEvent) { mouseDownPoint = event.locationInWindow }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let start = mouseDownPoint, let url,
+        guard let start = mouseDownPoint, !urls.isEmpty,
               hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y) > 4 else { return }
         mouseDownPoint = nil
         onBegin()
-        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
         let p = convert(event.locationInWindow, from: nil)
-        item.setDraggingFrame(NSRect(x: p.x - 16, y: p.y - 16, width: 32, height: 32), contents: icon)
-        beginDraggingSession(with: [item], event: event, source: self)
+        let items = urls.prefix(8).enumerated().map { index, url -> NSDraggingItem in
+            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+            let offset = CGFloat(index) * 4
+            item.setDraggingFrame(NSRect(x: p.x - 16 + offset, y: p.y - 16 - offset, width: 32, height: 32),
+                                  contents: NSWorkspace.shared.icon(forFile: url.path))
+            return item
+        }
+        // Files past the eighth ride along without extra drag images.
+        let rest = urls.dropFirst(8).map { NSDraggingItem(pasteboardWriter: $0 as NSURL) }
+        rest.forEach { $0.setDraggingFrame(NSRect(x: p.x, y: p.y, width: 1, height: 1), contents: nil) }
+        beginDraggingSession(with: items + rest, event: event, source: self)
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {

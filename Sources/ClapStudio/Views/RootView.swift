@@ -21,6 +21,7 @@ struct RootView: View {
                     case .map: MapPanel()
                     }
                 }
+                TrayView()
                 StatusBar()
             }
             .inspector(isPresented: $showInspector) {
@@ -51,6 +52,16 @@ struct RootView: View {
             model.togglePlayback()
             return .handled
         }
+        .onKeyPress(characters: .init(charactersIn: "f")) { _ in
+            guard let id = model.selectedID else { return .ignored }
+            model.toggleFavorite([id])
+            return .handled
+        }
+        .onKeyPress(characters: .init(charactersIn: "t")) { _ in
+            guard let id = model.selectedID else { return .ignored }
+            model.addToTray([id])
+            return .handled
+        }
         .onKeyPress(characters: .init(charactersIn: "m")) { _ in
             guard model.selectedID != nil else { return .ignored }
             model.addCueAtMarker()
@@ -61,6 +72,7 @@ struct RootView: View {
             model.playCue(number: n)
             return .handled
         }
+        .modifier(NewCollectionPrompt())
         .alert("Clap Studio", isPresented: Binding(get: { model.errorMessage != nil },
                                                     set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }

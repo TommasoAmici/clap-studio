@@ -9,7 +9,7 @@ enum ViewMode: String, CaseIterable, Identifiable {
 }
 
 enum SmartFilter: String, CaseIterable, Identifiable {
-    case all = "All Samples", mostUsed = "Most Used", neverUsed = "Never Used", recentlyGrabbed = "Recently Grabbed", hidden = "Hidden"
+    case all = "All Samples", mostUsed = "Most Used", neverUsed = "Never Used", recentlyGrabbed = "Recently Grabbed", favorites = "Favorites", hidden = "Hidden"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -17,6 +17,7 @@ enum SmartFilter: String, CaseIterable, Identifiable {
         case .mostUsed: return "flame"
         case .neverUsed: return "circle.dashed"
         case .recentlyGrabbed: return "clock"
+        case .favorites: return "star"
         case .hidden: return "eye.slash"
         }
     }
@@ -58,6 +59,11 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    var collections: [CollectionRecord] = []
+    var collectionSelection: Int64? { didSet { reloadCollections(); refilter() } }
+    var collectionMembers: Set<Int64> = []
+    var tray: [Int64] = []
+    var newCollectionSeed: [Int64]?       // non-nil while the "new collection" prompt is open
     var duplicateGroups: [DuplicateGroup]?
     var duplicateSearchRunning = false
     var showDuplicates = false
@@ -133,6 +139,7 @@ final class AppModel {
             NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
                                                    queue: nil) { _ in sync.flush() }
             roots = store.roots()
+            collections = store.collections()
             reloadSamples()
             failedCount = store.failedCount()
             if let n = store.meta("cluster_k").flatMap(Int.init) { clusterCount = n }
@@ -207,10 +214,12 @@ final class AppModel {
         var list = smartFilter == .hidden ? samples.filter(\.hidden) : samples.filter { !$0.hidden }
         switch smartFilter {
         case .all, .hidden: break
+        case .favorites: list = list.filter(\.favorite)
         case .mostUsed: list = list.filter { $0.useCount > 0 }
         case .neverUsed: list = list.filter { $0.useCount == 0 }
         case .recentlyGrabbed: list = list.filter { $0.lastUsed != nil }
         }
+        if collectionSelection != nil { list = list.filter { collectionMembers.contains($0.id) } }
         if let sel = folderSelection, let node = FolderNode.find(sel, in: folderTree) {
             list = list.filter { $0.rootID == node.rootID && ($0.relPath.hasPrefix(node.path) || node.path.isEmpty) }
         }
@@ -238,7 +247,7 @@ final class AppModel {
 
     private func publish(_ list: [SampleRecord]) {
         visible = list
-        filtersActive = smartFilter != .all || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filtersActive = smartFilter != .all || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1
     }
 

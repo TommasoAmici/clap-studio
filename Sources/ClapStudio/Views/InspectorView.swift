@@ -11,7 +11,7 @@ struct InspectorView: View {
                     header(sample)
                     WaveformCueView()
                     transport(sample)
-                    FileDragHandle(url: sample.url, title: sample.name) { model.registerGrab(sample.id) }
+                    FileDragHandle(url: sample.url) { model.registerGrab(sample.id) }
                         .frame(height: 44)
                     PropertiesPanel(sample: sample)
                     CuePanel()
@@ -41,6 +41,11 @@ struct InspectorView: View {
                 Text(s.useCount == 0 ? "never used" : "last used \(Format.date(s.lastUsed))")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
+                Button { model.toggleFavorite([s.id]) } label: { Image(systemName: s.favorite ? "star.fill" : "star") }
+                    .buttonStyle(.borderless).foregroundStyle(s.favorite ? .yellow : .secondary)
+                    .help(s.favorite ? "Remove from favorites (F)" : "Add to favorites (F)")
+                Button { model.addToTray([s.id]) } label: { Image(systemName: "tray.and.arrow.down") }
+                    .buttonStyle(.borderless).help("Add to the tray (T)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([s.url]) } label: {
                     Image(systemName: "magnifyingglass.circle")
                 }
