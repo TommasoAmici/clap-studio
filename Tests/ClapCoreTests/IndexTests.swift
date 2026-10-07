@@ -71,3 +71,44 @@ func makeBlobs(clusters: Int, perCluster: Int, dim: Int, spread: Float = 0.05, s
         #expect(Set(a.assignments).count == 4)
     }
 }
+
+@Suite struct LayoutTests {
+    @Test func layoutSeparatesClusters() {
+        let (vectors, labels) = makeBlobs(clusters: 4, perCluster: 60, dim: 16, spread: 0.3)
+        let n = labels.count
+        let xy = MapLayout.layout(vectors: vectors, count: n, dim: 16, epochs: 200)
+        #expect(xy.count == n * 2 && xy.allSatisfy { $0.isFinite })
+        var within: Float = 0, between: Float = 0, wc = 0, bc = 0
+        for i in stride(from: 0, to: n, by: 3) {
+            for j in stride(from: 1, to: n, by: 3) where i != j {
+                let d = hypotf(xy[i * 2] - xy[j * 2], xy[i * 2 + 1] - xy[j * 2 + 1])
+                if labels[i] == labels[j] { within += d; wc += 1 } else { between += d; bc += 1 }
+            }
+        }
+        #expect(within / Float(wc) < 0.6 * between / Float(bc))
+    }
+
+    @Test func layoutIsDeterministicEnoughToReproduceStructure() {
+        let (vectors, labels) = makeBlobs(clusters: 3, perCluster: 30, dim: 8, spread: 0.2)
+        let a = MapLayout.layout(vectors: vectors, count: labels.count, dim: 8, epochs: 50, seed: 5)
+        #expect(a.count == labels.count * 2)
+    }
+
+    @Test func newPointLandsNearItsNeighbours() {
+        let (vectors, labels) = makeBlobs(clusters: 3, perCluster: 40, dim: 8, spread: 0.2)
+        let n = labels.count
+        let xy = MapLayout.layout(vectors: vectors, count: n, dim: 8, epochs: 100)
+        let index = VectorIndex(ids: (0..<n).map { Int64($0) }, vectors: vectors, dim: 8)
+        let probe = Array(vectors[0..<8])
+        let placed = MapLayout.place(vectors: probe, count: 1, dim: 8, among: index, coords: xy)
+        let d = hypotf(placed[0] - xy[0], placed[1] - xy[1])
+        #expect(d < 0.5)
+    }
+
+    @Test func tinyInputsDoNotCrash() {
+        #expect(MapLayout.layout(vectors: [], count: 0, dim: 4).isEmpty)
+        #expect(MapLayout.layout(vectors: [1, 0, 0, 0], count: 1, dim: 4).count == 2)
+        let few = MapLayout.layout(vectors: (0..<20).map { Float($0 % 5) + 1 }, count: 5, dim: 4)
+        #expect(few.count == 10 && few.allSatisfy { $0.isFinite })
+    }
+}
