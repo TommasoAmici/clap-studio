@@ -8,6 +8,8 @@ struct LibraryTableView: View {
         @Bindable var model = model
         let selection = Binding<Int64?>(get: { model.selectedID }, set: { model.select($0, play: true) })
 
+        // The name and folder cells are drag sources (for dropping into a DAW). A drag source swallows the
+        // click that would normally select the row, so those cells select and preview explicitly.
         Table(model.visible, selection: selection, sortOrder: $model.sortOrder) {
             TableColumn("Name", value: \.name) { s in
                 HStack(spacing: 6) {
@@ -17,12 +19,14 @@ struct LibraryTableView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
+                .onTapGesture { model.select(s.id, play: true) }
                 .sampleDrag(s, model: model)
             }
             .width(min: 180, ideal: 260)
             TableColumn("Folder", value: \.folder) { s in
                 Text(s.folder).foregroundStyle(.secondary).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    .onTapGesture { model.select(s.id, play: true) }
                     .sampleDrag(s, model: model)
             }
             .width(min: 100, ideal: 180)
