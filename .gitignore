@@ -5,3 +5,5 @@ build/
 tools/.venv/
 tools/*.mlpackage
 Models/
+tools/.cache/
+__pycache__/
