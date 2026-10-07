@@ -8,6 +8,11 @@ public struct PlaybackState: Sendable, Equatable {
     public var startedAt: Date?
     public var duration: Double = 0
 
+    public init(sampleID: Int64? = nil, startSeconds: Double = 0, startedAt: Date? = nil, duration: Double = 0) {
+        self.sampleID = sampleID; self.startSeconds = startSeconds
+        self.startedAt = startedAt; self.duration = duration
+    }
+
     /// Current playhead in seconds, or nil when stopped.
     public func playhead(at date: Date = Date()) -> Double? {
         guard sampleID != nil, let startedAt else { return nil }
