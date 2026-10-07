@@ -15,6 +15,7 @@ struct PropertiesPanel: View {
             } else {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
                     row("Type", sample.typeText)
+                    categoryRow
                     if sample.isLoop == true { tempoRow }
                     row(sample.isLoop == true ? "Key" : "Note", sample.keyName ?? "–")
                     row("Level", sample.levelText)
@@ -44,6 +45,24 @@ struct PropertiesPanel: View {
                     Text("detected").foregroundStyle(.tertiary)
                 }
             }
+        }
+    }
+
+    private var categoryRow: some View {
+        GridRow {
+            Text("Category").foregroundStyle(.secondary)
+            Menu {
+                ForEach(SoundCategories.names, id: \.self) { name in
+                    Button(name) { model.setCategory(sample.id, name) }
+                }
+                if sample.categoryManual != nil {
+                    Divider()
+                    Button("Use automatic" + (sample.category.map { " (\($0))" } ?? "")) { model.setCategory(sample.id, nil) }
+                }
+            } label: {
+                Text((sample.effectiveCategory ?? "None") + (sample.categoryManual != nil ? " ✎" : ""))
+            }
+            .menuStyle(.borderlessButton).fixedSize()
         }
     }
 

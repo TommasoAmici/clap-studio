@@ -56,6 +56,7 @@ final class AppModel {
     var filterVersion = 0       // bumps whenever `visible` is recomputed (the map follows it)
     var filtersActive = false
     var folderTree: [FolderNode] = []
+    var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
     // MARK: filters
     var searchText = "" { didSet { scheduleSoundSearch(); refilter() } }
@@ -188,6 +189,7 @@ final class AppModel {
         samples = store.loadSamples()
         sampleByID = Dictionary(uniqueKeysWithValues: samples.map { ($0.id, $0) })
         folderTree = FolderNode.build(roots: roots, samples: samples)
+        updateCategoryCounts()
         refilter()
         if let id = selectedID, sampleByID[id] == nil { selectedID = nil }
     }

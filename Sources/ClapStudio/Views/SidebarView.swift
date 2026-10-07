@@ -6,13 +6,23 @@ struct SidebarView: View {
 
     private var selection: Binding<String?> {
         Binding(
-            get: { model.folderSelection ?? "smart.\(model.smartFilter.rawValue)" },
+            get: {
+                if let folder = model.folderSelection { return folder }
+                if let category = model.descriptorFilter.category { return "cat.\(category)" }
+                return "smart.\(model.smartFilter.rawValue)"
+            },
             set: { new in
                 guard let new else { return }
-                if new.hasPrefix("smart.") {
+                if new.hasPrefix("cat.") {
                     model.folderSelection = nil
+                    model.smartFilter = .all
+                    model.descriptorFilter.category = String(new.dropFirst(4))
+                } else if new.hasPrefix("smart.") {
+                    model.folderSelection = nil
+                    model.descriptorFilter.category = nil
                     model.smartFilter = SmartFilter(rawValue: String(new.dropFirst(6))) ?? .all
                 } else {
+                    model.descriptorFilter.category = nil
                     model.smartFilter = .all
                     model.folderSelection = new
                 }
@@ -24,6 +34,18 @@ struct SidebarView: View {
             Section("Filters") {
                 ForEach(SmartFilter.allCases) { filter in
                     Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
+                }
+            }
+            if !model.categoryCounts.isEmpty {
+                Section("Categories") {
+                    ForEach(model.categoryCounts, id: \.name) { item in
+                        HStack {
+                            Label(item.name, systemImage: SoundCategories.symbol(for: item.name))
+                            Spacer()
+                            Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                        }
+                        .tag("cat.\(item.name)")
+                    }
                 }
             }
             Section("Folders") {

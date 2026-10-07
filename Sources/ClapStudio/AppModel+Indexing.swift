@@ -54,6 +54,10 @@ extension AppModel {
                     Task { @MainActor in self?.statusMessage = "Measuring sounds (\(done)/\(total))" }
                 }, isCancelled: { token.isCancelled })
             }
+            if store.categoryBacklog() > 0, !token.isCancelled {
+                statusMessage = "Sorting sounds into categories"
+                await Task.detached { Self.categorizeLibrary(store) }.value
+            }
             failedCount = store.failedCount()
             reloadSamples()
 

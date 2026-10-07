@@ -99,6 +99,15 @@ extension AppModel {
         if descriptorFilter.isActive { refilter() }
     }
 
+    /// Sets (or with nil clears) the user's category; the automatic one is kept.
+    func setCategory(_ id: Int64, _ category: String?) {
+        guard let store else { return }
+        do { try store.setManualCategory(sampleID: id, category) } catch { errorMessage = "Could not save the category: \(error)"; return }
+        mutate(id) { $0.categoryManual = category }
+        updateCategoryCounts()
+        if descriptorFilter.isActive { refilter() }
+    }
+
     // MARK: cues
 
     private var nativeRate: Double { (selectedSample?.sampleRate ?? 0) > 0 ? selectedSample!.sampleRate : 44_100 }

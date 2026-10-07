@@ -82,7 +82,21 @@ private struct TempoRangeEditor: View {
     }
 }
 
-/// Placeholder until sound categories exist.
 struct CategoryFilterMenu: View {
-    var body: some View { EmptyView() }
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if !model.categoryCounts.isEmpty {
+            Menu {
+                Button("Any category") { model.descriptorFilter.category = nil }
+                Divider()
+                ForEach(model.categoryCounts, id: \.name) { item in
+                    Button("\(item.name) (\(item.count))") { model.descriptorFilter.category = item.name }
+                }
+            } label: {
+                Label(model.descriptorFilter.category ?? "Category", systemImage: "tag")
+            }
+            .menuStyle(.button).fixedSize()
+        }
+    }
 }
