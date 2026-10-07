@@ -34,6 +34,14 @@ import Testing
         try await runScenario(embedder: model, minPrecision: 0.95)
     }
 
+    /// Same scenario with LAION-CLAP; skipped when it has not been exported.
+    @Test func clapModelFindsAndClustersSoundTypes() async throws {
+        guard case .success(let model) = ClapEmbedder.load() else { return }
+        let start = Date()
+        try await runScenario(embedder: model, minPrecision: 0.9)
+        print("CLAP scenario (150 files, 10 s windows): \(Date().timeIntervalSince(start)) s")
+    }
+
     private func runScenario(embedder: EmbeddingProvider, minPrecision: Double) async throws {
         let dir = TestSupport.tempDir()
         var rng = SplitMix64(seed: 99)
@@ -92,5 +100,49 @@ import Testing
         #expect(reopened.pendingCount() == 0)
         let warm = try #require(LibraryAnalyzer(store: reopened).loadSnapshot(modelVersion: embedder.version))
         #expect(warm.xy == snapshot.xy && warm.clusters == snapshot.clusters && warm.index.ids == snapshot.index.ids)
+    }
+}
+
+extension EndToEndTests {
+    /// Text queries must land near audio of the matching kind. Synthetic sounds are a weak proxy for real
+    /// samples, so only the clearest contrasts are asserted.
+    @Test func textSearchRanksMatchingSounds() async throws {
+        guard case .success(let embedder) = ClapEmbedder.load(), case .success(let encoder) = ClapTextEncoder.load() else { return }
+        let dir = TestSupport.tempDir()
+        var rng = SplitMix64(seed: 5)
+        var kind: [String: String] = [:]
+        for k in ["kick", "hat", "pad"] {
+            for i in 0..<12 {
+                let (seconds, f) = synthForTextTest(k, variant: Double(rng.nextFloat()), rng: &rng)
+                try writeTestWav(dir.appendingPathComponent("\(k)_\(i).wav"), seconds: seconds) { f($0) * 0.8 }
+                kind["\(k)_\(i)"] = k
+            }
+        }
+        let store = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        _ = await IndexingPipeline(store: store, embedder: embedder).run(onProgress: { _ in })
+        let names = Dictionary(uniqueKeysWithValues: store.loadSamples().map { ($0.id, $0.name) })
+
+        let searcher = TextSearcher(encoder: encoder)
+        for (query, expected) in [("a sustained warm synth pad", "pad"), ("a short bright hi-hat", "hat")] {
+            let top = try searcher.search(query, store: store, limit: 6).map { kind[names[$0.sampleID]!]! }
+            let hits = top.filter { $0 == expected }.count
+            print("text '\(query)' -> \(top)")
+            #expect(hits >= 4, "'\(query)' returned \(top)")
+        }
+        #expect(try searcher.search("   ", store: store).isEmpty)
+    }
+
+    private func synthForTextTest(_ kind: String, variant v: Double, rng: inout SplitMix64) -> (Double, (Double) -> Float) {
+        let noise = (0..<80_000).map { _ in rng.nextFloat() * 2 - 1 }
+        func n(_ t: Double) -> Float { noise[min(noise.count - 1, Int(t * 44_100))] }
+        switch kind {
+        case "kick": return (0.45, { t in Float(sin(2 * .pi * (50 + 110 * exp(-t * 25)) * (1 + 0.1 * v) * t)) * Float(exp(-t * 7)) })
+        case "hat": return (0.12, { t in (n(t) - 0.95 * n(t + 0.00002)) * Float(exp(-t * (35 + 20 * v))) })
+        default: return (1.6, { t in
+            let env = Float(min(1, t / 0.6) * exp(-max(0, t - 1.0) * 3))
+            return env * 0.4 * (Float(sin(2 * .pi * 220 * (1 + 0.05 * v) * t)) + Float(sin(2 * .pi * 330 * (1 + 0.05 * v) * t))) })
+        }
     }
 }
