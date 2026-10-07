@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Convert the PANNs CNN14 audio-tagging network to a Core ML model for Clap Studio.
 
-    python3.12 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements.txt
+    mise exec uv@latest -- uv venv --python 3.12 tools/.venv
+    mise exec uv@latest -- uv pip install --python tools/.venv/bin/python \\
+        --default-index https://pypi.org/simple -r tools/requirements.txt
     tools/.venv/bin/python tools/export_model.py
 
 Output: ~/Library/Application Support/ClapStudio/Models/CNN14Trunk.mlpackage

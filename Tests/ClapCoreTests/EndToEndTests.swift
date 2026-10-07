@@ -25,6 +25,16 @@ import Testing
     }
 
     @Test func similarSoundsAreFoundAndClustered() async throws {
+        try await runScenario(embedder: HandcraftedEmbedder(), minPrecision: 0.85)
+    }
+
+    /// Same scenario with the real CNN14 Core ML model; skipped when it has not been exported.
+    @Test func neuralModelFindsAndClustersSoundTypes() async throws {
+        guard case .success(let model) = CoreMLEmbedder.load() else { return }
+        try await runScenario(embedder: model, minPrecision: 0.95)
+    }
+
+    private func runScenario(embedder: EmbeddingProvider, minPrecision: Double) async throws {
         let dir = TestSupport.tempDir()
         var rng = SplitMix64(seed: 99)
         var labelByName: [String: String] = [:]
@@ -40,7 +50,6 @@ import Testing
         let store = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
         let root = try store.addRoot(path: dir.path)
         try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
-        let embedder = HandcraftedEmbedder()
         let done = await IndexingPipeline(store: store, embedder: embedder).run(onProgress: { _ in })
         #expect(done == 150)
 
@@ -55,7 +64,7 @@ import Testing
             for n in snapshot.index.similar(toRow: row, limit: 5) { total += 1; if label(n.row) == label(row) { hits += 1 } }
         }
         let precision = Double(hits) / Double(total)
-        #expect(precision > 0.85, "top-5 precision \(precision)")
+        #expect(precision > minPrecision, "top-5 precision \(precision)")
 
         // Clusters are dominated by a single sound type.
         var pure = 0
