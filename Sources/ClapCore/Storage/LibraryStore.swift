@@ -12,7 +12,13 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     /// `~/Library/Application Support/ClapStudio/library.sqlite`
+    /// Set `CLAP_DATA_DIR` to keep a separate library (useful for demos and testing).
     public static func defaultURL() throws -> URL {
+        if let override = ProcessInfo.processInfo.environment["CLAP_DATA_DIR"] {
+            let dir = URL(fileURLWithPath: override, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir.appendingPathComponent("library.sqlite")
+        }
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask,
             appropriateFor: nil, create: true)

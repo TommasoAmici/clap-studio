@@ -115,6 +115,12 @@ final class AppModel {
                 snapshot = analyzer?.loadSnapshot(modelVersion: version)
                 afterSnapshotChange()
             }
+            // Developer convenience: `ClapStudio --add-folder /path/to/samples`
+            let args = CommandLine.arguments
+            if let flag = args.firstIndex(of: "--add-folder"), flag + 1 < args.count {
+                let url = URL(fileURLWithPath: args[flag + 1])
+                if let root = try? store.addRoot(path: url.resolvingSymlinksInPath().path) { roots = store.roots(); _ = root }
+            }
             if !roots.isEmpty { startIndexing() }
         } catch {
             errorMessage = "Could not open the library database: \(error)"
