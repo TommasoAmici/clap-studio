@@ -280,3 +280,14 @@ import Testing
         #expect(TempoSync.semitones(sampleKey: "F#2", projectTonic: nil) == 0)
     }
 }
+
+@Suite struct LoudnessMatchTests {
+    @Test func bringsSamplesToTheTargetWithinLimits() {
+        #expect(LoudnessMatch.gainDB(loudnessDB: -30, peakDB: -20) == 12)         // boost
+        #expect(LoudnessMatch.gainDB(loudnessDB: -8, peakDB: -0.5) == -10)        // cut
+        #expect(LoudnessMatch.gainDB(loudnessDB: -60, peakDB: -50) == 18, "boost is capped")
+        #expect(LoudnessMatch.gainDB(loudnessDB: -30, peakDB: -6) == 5, "peaks stay under the ceiling")
+        #expect(LoudnessMatch.gainDB(loudnessDB: nil, peakDB: nil) == 0)
+        #expect(LoudnessMatch.gainDB(loudnessDB: -120, peakDB: -120) == 0, "silence is left alone")
+    }
+}

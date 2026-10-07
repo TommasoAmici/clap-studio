@@ -56,7 +56,7 @@ extension AppModel {
         }
         let fit = adjustment(for: sample)
         player.play(sampleID: sample.id, url: sample.url, startSeconds: seconds, rate: fit.rate,
-                    pitchCents: Float(fit.semitones * 100)) { [weak self] error in
+                    pitchCents: Float(fit.semitones * 100), gainDB: previewGain(for: sample)) { [weak self] error in
             if let error { Task { @MainActor in self?.errorMessage = "Cannot play \(sample.name): \(error.localizedDescription)" } }
         }
     }

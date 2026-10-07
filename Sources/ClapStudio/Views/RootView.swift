@@ -37,6 +37,10 @@ struct RootView: View {
                 }
                 ToolbarItem { ProjectButton() }
                 ToolbarItem {
+                    Toggle(isOn: $model.project.matchLoudness) { Image(systemName: "dial.medium") }
+                        .help("Match preview loudness, so quiet and loud samples can be compared")
+                }
+                ToolbarItem {
                     Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                         .help("Play a sample when it is selected")
                 }
