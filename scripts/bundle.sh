@@ -18,6 +18,12 @@ for item in CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_voc
   [ -e "$MODELS/$item" ] && cp -R "$MODELS/$item" "$APP/Contents/Resources/" && echo "Bundled $item"
 done
 
+# App icon: render clap.icon (Icon Composer) to an .icns; no Xcode needed.
+ICONSET="build/AppIcon.iconset"
+rm -rf "$ICONSET"
+swift scripts/render-icon.swift clap.icon "$ICONSET" >/dev/null
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns" && rm -rf "$ICONSET"
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -26,6 +32,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleName</key><string>Clap Studio</string>
   <key>CFBundleDisplayName</key><string>Clap Studio</string>
   <key>CFBundleIdentifier</key><string>app.clapstudio.ClapStudio</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleExecutable</key><string>ClapStudio</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
