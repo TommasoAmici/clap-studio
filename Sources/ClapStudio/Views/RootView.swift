@@ -135,6 +135,10 @@ struct StatusBar: View {
                 if model.failedCount > 0 { Text("· \(model.failedCount) unreadable").foregroundStyle(.secondary) }
             }
             Spacer()
+            if let name = model.undoName {
+                Button("Undo \(name)") { model.undoLibraryEdit() }
+                    .buttonStyle(.borderless).controlSize(.small).lineLimit(1)
+            }
             if model.usingFallbackModel {
                 Label("Basic similarity (no neural model)", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange).help(model.modelNote)

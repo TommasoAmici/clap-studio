@@ -29,10 +29,15 @@ extension AppModel {
 
     func toggleFavorite(_ ids: [Int64]) {
         let anyNew = ids.contains { sampleByID[$0]?.favorite == false }
-        setFavorite(ids, anyNew)
+        let changed = ids.filter { sampleByID[$0]?.favorite == !anyNew }
+        guard !changed.isEmpty else { return }
+        record(LibraryEdit(name: anyNew ? "Favorite \(samplesPhrase(changed.count))" : "Unfavorite \(samplesPhrase(changed.count))",
+                           undo: { [unowned self] in setFavorite(changed, !anyNew) },
+                           redo: { [unowned self] in setFavorite(changed, anyNew) }))
+        setFavorite(changed, anyNew)
     }
 
-    func setFavorite(_ ids: [Int64], _ favorite: Bool) {
+    private func setFavorite(_ ids: [Int64], _ favorite: Bool) {
         guard let store, !ids.isEmpty else { return }
         do { try store.setFavorite(ids, favorite) } catch { errorMessage = "Could not save favorites: \(error)"; return }
         for id in ids { mutate(id) { $0.favorite = favorite } }
@@ -58,13 +63,37 @@ extension AppModel {
     }
 
     func add(_ ids: [Int64], toCollection id: Int64) {
-        guard let store, !ids.isEmpty else { return }
+        guard let store else { return }
+        let existing = Set(store.collectionMembers(id: id))
+        let new = ids.filter { !existing.contains($0) }
+        guard !new.isEmpty else { return }
+        let name = collections.first { $0.id == id }?.name ?? "collection"
+        record(LibraryEdit(name: "Add \(samplesPhrase(new.count)) to \(name)",
+                           undo: { [unowned self] in removeMembers(new, from: id) },
+                           redo: { [unowned self] in addMembers(new, to: id) }))
+        addMembers(new, to: id)
+    }
+
+    private func addMembers(_ ids: [Int64], to id: Int64) {
+        guard let store else { return }
         do { try store.addToCollection(id: id, sampleIDs: ids) } catch { errorMessage = "Could not update the collection: \(error)"; return }
         reloadCollections()
         if collectionSelection == id { refilter() }
     }
 
     func remove(_ ids: [Int64], fromCollection id: Int64) {
+        guard let store else { return }
+        let existing = Set(store.collectionMembers(id: id))
+        let present = ids.filter { existing.contains($0) }
+        guard !present.isEmpty else { return }
+        let name = collections.first { $0.id == id }?.name ?? "collection"
+        record(LibraryEdit(name: "Remove \(samplesPhrase(present.count)) from \(name)",
+                           undo: { [unowned self] in addMembers(present, to: id) },
+                           redo: { [unowned self] in removeMembers(present, from: id) }))
+        removeMembers(present, from: id)
+    }
+
+    private func removeMembers(_ ids: [Int64], from id: Int64) {
         guard let store else { return }
         do { try store.removeFromCollection(id: id, sampleIDs: ids) } catch { errorMessage = "Could not update the collection: \(error)"; return }
         reloadCollections()
@@ -77,8 +106,23 @@ extension AppModel {
     }
 
     func delete(collection id: Int64) {
-        try? store?.deleteCollection(id: id)
+        guard let store, let collection = collections.first(where: { $0.id == id }) else { return }
+        let members = store.collectionMembers(id: id)
+        var currentID = id
+        try? store.deleteCollection(id: id)
         reloadCollections()
+        record(LibraryEdit(name: "Delete collection \(collection.name)",
+                           undo: { [unowned self] in
+                               if let restored = try? store.createCollection(name: collection.name) {
+                                   currentID = restored.id
+                                   try? store.addToCollection(id: restored.id, sampleIDs: members)
+                                   reloadCollections()
+                               }
+                           },
+                           redo: { [unowned self] in
+                               try? store.deleteCollection(id: currentID)
+                               reloadCollections()
+                           }))
     }
 
     func collectionIDs(containing sampleID: Int64) -> Set<Int64> {

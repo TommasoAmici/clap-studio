@@ -59,6 +59,8 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    var undoStack: [LibraryEdit] = []
+    var redoStack: [LibraryEdit] = []
     var sweepList: [Int64] = []             // the neighbours being stepped through with ← →
     var exampleQuery: ExampleQuery?          // set while the list shows sounds similar to a dropped file
     @ObservationIgnored var exampleSearcher: ExampleSearcher?

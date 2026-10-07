@@ -23,6 +23,12 @@ struct ClapStudioApp: App {
                 .task { if model.store == nil { model.bootstrap() } }
         }
         .commands {
+            CommandGroup(after: .undoRedo) {
+                Button(model.undoName.map { "Undo \($0)" } ?? "Undo Library Change") { model.undoLibraryEdit() }
+                    .keyboardShortcut("z", modifiers: [.command, .option]).disabled(model.undoName == nil)
+                Button(model.redoName.map { "Redo \($0)" } ?? "Redo Library Change") { model.redoLibraryEdit() }
+                    .keyboardShortcut("z", modifiers: [.command, .option, .shift]).disabled(model.redoName == nil)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Add Folder…") { model.chooseFolder() }.keyboardShortcut("o")
                 Button("Rescan Library") { model.startIndexing() }.keyboardShortcut("r")

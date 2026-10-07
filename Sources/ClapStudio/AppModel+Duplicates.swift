@@ -20,7 +20,12 @@ extension AppModel {
 
     /// Takes samples out of the list and the map without touching the files. Reversible from "Hidden".
     func hide(_ ids: [Int64]) {
-        setHidden(ids, true)
+        let changed = ids.filter { sampleByID[$0]?.hidden == false }
+        guard !changed.isEmpty else { return }
+        record(LibraryEdit(name: "Hide \(samplesPhrase(changed.count))",
+                           undo: { [unowned self] in setHidden(changed, false) },
+                           redo: { [unowned self] in setHidden(changed, true) }))
+        setHidden(changed, true)
         if let selectedID, ids.contains(selectedID) { select(nil) }
         // Groups that are no longer duplicates drop out of the sheet.
         let gone = Set(ids)
@@ -30,7 +35,14 @@ extension AppModel {
         }
     }
 
-    func unhide(_ ids: [Int64]) { setHidden(ids, false) }
+    func unhide(_ ids: [Int64]) {
+        let changed = ids.filter { sampleByID[$0]?.hidden == true }
+        guard !changed.isEmpty else { return }
+        record(LibraryEdit(name: "Show \(samplesPhrase(changed.count))",
+                           undo: { [unowned self] in setHidden(changed, true) },
+                           redo: { [unowned self] in setHidden(changed, false) }))
+        setHidden(changed, false)
+    }
 
     private func setHidden(_ ids: [Int64], _ hidden: Bool) {
         guard let store, !ids.isEmpty else { return }
