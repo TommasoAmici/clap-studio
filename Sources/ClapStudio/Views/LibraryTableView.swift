@@ -65,20 +65,23 @@ struct LibraryTableView: View {
             }
         }
         .overlay(alignment: .top) {
-            // Name matches are shown at once; the semantic results join them when ready.
-            if model.searchPending && !model.visible.isEmpty {
-                Label {
-                    Text("Finding similar sounds…")
-                } icon: {
-                    ProgressView().controlSize(.small)
-                }
-                .font(.caption)
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(.regularMaterial, in: Capsule())
-                .padding(.top, 34)
-                .allowsHitTesting(false)
-            }
+            // The previous results stay put until the new ones are ready.
+            if model.searchPending && !model.visible.isEmpty { SearchingBadge().padding(.top, 34) }
         }
+    }
+}
+
+struct SearchingBadge: View {
+    var body: some View {
+        Label {
+            Text("Searching…")
+        } icon: {
+            ProgressView().controlSize(.small)
+        }
+        .font(.caption)
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(.regularMaterial, in: Capsule())
+        .allowsHitTesting(false)
     }
 }
 

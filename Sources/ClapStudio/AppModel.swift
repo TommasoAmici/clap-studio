@@ -192,6 +192,9 @@ final class AppModel {
     }
 
     func refilter() {
+        // While a semantic search is running, keep showing the previous results (list and map)
+        // instead of flashing a partial or empty set; the finished search calls refilter() again.
+        if searchPending { return }
         var list = samples
         switch smartFilter {
         case .all: break
@@ -213,7 +216,7 @@ final class AppModel {
                 publish(order.compactMap { sampleByID[$0] })
                 return
             }
-            list = list.filter { named.contains($0.id) }     // names only until the semantic scores arrive
+            list = list.filter { named.contains($0.id) }     // semantic search unavailable: names only
         }
         switch smartFilter {
         case .mostUsed: list.sort { $0.useCount > $1.useCount }

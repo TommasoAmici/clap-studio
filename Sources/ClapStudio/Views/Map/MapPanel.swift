@@ -63,6 +63,7 @@ struct MapPanel: View {
         }
         .overlay(alignment: .topLeading) { if model.snapshot != nil { MapControls().padding(12) } }
         .overlay(alignment: .bottomLeading) { if model.snapshot != nil { ClusterLegend().padding(12) } }
+        .overlay(alignment: .topTrailing) { if model.searchPending { SearchingBadge().padding(12) } }
         .overlay(alignment: .bottom) { HoverCaption().padding(.bottom, 12) }
     }
 }
