@@ -28,12 +28,15 @@ swift run -c release ClapBench 50000 2048   # scale benchmark
 
 ## Similarity model
 
-Two embedders sit behind one protocol:
+Three embedders sit behind one protocol:
 
-1. **PANNs CNN14 on Core ML** (AudioSet-trained, knows kicks, hats, snares, ...). Create it once with `tools/export_model.py` (the docstring has the `uv` commands: a Python 3.12 venv with `torch` and `coremltools`; downloads the CC BY 4.0 weights from Zenodo, converts, and verifies against PyTorch before saving to `~/Library/Application Support/ClapStudio/Models/`). The app compiles it on first launch and re-embeds the library once.
-2. **Built-in DSP features** (log-mel band statistics, envelope, centroid). Used automatically when the model is absent; the status bar says so. Good for coarse grouping, noticeably weaker than the neural model.
+1. **LAION-CLAP on Core ML** (preferred; HTSAT audio tower, 512-d, trained on audio/text pairs). Create it once with `tools/export_clap.py` (the docstring has the `uv` commands). It also exports the text tower and tokenizer files, which enables the **Sound** search scope: type "punchy 808 kick" or "warm analog pad" and samples are ranked by how well they match the description.
+2. **PANNs CNN14 on Core ML** (AudioSet classifier trunk, 2048-d). Create it with `tools/export_model.py`. Used when CLAP is absent.
+3. **Built-in DSP features** (log-mel band statistics, envelope, centroid). Used automatically when no model is exported; the status bar says so. Good for coarse grouping, noticeably weaker than the neural models.
 
-Pipeline: 4 s window, 32 kHz mono, PANNs-compatible log-mel (vDSP), model trunk, max+mean pooling over only the real (non-padded) frames, PCA to 128 dims, cosine search (BLAS), spherical k-means for colours, UMAP-style layout for the map.
+Models are compiled by the app on first launch. Switching model re-embeds the library once. `tools/make_references.py` regenerates the librosa / Hugging Face ground truth the tests compare the Swift front ends, tokenizer and Core ML outputs against.
+
+Pipeline (CLAP: 10 s window at 48 kHz, repeat-padded; CNN14: 4 s at 32 kHz): log-mel (vDSP), model, PCA to 128 dims, cosine search (BLAS), spherical k-means for colours, UMAP-style layout for the map.
 
 At 50k samples x 2048 dims (M4 Pro): PCA 2.5 s, layout about 1 s, similarity query under 1 ms.
 

@@ -12,9 +12,11 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$(swift build -c release --show-bin-path)/ClapStudio" "$APP/Contents/MacOS/ClapStudio"
 
-# Bundle the Core ML model when it has been exported (see tools/export_model.py).
-MODEL="$HOME/Library/Application Support/ClapStudio/Models/CNN14Trunk.mlpackage"
-[ -d "$MODEL" ] && cp -R "$MODEL" "$APP/Contents/Resources/" && echo "Bundled CNN14Trunk model"
+# Bundle whichever Core ML models have been exported (tools/export_clap.py, tools/export_model.py).
+MODELS="$HOME/Library/Application Support/ClapStudio/Models"
+for item in CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.json clap_merges.txt; do
+  [ -e "$MODELS/$item" ] && cp -R "$MODELS/$item" "$APP/Contents/Resources/" && echo "Bundled $item"
+done
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

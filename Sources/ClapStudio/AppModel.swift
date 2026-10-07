@@ -21,6 +21,11 @@ enum SmartFilter: String, CaseIterable, Identifiable {
     }
 }
 
+enum SearchMode: String, CaseIterable, Identifiable {
+    case name = "Name", sound = "Sound"
+    var id: String { rawValue }
+}
+
 struct SimilarResult: Identifiable {
     let sample: SampleRecord
     let score: Float
@@ -43,6 +48,8 @@ final class AppModel {
     @ObservationIgnored var embedder: EmbeddingProvider?
     @ObservationIgnored let player = SamplePlayer()
     @ObservationIgnored var cancelToken = CancelToken()
+    @ObservationIgnored var textSearcher: TextSearcher?
+    @ObservationIgnored var soundSearchTask: Task<Void, Never>?
     @ObservationIgnored var lastGrab: [Int64: Date] = [:]
 
     // MARK: library data
@@ -53,7 +60,10 @@ final class AppModel {
     var folderTree: [FolderNode] = []
 
     // MARK: filters
-    var searchText = "" { didSet { refilter() } }
+    var searchText = "" { didSet { scheduleSoundSearch(); refilter() } }
+    var searchMode: SearchMode = .name { didSet { scheduleSoundSearch(); refilter() } }
+    var textSearchAvailable = false
+    var soundScores: [Int64: Float] = [:]
     var smartFilter: SmartFilter = .all { didSet { refilter() } }
     var folderSelection: String? { didSet { refilter() } }   // FolderNode.id, nil = everything
     var sortOrder = [KeyPathComparator(\SampleRecord.name, comparator: .localizedStandard)] { didSet { refilter() } }
@@ -115,6 +125,7 @@ final class AppModel {
                 snapshot = analyzer?.loadSnapshot(modelVersion: version)
                 afterSnapshotChange()
             }
+            prepareTextSearch()
             // Developer convenience: `ClapStudio --add-folder /path/to/samples`
             let args = CommandLine.arguments
             if let flag = args.firstIndex(of: "--add-folder"), flag + 1 < args.count {
@@ -184,6 +195,12 @@ final class AppModel {
             list = list.filter { $0.rootID == node.rootID && ($0.relPath.hasPrefix(node.path) || node.path.isEmpty) }
         }
         let query = searchText.trimmingCharacters(in: .whitespaces)
+        if soundSearchActive {
+            list = list.filter { soundScores[$0.id] != nil }
+            list.sort { (soundScores[$0.id] ?? 0) > (soundScores[$1.id] ?? 0) }
+            visible = list
+            return
+        }
         if !query.isEmpty {
             list = list.filter { $0.name.localizedCaseInsensitiveContains(query) || $0.relPath.localizedCaseInsensitiveContains(query) }
         }

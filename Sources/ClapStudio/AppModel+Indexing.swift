@@ -113,6 +113,8 @@ extension AppModel {
     func afterSnapshotChange(layoutChanged: Bool = true) {
         if layoutChanged { mapVersion += 1 }
         clusterVersion += 1
+        textSearcher?.invalidate()
+        prepareTextSearch()
         hoverRow = nil
         buildClusterInfo()
         if let id = selectedID { updateSimilar(for: id) }
