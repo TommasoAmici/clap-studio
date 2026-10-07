@@ -26,6 +26,25 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var lastUsed: Double?
     public var cueCount: Int
 
+    // Measured and derived properties (nil until analysed).
+    public var loudnessDB: Double? = nil
+    public var peakDB: Double? = nil
+    public var crestDB: Double? = nil
+    public var centroidHz: Double? = nil
+    public var isLoop: Bool? = nil
+    public var bpm: Double? = nil
+    public var bpmManual: Double? = nil
+    public var pitchHz: Double? = nil
+    public var keyName: String? = nil
+    public var category: String? = nil
+    public var categoryManual: String? = nil
+    public var favorite: Bool = false
+    public var hidden: Bool = false
+
+    /// The user's BPM correction wins over the detected one.
+    public var effectiveBPM: Double? { bpmManual ?? bpm }
+    public var effectiveCategory: String? { categoryManual ?? category }
+
     public var url: URL { URL(fileURLWithPath: rootPath).appendingPathComponent(relPath) }
 
     /// Folder relative to the root ("" for files directly in the root).
@@ -61,7 +80,8 @@ public struct IndexJob: Sendable {
 
 public enum IndexResult: Sendable {
     case success(id: Int64, duration: Double, sampleRate: Double, channels: Int,
-                 embedding: [Float], fingerprint: String?, modelVersion: String, cues: [FileCue] = [])
+                 embedding: [Float], fingerprint: String?, modelVersion: String, cues: [FileCue] = [],
+                 descriptors: SoundDescriptors? = nil)
     case failure(id: Int64, message: String)
 }
 

@@ -36,6 +36,8 @@ public struct Row {
         guard let c = sqlite3_column_text(stmt, i) else { return "" }
         return String(cString: c)
     }
+    public func optDouble(_ i: Int32) -> Double? { isNull(i) ? nil : double(i) }
+
     public func blob(_ i: Int32) -> Data {
         guard let p = sqlite3_column_blob(stmt, i) else { return Data() }
         return Data(bytes: p, count: Int(sqlite3_column_bytes(stmt, i)))

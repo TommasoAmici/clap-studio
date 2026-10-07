@@ -97,8 +97,8 @@ public final class LibraryStore: @unchecked Sendable {
                         result.unchanged += 1
                     } else {
                         try db.run("""
-                            UPDATE samples SET size = ?, mtime = ?, status = 'pending', error = NULL
-                            WHERE id = ?
+                            UPDATE samples SET size = ?, mtime = ?, status = 'pending', error = NULL,
+                                desc_version = 0 WHERE id = ?
                             """, [.int(file.size), .double(file.mtime), .int(e.id)])
                         result.changed += 1
                     }
@@ -183,7 +183,7 @@ public final class LibraryStore: @unchecked Sendable {
         try db.transaction {
             for r in results {
                 switch r {
-                case let .success(id, duration, sr, ch, embedding, fingerprint, version, cues):
+                case let .success(id, duration, sr, ch, embedding, fingerprint, version, cues, descriptors):
                     try db.run("""
                         UPDATE samples SET duration = ?, sample_rate = ?, channels = ?, embedding = ?,
                             fingerprint = COALESCE(?, fingerprint), model_version = ?, status = 'ok',
@@ -192,6 +192,7 @@ public final class LibraryStore: @unchecked Sendable {
                               .blob(VectorCodec.encodeFloat16(embedding)),
                               fingerprint.map { .text($0) } ?? .null, .text(version), .double(now), .int(id)])
                     try importFileCues(sampleID: id, cues)
+                    try writeDescriptors(id, descriptors)
                 case let .failure(id, message):
                     try db.run("UPDATE samples SET status = 'failed', error = ?, indexed_at = ? WHERE id = ?",
                                [.text(message), .double(now), .int(id)])
@@ -219,7 +220,9 @@ public final class LibraryStore: @unchecked Sendable {
                    s.size, s.mtime, s.status,
                    (SELECT COUNT(*) FROM usage_events u WHERE u.sample_id = s.id),
                    (SELECT MAX(ts) FROM usage_events u WHERE u.sample_id = s.id),
-                   (SELECT COUNT(*) FROM cue_points c WHERE c.sample_id = s.id)
+                   (SELECT COUNT(*) FROM cue_points c WHERE c.sample_id = s.id),
+                   s.loudness, s.peak, s.crest, s.centroid, s.is_loop, s.bpm, s.bpm_manual, s.pitch_hz, s.key_name,
+                   s.category, s.category_manual, s.favorite, s.hidden
             FROM samples s JOIN roots r ON r.id = s.root_id
             WHERE s.status IN ('ok', 'pending') \(extraFilter)
             """, params) {
@@ -229,7 +232,13 @@ public final class LibraryStore: @unchecked Sendable {
                 channels: Int($0.int(8)), size: $0.int(9), mtime: $0.double(10),
                 status: SampleStatus(rawValue: $0.text(11)) ?? .pending,
                 useCount: Int($0.int(12)), lastUsed: $0.isNull(13) ? nil : $0.double(13),
-                cueCount: Int($0.int(14)))
+                cueCount: Int($0.int(14)),
+                loudnessDB: $0.optDouble(15), peakDB: $0.optDouble(16), crestDB: $0.optDouble(17),
+                centroidHz: $0.optDouble(18), isLoop: $0.isNull(19) ? nil : $0.int(19) != 0,
+                bpm: $0.optDouble(20), bpmManual: $0.optDouble(21), pitchHz: $0.optDouble(22),
+                keyName: $0.isNull(23) ? nil : $0.text(23),
+                category: $0.isNull(24) ? nil : $0.text(24), categoryManual: $0.isNull(25) ? nil : $0.text(25),
+                favorite: $0.int(26) != 0, hidden: $0.int(27) != 0)
         }) ?? []
     }
 

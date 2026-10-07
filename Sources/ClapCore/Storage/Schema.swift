@@ -2,11 +2,12 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
         if version < 1 { try v1(db) }
+        if version < 2 { try v2(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -43,6 +44,27 @@ enum Schema {
             position_frames INTEGER NOT NULL, label TEXT NOT NULL DEFAULT '',
             source TEXT NOT NULL, file_synced INTEGER NOT NULL DEFAULT 0);
         CREATE INDEX IF NOT EXISTS cue_sample ON cue_points(sample_id);
+        """)
+    }
+
+    /// Descriptors, categories, favorites, hidden flag and collections.
+    private static func v2(_ db: SQLiteDB) throws {
+        for column in [
+            "loudness REAL", "peak REAL", "crest REAL", "centroid REAL", "is_loop INTEGER",
+            "bpm REAL", "bpm_conf REAL", "bpm_manual REAL", "pitch_hz REAL", "key_name TEXT",
+            "desc_version INTEGER NOT NULL DEFAULT 0",
+            "category TEXT", "category_conf REAL", "category_manual TEXT", "category_version TEXT",
+            "favorite INTEGER NOT NULL DEFAULT 0", "hidden INTEGER NOT NULL DEFAULT 0",
+        ] {
+            try db.exec("ALTER TABLE samples ADD COLUMN \(column)")
+        }
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS collections(
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, created REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS collection_items(
+            collection_id INTEGER NOT NULL, sample_id INTEGER NOT NULL, added REAL NOT NULL,
+            PRIMARY KEY(collection_id, sample_id));
+        CREATE INDEX IF NOT EXISTS collection_items_sample ON collection_items(sample_id);
         """)
     }
 }

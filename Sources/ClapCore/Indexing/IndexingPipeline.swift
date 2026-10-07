@@ -62,9 +62,10 @@ public final class IndexingPipeline: @unchecked Sendable {
             for _ in 0..<min(workers, jobs.count) {
                 group.addTask {
                     let extractor = LogMelExtractor(config: embedder.frontEnd)
+                    let analyzer = DescriptorAnalyzer()
                     var local: [IndexResult] = []
                     while !isCancelled(), let job = queue.next() {
-                        local.append(Self.embedOne(job, extractor: extractor, embedder: embedder))
+                        local.append(Self.embedOne(job, extractor: extractor, analyzer: analyzer, embedder: embedder))
                         onItemDone(job.url.lastPathComponent)
                     }
                     return local
@@ -76,17 +77,20 @@ public final class IndexingPipeline: @unchecked Sendable {
         }
     }
 
-    static func embedOne(_ job: IndexJob, extractor: LogMelExtractor, embedder: EmbeddingProvider) -> IndexResult {
+    static func embedOne(_ job: IndexJob, extractor: LogMelExtractor, analyzer: DescriptorAnalyzer,
+                         embedder: EmbeddingProvider) -> IndexResult {
         do {
             let fe = embedder.frontEnd
-            let audio = try AudioDecoder.decodeForAnalysis(url: job.url, maxSeconds: fe.analysisSeconds,
+            let audio = try AudioDecoder.decodeForAnalysis(url: job.url, maxSeconds: max(fe.analysisSeconds, DescriptorAnalyzer.analysisSeconds),
                                                            sampleRate: Double(fe.sampleRate))
             let mel = extractor.extract(signal: audio.samples)
             let vector = try embedder.embed(mel)
+            let descriptors = analyzer.analyze(samples: audio.samples, sampleRate: Double(fe.sampleRate),
+                                               fileDuration: audio.duration)
             return .success(id: job.id, duration: audio.duration, sampleRate: audio.sampleRate,
                             channels: audio.channels, embedding: vector,
                             fingerprint: FileFingerprint.compute(url: job.url), modelVersion: embedder.version,
-                            cues: CueFileReader.read(url: job.url))
+                            cues: CueFileReader.read(url: job.url), descriptors: descriptors)
         } catch {
             return .failure(id: job.id, message: String(describing: error))
         }

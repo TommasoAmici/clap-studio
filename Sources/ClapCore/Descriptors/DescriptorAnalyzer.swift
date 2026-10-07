@@ -2,6 +2,8 @@ import Foundation
 
 /// Computes `SoundDescriptors` from decoded mono audio. Not thread-safe: one analyzer per worker.
 public final class DescriptorAnalyzer {
+    /// How much of each file is analysed (enough for several bars of a loop).
+    public static let analysisSeconds = 10.0
     private static let nFFT = 2048
     private static let hop = 512
     private let spectrum = SpectrumAnalyzer(nFFT: DescriptorAnalyzer.nFFT)

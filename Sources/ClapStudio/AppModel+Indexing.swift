@@ -47,6 +47,13 @@ extension AppModel {
                 try? store.setMeta("model_version", version)
             }
             progress = nil
+
+            // Libraries indexed before descriptors existed: measure them without re-embedding.
+            if store.descriptorBacklog() > 0, !token.isCancelled {
+                await DescriptorBackfill(store: store).run(onProgress: { [weak self] done, total in
+                    Task { @MainActor in self?.statusMessage = "Measuring sounds (\(done)/\(total))" }
+                }, isCancelled: { token.isCancelled })
+            }
             failedCount = store.failedCount()
             reloadSamples()
 
