@@ -151,7 +151,7 @@ import Testing
         ])
         let kickish = Self.fakeEmbed("kick"), snareish = Self.fakeEmbed("snare")
         let between: [Float] = {
-            var v = [Float](repeating: 1, count: 5)
+            let v = [Float](repeating: 1, count: 5)
             let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot(); return v.map { $0 / n }
         }()
         let r = categorizer.classify(flat: kickish + snareish + between, count: 3)
@@ -180,5 +180,54 @@ import Testing
         #expect(store.loadSamples().first?.effectiveCategory == "Snare")
         try store.setManualCategory(sampleID: id, nil)
         #expect(store.loadSamples().first?.effectiveCategory == "Kick")
+    }
+}
+
+@Suite struct DuplicateFinderTests {
+    private func unit(_ axis: Int, tilt: Float = 0) -> [Float] {
+        var v = [Float](repeating: 0, count: 512)
+        v[axis] = 1; v[(axis + 1) % 512] = tilt
+        let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot()
+        return v.map { $0 / n }
+    }
+
+    @Test func groupsIdenticalAndNearCopiesAndPicksBest() throws {
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: "/tmp/x")
+        let names = ["a.wav", "a copy.wav", "deep/folder/a_remix.wav", "other.wav", "same_bytes.wav", "same_bytes2.wav"]
+        let fingerprints = ["a.wav": "f1", "a copy.wav": "f2", "deep/folder/a_remix.wav": "f3",
+                            "other.wav": "f4", "same_bytes.wav": "f5", "same_bytes2.wav": "f5"]
+        try store.sync(rootID: root.id, scanned: names.map { ScannedFile(relPath: $0, size: 10, mtime: 1) }) { fingerprints[$0] }
+        let vectors = ["a.wav": unit(0), "a copy.wav": unit(0, tilt: 0.05), "deep/folder/a_remix.wav": unit(0, tilt: 0.1),
+                       "other.wav": unit(100), "same_bytes.wav": unit(200), "same_bytes2.wav": unit(300)]
+        for job in store.pendingJobs(limit: 20) {
+            let rel = job.url.path.replacingOccurrences(of: "/tmp/x/", with: "")
+            try store.save(results: [.success(id: job.id, duration: 1, sampleRate: 44100, channels: 1,
+                                              embedding: vectors[rel]!, fingerprint: fingerprints[rel]!, modelVersion: "m")])
+        }
+        var samples = store.loadSamples()
+        let a = try #require(samples.first { $0.relPath == "a.wav" })
+        try store.recordGrab(sampleID: a.id)       // the used copy should be kept
+        samples = store.loadSamples()
+
+        let groups = try DuplicateFinder.find(store: store, samples: samples, modelVersion: "m")
+        #expect(groups.count == 2)
+        let sound = try #require(groups.first { !$0.identical })
+        #expect(Set(sound.ids) == Set(samples.filter { $0.relPath.contains("a") && $0.relPath != "other.wav" && !$0.relPath.hasPrefix("same") }.map(\.id)))
+        #expect(sound.keeper == a.id)
+        let same = try #require(groups.first { $0.identical })
+        #expect(same.ids.count == 2)
+        #expect(!groups.flatMap(\.ids).contains(samples.first { $0.relPath == "other.wav" }!.id))
+    }
+
+    @Test func hidingIsReversibleAndLeavesFinderAlone() throws {
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: "/tmp/x")
+        try store.sync(rootID: root.id, scanned: [ScannedFile(relPath: "a.wav", size: 1, mtime: 1)]) { _ in nil }
+        let id = store.loadSamples()[0].id
+        try store.setHidden([id], true)
+        #expect(store.loadSamples()[0].hidden)
+        try store.setHidden([id], false)
+        #expect(!store.loadSamples()[0].hidden)
     }
 }
