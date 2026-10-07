@@ -14,5 +14,6 @@ if [ -z "$SDKROOT" ]; then
       done ;;
   esac
 fi
-SWIFT_BIN_DIR="$(dirname "$(command -v swift)")"
-TESTING_PLUGINS="$SWIFT_BIN_DIR/../lib/swift/host/plugins/testing"
+DEV_DIR="$(xcode-select -p)"
+TESTING_PLUGINS="$DEV_DIR/usr/lib/swift/host/plugins/testing"
+[ -d "$TESTING_PLUGINS" ] || TESTING_PLUGINS="$DEV_DIR/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing"
