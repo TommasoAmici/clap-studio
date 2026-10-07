@@ -51,6 +51,7 @@ struct RootView: View {
             return true
         }
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
+        .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {

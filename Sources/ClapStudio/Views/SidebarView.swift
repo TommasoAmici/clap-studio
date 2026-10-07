@@ -71,8 +71,13 @@ struct SidebarView: View {
             HStack {
                 Button { model.chooseFolder() } label: { Label("Add Folder…", systemImage: "plus") }
                 Spacer()
+                Button { model.showInsights = true } label: { Label("Ideas", systemImage: "lightbulb") }
+                    .labelStyle(.iconOnly)
+                    .help("Ideas: unused sounds similar to the ones you grab most")
+                    .disabled(model.snapshot == nil)
                 Button { model.showDuplicates = true } label: { Label("Duplicates", systemImage: "square.on.square") }
-                    .help("Find copies of the same sound")
+                    .labelStyle(.iconOnly)
+                    .help("Find duplicates")
                     .disabled(model.samples.isEmpty)
             }
             .buttonStyle(.borderless).padding(10)

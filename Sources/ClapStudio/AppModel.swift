@@ -70,6 +70,7 @@ final class AppModel {
     var duplicateGroups: [DuplicateGroup]?
     var duplicateSearchRunning = false
     var showDuplicates = false
+    var showInsights = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
     // MARK: filters

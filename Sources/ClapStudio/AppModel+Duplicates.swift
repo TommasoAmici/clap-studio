@@ -40,5 +40,11 @@ extension AppModel {
         if smartFilter == .hidden, hiddenCount == 0 { smartFilter = .all } else { refilter() }
     }
 
+    /// Used by the insights sheet; empty until the map index exists.
+    func reuseSuggestions() -> [ReuseSuggestion] {
+        guard let index = snapshot?.index else { return [] }
+        return ReuseInsights.suggestions(samples: samples, index: index)
+    }
+
     func updateHiddenCount() { hiddenCount = samples.lazy.filter(\.hidden).count }
 }
