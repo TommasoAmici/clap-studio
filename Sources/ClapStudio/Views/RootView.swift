@@ -55,7 +55,7 @@ struct RootView: View {
         }
         .onKeyPress(characters: .init(charactersIn: "m")) { _ in
             guard model.selectedID != nil else { return .ignored }
-            model.addCueAtPlayhead()
+            model.addCueAtMarker()
             return .handled
         }
         .onKeyPress(characters: .decimalDigits) { press in

@@ -2,7 +2,7 @@ import ClapCore
 import SwiftUI
 
 /// Waveform with playhead and draggable cue markers.
-/// Click: play from there. Option-click: add a cue. Drag a flag: move it. Right-click a flag: delete.
+/// Click: play from there and keep that spot as the start marker (M sets a cue on it). Option-click: add a cue. Drag a flag: move it. Right-click a flag: delete.
 struct WaveformCueView: View {
     @Environment(AppModel.self) private var model
 
@@ -22,6 +22,12 @@ struct WaveformCueView: View {
                 }
                 .allowsHitTesting(false)
 
+                if let marker = model.startMarkerSeconds {
+                    StartMarker(height: geo.size.height)
+                        .offset(x: geo.size.width * marker / duration - 5)
+                        .allowsHitTesting(false)
+                }
+
                 ForEach(Array(model.cues.enumerated()), id: \.element.id) { index, cue in
                     CueMarker(cue: cue, number: index + 1, duration: duration, width: geo.size.width,
                               height: geo.size.height)
@@ -31,7 +37,7 @@ struct WaveformCueView: View {
             .gesture(SpatialTapGesture().onEnded { tap in
                 let seconds = max(0, min(duration, duration * tap.location.x / geo.size.width))
                 if NSEvent.modifierFlags.contains(.option) { model.addCue(atSeconds: seconds) }
-                else if let s = model.selectedSample { model.playSample(s, from: seconds) }
+                else { model.placeStartMarker(atSeconds: seconds) }
             })
         }
         .frame(height: 110)
@@ -40,6 +46,19 @@ struct WaveformCueView: View {
         .overlay {
             if model.waveform.isEmpty && model.selectedID != nil { ProgressView().controlSize(.small) }
         }
+    }
+}
+
+/// Where the user last clicked to audition; stays put while the playhead moves on.
+private struct StartMarker: View {
+    let height: CGFloat
+    var body: some View {
+        ZStack(alignment: .top) {
+            Rectangle().fill(Color.cyan).frame(width: 1.5, height: height)
+            Image(systemName: "triangleshape.fill").resizable().frame(width: 10, height: 8)
+                .rotationEffect(.degrees(180)).foregroundStyle(.cyan)
+        }
+        .frame(width: 10, height: height)
     }
 }
 

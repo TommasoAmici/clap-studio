@@ -6,6 +6,7 @@ extension AppModel {
 
     func select(_ id: Int64?, play: Bool = false) {
         guard id != selectedID || play else { return }
+        if id != selectedID { startMarkerFrame = nil }
         selectedID = id
         selectedCueID = nil
         guard let id, let sample = sampleByID[id] else {
@@ -59,7 +60,7 @@ extension AppModel {
 
     func togglePlayback() {
         if playback.sampleID != nil { player.stop(); return }
-        if let s = selectedSample { playSample(s) }
+        if let s = selectedSample { playSample(s, from: startMarkerSeconds ?? 0) }
     }
 
     /// Hover preview from the map; returns quickly and supersedes any decode in flight.
@@ -105,11 +106,31 @@ extension AppModel {
     }
 
     func addCue(atSeconds seconds: Double) {
+        addCue(atFrame: Int64((seconds * nativeRate).rounded()))
+    }
+
+    func addCue(atFrame frame: Int64) {
         guard let id = selectedID, let editor = cueEditor else { return }
-        run { let cue = try editor.add(sampleID: id, frame: Int64(seconds * self.nativeRate)); self.selectedCueID = cue.id }
+        run { let cue = try editor.add(sampleID: id, frame: frame); self.selectedCueID = cue.id }
     }
 
     func addCueAtPlayhead() { addCue(atSeconds: playback.playhead() ?? 0) }
+
+    /// Click on the waveform: remember that exact frame and audition from it.
+    func placeStartMarker(atSeconds seconds: Double) {
+        startMarkerFrame = Int64((max(0, seconds) * nativeRate).rounded())
+        if let s = selectedSample { playSample(s, from: seconds) }
+    }
+
+    var startMarkerSeconds: Double? { startMarkerFrame.map { Double($0) / nativeRate } }
+
+    /// Sets a cue where the user originally clicked (not where playback has reached). Without a
+    /// marker it falls back to the playhead.
+    func addCueAtMarker() {
+        guard let frame = startMarkerFrame else { addCueAtPlayhead(); return }
+        addCue(atFrame: frame)
+        startMarkerFrame = nil      // the cue now marks the spot
+    }
 
     func moveCue(_ id: Int64, toSeconds seconds: Double) {
         guard let editor = cueEditor else { return }

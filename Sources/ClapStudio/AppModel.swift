@@ -79,6 +79,9 @@ final class AppModel {
     var cuesDirty = false
     var waveform: [Float] = []
     var selectedCueID: Int64?
+    /// Frame (in the file's own sample rate) where the user last clicked the waveform to audition.
+    /// Kept until the next click or sample change so a cue can be set exactly there, even after playback moves on.
+    var startMarkerFrame: Int64?
     var playback = PlaybackState()
     var autoplay = true
     var hoverPlay = true

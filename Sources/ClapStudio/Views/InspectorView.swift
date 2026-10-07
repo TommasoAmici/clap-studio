@@ -108,7 +108,8 @@ struct CuePanel: View {
             HStack {
                 Text("Cue points").font(.subheadline.bold())
                 Spacer()
-                Button { model.addCueAtPlayhead() } label: { Image(systemName: "plus") }.help("Add cue at playhead (M)")
+                Button { model.addCueAtMarker() } label: { Image(systemName: "plus") }
+                    .help("Add cue at the spot you clicked (M); at the playhead if you haven't clicked")
                 Button { model.undoCue() } label: { Image(systemName: "arrow.uturn.backward") }
                     .help("Undo cue edit").disabled(!(model.cueEditor?.canUndo ?? false))
                 Button { model.redoCue() } label: { Image(systemName: "arrow.uturn.forward") }
@@ -116,8 +117,11 @@ struct CuePanel: View {
             }
             .buttonStyle(.borderless)
 
-            if model.cues.isEmpty {
-                Text("Option-click the waveform or press M while playing to add one.")
+            if let marker = model.startMarkerSeconds {
+                Label("Start marker at \(Format.clock(marker)). Press M to set a cue here.", systemImage: "mappin")
+                    .font(.caption).foregroundStyle(.cyan)
+            } else if model.cues.isEmpty {
+                Text("Click the waveform to audition from a spot, then press M to set a cue exactly there.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach(Array(model.cues.enumerated()), id: \.element.id) { index, cue in
