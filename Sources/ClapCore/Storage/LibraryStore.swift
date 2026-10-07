@@ -98,7 +98,8 @@ public final class LibraryStore: @unchecked Sendable {
                     } else {
                         try db.run("""
                             UPDATE samples SET size = ?, mtime = ?, status = 'pending', error = NULL,
-                                desc_version = 0 WHERE id = ?
+                                desc_version = 0,
+                                category_version = NULL WHERE id = ?
                             """, [.int(file.size), .double(file.mtime), .int(e.id)])
                         result.changed += 1
                     }

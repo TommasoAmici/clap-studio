@@ -134,3 +134,51 @@ import Testing
         #expect(DescriptorFilter.tonic(of: "G minor") == "G")
     }
 }
+
+@Suite struct CategorizerTests {
+    /// Fake text tower: each phrase is a one-hot-ish vector chosen by its first word.
+    private static func fakeEmbed(_ text: String) -> [Float] {
+        let axes = ["kick": 0, "snare": 1, "bass": 2, "tom": 3, "hat": 4]
+        var v = [Float](repeating: 0.01, count: 5)
+        for (word, axis) in axes where text.contains(word) { v[axis] = 1 }
+        let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot()
+        return v.map { $0 / n }
+    }
+
+    @Test func picksNearestCategoryAndAbstainsWhenUnsure() throws {
+        let categorizer = try Categorizer(embed: { Self.fakeEmbed($0) }, categories: [
+            ("Kick", ["a kick"]), ("Snare", ["a snare"]), ("Bass", ["a bass"]), ("Tom", ["a tom"]), ("Hat", ["a hat"]),
+        ])
+        let kickish = Self.fakeEmbed("kick"), snareish = Self.fakeEmbed("snare")
+        let between: [Float] = {
+            var v = [Float](repeating: 1, count: 5)
+            let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot(); return v.map { $0 / n }
+        }()
+        let r = categorizer.classify(flat: kickish + snareish + between, count: 3)
+        #expect(r[0].category == "Kick")
+        #expect(r[1].category == "Snare")
+        #expect(r[2].category == nil, "an equidistant sound is left uncategorised")
+    }
+
+    @Test func categoriesAreStoredAndCorrectable() throws {
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: "/tmp/x")
+        _ = try store.sync(rootID: root.id, scanned: [ScannedFile(relPath: "a.wav", size: 1, mtime: 1)]) { _ in "f" }
+        let id = store.pendingJobs(limit: 1)[0].id
+        try store.save(results: [.success(id: id, duration: 1, sampleRate: 44100, channels: 1,
+                                          embedding: Self.fakeEmbed("kick"), fingerprint: "f",
+                                          modelVersion: ClapEmbedder.versionTag)])
+        let categorizer = try Categorizer(embed: { Self.fakeEmbed($0) }, categories: [("Kick", ["a kick"]), ("Snare", ["a snare"])])
+        #expect(store.categoryBacklog() == 1)
+        try store.categorize(with: categorizer)
+        #expect(store.categoryBacklog() == 0)
+        #expect(store.loadSamples().first?.effectiveCategory == "Kick")
+
+        try store.setManualCategory(sampleID: id, "Snare")
+        #expect(store.loadSamples().first?.effectiveCategory == "Snare")
+        try store.categorize(with: categorizer)    // recomputing must not touch the user's choice
+        #expect(store.loadSamples().first?.effectiveCategory == "Snare")
+        try store.setManualCategory(sampleID: id, nil)
+        #expect(store.loadSamples().first?.effectiveCategory == "Kick")
+    }
+}

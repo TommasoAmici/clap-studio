@@ -132,6 +132,22 @@ extension EndToEndTests {
             #expect(hits >= 4, "'\(query)' returned \(top)")
         }
         #expect(try searcher.search("   ", store: store).isEmpty)
+
+        // Zero-shot categories on the same sounds.
+        let categorizer = try Categorizer(embed: encoder.embed)
+        try store.setMeta("model_version", ClapEmbedder.versionTag)
+        try store.categorize(with: categorizer)
+        var correct = 0, total = 0
+        let expectedCategory = ["kick": "Kick", "hat": "Hi-hat", "pad": "Pad"]
+        var seen: [String: [String]] = [:]
+        for s in store.loadSamples() {
+            let k = kind[s.name]!
+            seen[k, default: []].append(s.category ?? "-")
+            total += 1
+            if s.category == expectedCategory[k] { correct += 1 }
+        }
+        print("categories:", seen)
+        #expect(Double(correct) / Double(total) >= 0.6, "categories \(seen)")
     }
 
     private func synthForTextTest(_ kind: String, variant v: Double, rng: inout SplitMix64) -> (Double, (Double) -> Float) {
