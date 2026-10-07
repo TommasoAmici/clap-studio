@@ -83,7 +83,8 @@ public final class IndexingPipeline: @unchecked Sendable {
             let vector = try embedder.embed(mel)
             return .success(id: job.id, duration: audio.duration, sampleRate: audio.sampleRate,
                             channels: audio.channels, embedding: vector,
-                            fingerprint: FileFingerprint.compute(url: job.url), modelVersion: embedder.version)
+                            fingerprint: FileFingerprint.compute(url: job.url), modelVersion: embedder.version,
+                            cues: CueFileReader.read(url: job.url))
         } catch {
             return .failure(id: job.id, message: String(describing: error))
         }

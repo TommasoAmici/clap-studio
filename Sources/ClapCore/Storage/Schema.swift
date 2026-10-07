@@ -23,6 +23,7 @@ enum Schema {
             size INTEGER NOT NULL, mtime REAL NOT NULL, fingerprint TEXT,
             status TEXT NOT NULL DEFAULT 'pending',
             error TEXT, indexed_at REAL, model_version TEXT, embedding BLOB,
+            cues_dirty INTEGER NOT NULL DEFAULT 0,
             UNIQUE(root_id, rel_path));
         CREATE INDEX IF NOT EXISTS samples_fp ON samples(fingerprint);
         CREATE INDEX IF NOT EXISTS samples_status ON samples(status);

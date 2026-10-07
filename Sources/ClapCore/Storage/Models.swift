@@ -61,7 +61,7 @@ public struct IndexJob: Sendable {
 
 public enum IndexResult: Sendable {
     case success(id: Int64, duration: Double, sampleRate: Double, channels: Int,
-                 embedding: [Float], fingerprint: String?, modelVersion: String)
+                 embedding: [Float], fingerprint: String?, modelVersion: String, cues: [FileCue] = [])
     case failure(id: Int64, message: String)
 }
 

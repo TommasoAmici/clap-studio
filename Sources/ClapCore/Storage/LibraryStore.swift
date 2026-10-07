@@ -177,7 +177,7 @@ public final class LibraryStore: @unchecked Sendable {
         try db.transaction {
             for r in results {
                 switch r {
-                case let .success(id, duration, sr, ch, embedding, fingerprint, version):
+                case let .success(id, duration, sr, ch, embedding, fingerprint, version, cues):
                     try db.run("""
                         UPDATE samples SET duration = ?, sample_rate = ?, channels = ?, embedding = ?,
                             fingerprint = COALESCE(?, fingerprint), model_version = ?, status = 'ok',
@@ -185,6 +185,7 @@ public final class LibraryStore: @unchecked Sendable {
                         """, [.double(duration), .double(sr), .int(Int64(ch)),
                               .blob(VectorCodec.encodeFloat16(embedding)),
                               fingerprint.map { .text($0) } ?? .null, .text(version), .double(now), .int(id)])
+                    try importFileCues(sampleID: id, cues)
                 case let .failure(id, message):
                     try db.run("UPDATE samples SET status = 'failed', error = ?, indexed_at = ? WHERE id = ?",
                                [.text(message), .double(now), .int(id)])
