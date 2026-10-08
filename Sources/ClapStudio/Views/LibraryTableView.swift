@@ -1,3 +1,4 @@
+import AppKit
 import ClapCore
 import SwiftUI
 
@@ -33,7 +34,10 @@ struct LibraryTableView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(model.drumTracks[s.id] == nil ? Color.clear : Color.orange.opacity(0.22), in: RoundedRectangle(cornerRadius: 4))
                 .contentShape(Rectangle())
-                .onTapGesture { model.select(s.id, play: true) }
+                .onTapGesture {
+                    model.select(s.id, play: true)
+                    focusTableUnderClick()
+                }
                 .sampleDrag(s, model: model)
             }
             .width(min: 180, ideal: 260)
@@ -98,6 +102,17 @@ struct LibraryTableView: View {
             if model.searchPending && !model.visible.isEmpty { SearchingBadge().padding(.top, 34) }
         }
     }
+}
+
+/// The name cell takes the click away from the table, so the table never becomes the focused view: the row stays
+/// grey and the arrow keys keep moving the selection in whatever had focus before (the sidebar). Hand the table
+/// the keyboard focus by finding it under the click.
+@MainActor private func focusTableUnderClick() {
+    guard let event = NSApp.currentEvent, let window = event.window ?? NSApp.keyWindow,
+          let root = window.contentView else { return }
+    var view = root.hitTest(root.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow)
+    while let current = view, !(current is NSTableView) { view = current.superview }
+    if let table = view as? NSTableView, window.firstResponder !== table { window.makeFirstResponder(table) }
 }
 
 struct SearchingBadge: View {
