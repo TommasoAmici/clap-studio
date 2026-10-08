@@ -42,6 +42,18 @@ struct FilterBar: View {
                 .background(Color.accentColor.opacity(0.18), in: Capsule())
             }
             Spacer()
+            if model.viewMode == .library {
+                HStack(spacing: 2) {
+                    Button { model.shuffleList() } label: { Label("Shuffle", systemImage: "shuffle") }
+                        .disabled(!model.canShuffle)
+                        .tint(model.shuffleSeed == nil ? nil : .accentColor)
+                        .help("Put the list in a random order (⌘R). Press again for another one.")
+                    if model.shuffleSeed != nil {
+                        Button { model.endShuffle() } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.borderless).help("Back to sorted order")
+                    }
+                }
+            }
             if model.descriptorFilter.isActive {
                 Button("Clear") { model.descriptorFilter.reset() }.buttonStyle(.borderless)
             }

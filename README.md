@@ -5,6 +5,7 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 
 - **Similarity search**: select a sample and see the closest-sounding ones (a hi-hat finds other hi-hats).
 - **Explore map**: every sample as a dot, laid out by similarity and coloured by cluster. Hover a dot to hear it, click to select, drag it out into Ableton. Pan with a drag or trackpad scroll, zoom with pinch or mouse wheel, double-click empty space to refit.
+- **Shuffle** (⌘R, Library tab): puts the list in a random order so browsing doesn't always start with the same samples. Press again for another order; sorting by a column, or ✕ next to the button, goes back. (Rescan Library is ⇧⌘R.)
 - **Preview**: select a row (or press space) to hear it; clicking the waveform plays from that point.
 - **Drag and drop** any sample (table row, map dot, inspector handle, similar-sounds list) into Ableton or any DAW. Each drag is counted; the "Uses" column and the *Most used* / *Never used* / *Recently grabbed* filters show which samples you keep reusing.
 - **Cue points**: read from WAV/AIFF files, edit in the app (click the waveform to audition from a spot, `M` sets a cue exactly there, option-click, drag flags, 1-9 to jump, undo/redo). Edits are saved automatically: the app's database is updated at once and, a moment later, WAV files get the cues embedded (only the cue chunks change; the write is verified and atomic) so other software sees them. Other formats keep their cues in the app only.

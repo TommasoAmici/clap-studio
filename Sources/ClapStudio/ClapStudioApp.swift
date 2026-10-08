@@ -31,8 +31,10 @@ struct ClapStudioApp: App {
             }
             CommandGroup(replacing: .newItem) {
                 Button("Add Folder…") { model.chooseFolder() }.keyboardShortcut("o")
-                Button("Rescan Library") { model.startIndexing() }.keyboardShortcut("r")
+                Button("Rescan Library") { model.startIndexing() }.keyboardShortcut("r", modifiers: [.command, .shift])
                     .disabled(model.isIndexing || model.roots.isEmpty)
+                Button("Shuffle Library") { model.shuffleList() }.keyboardShortcut("r")
+                    .disabled(model.viewMode != .library || !model.canShuffle)
             }
         }
 

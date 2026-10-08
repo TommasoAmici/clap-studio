@@ -31,6 +31,22 @@ extension AppModel {
         else { folderSelection = tag }
     }
 
+    // MARK: shuffle
+
+    /// The list is in plain sort order (not ranked by a search, a similarity query or usage), so shuffling means something.
+    var canShuffle: Bool {
+        searchText.trimmingCharacters(in: .whitespaces).isEmpty && exampleQuery == nil
+            && smartFilter != .mostUsed && smartFilter != .recentlyGrabbed
+    }
+
+    /// Puts the list in a new random order, so browsing does not always start with the same samples.
+    func shuffleList() {
+        guard canShuffle else { return }
+        shuffleSeed = UInt64.random(in: 1...UInt64.max)
+    }
+
+    func endShuffle() { shuffleSeed = nil }
+
     // MARK: favorites
 
     func toggleFavorite(_ ids: [Int64]) {

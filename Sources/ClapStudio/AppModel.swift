@@ -126,7 +126,11 @@ final class AppModel {
     var smartFilter: SmartFilter = .all { didSet { refilter() } }
     var descriptorFilter = DescriptorFilter() { didSet { refilter() } }
     var folderSelection: String? { didSet { refilter() } }   // FolderNode.id, nil = everything
-    var sortOrder = [KeyPathComparator(\SampleRecord.name, comparator: .localizedStandard)] { didSet { refilter() } }
+    var sortOrder = [KeyPathComparator(\SampleRecord.name, comparator: .localizedStandard)] { didSet {
+        // Choosing a column to sort by ends the shuffle.
+        if shuffleSeed != nil, sortOrder != oldValue { shuffleSeed = nil } else { refilter() }
+    } }
+    var shuffleSeed: UInt64? { didSet { refilter() } }      // non-nil while the list is in a random order
 
     // MARK: selection and similarity
     var viewMode: ViewMode = .library
@@ -311,7 +315,9 @@ final class AppModel {
         switch smartFilter {
         case .mostUsed: list.sort { $0.useCount > $1.useCount }
         case .recentlyGrabbed: list.sort { ($0.lastUsed ?? 0) > ($1.lastUsed ?? 0) }
-        default: list.sort(using: sortOrder)
+        default:
+            if let seed = shuffleSeed { list = SeededShuffle.order(list, seed: seed) { $0.id } }
+            else { list.sort(using: sortOrder) }
         }
         publish(list)
     }

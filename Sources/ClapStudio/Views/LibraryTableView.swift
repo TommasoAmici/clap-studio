@@ -59,6 +59,7 @@ struct LibraryTableView: View {
             }
             .width(56)
         }
+        .id(model.shuffleSeed ?? 0)      // a new order starts at the top of the list
         .contextMenu(forSelectionType: Int64.self) { ids in
             SampleMenuContent(entries: model.sampleMenu(for: Array(ids)))
         } primaryAction: { ids in
