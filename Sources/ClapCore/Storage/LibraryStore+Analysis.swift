@@ -28,13 +28,15 @@ extension LibraryStore {
     }
 
     /// Streams embeddings (id order) in chunks of rows x dim floats.
-    public func forEachEmbeddingChunk(modelVersion: String, chunkSize: Int = 4096,
+    /// With `excludingFieldRecordings`, long recordings are left out (their composite embedding is not a sound).
+    public func forEachEmbeddingChunk(modelVersion: String, chunkSize: Int = 4096, excludingFieldRecordings: Bool = false,
                                       _ body: ([Int64], [Float], Int) -> Void) throws {
+        let extra = excludingFieldRecordings ? " AND COALESCE(duration, 0) < \(FieldRecording.minimumSeconds)" : ""
         var lastID: Int64 = 0
         while true {
             let rows = try db.query("""
                 SELECT id, embedding FROM samples
-                WHERE \(Self.embeddedFilter) AND id > ? ORDER BY id LIMIT ?
+                WHERE \(Self.embeddedFilter)\(extra) AND id > ? ORDER BY id LIMIT ?
                 """, [.text(modelVersion), .int(lastID), .int(Int64(chunkSize))]) { ($0.int(0), $0.blob(1)) }
             if rows.isEmpty { return }
             var flat: [Float] = []

@@ -14,7 +14,7 @@ struct PropertiesPanel: View {
                 Text(model.isIndexing ? "Measuring…" : "Not measured yet.").font(.caption).foregroundStyle(.secondary)
             } else {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
-                    row("Type", sample.typeText)
+                    row("Type", sample.typeText + (sample.isFieldRecording ? ", \(model.segmentCount(sample.id)) segments" : ""))
                     categoryRow
                     if !sample.moods.isEmpty { row("Mood", sample.moodText) }
                     if sample.isLoop == true { tempoRow }

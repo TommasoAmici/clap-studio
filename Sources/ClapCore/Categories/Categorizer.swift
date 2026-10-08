@@ -5,7 +5,7 @@ import Foundation
 /// near the phrases that describe it, so no training data is needed.
 public enum SoundCategories {
     /// Bumped whenever names or phrases change, so stored categories are recomputed.
-    public static let version = "cat-v1"
+    public static let version = "cat-v2"
 
     public static let all: [(name: String, prompts: [String])] = [
         ("Kick", ["a kick drum", "a bass drum hit", "an 808 kick"]),
@@ -30,7 +30,11 @@ public enum SoundCategories {
         ("Ambience", ["an ambient atmosphere", "field recording", "background noise", "a drone texture"]),
     ]
 
-    public static var names: [String] { all.map(\.name) }
+    /// Long recordings. Not described by phrases: it is decided by duration (`FieldRecording.minimumSeconds`).
+    public static let fieldRecording = FieldRecording.categoryName
+
+    /// Every category in sidebar order.
+    public static var names: [String] { all.map(\.name) + [fieldRecording] }
 }
 
 /// Zero-shot classifier over CLAP audio embeddings.
@@ -100,6 +104,7 @@ extension SoundCategories {
         case "Vocal": return "mic"
         case "FX": return "wand.and.stars"
         case "Ambience": return "cloud"
+        case "Field recording": return "leaf"
         default: return "tag"
         }
     }

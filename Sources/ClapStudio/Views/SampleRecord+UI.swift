@@ -22,5 +22,8 @@ extension SampleRecord {
         return hz >= 1000 ? String(format: "%.1f kHz", hz / 1000) : String(format: "%.0f Hz", hz)
     }
 
-    var typeText: String { isLoop == true ? "Loop" : (isLoop == false ? "One-shot" : "") }
+    var typeText: String {
+        if isFieldRecording { return "Field recording" }
+        return isLoop == true ? "Loop" : (isLoop == false ? "One-shot" : "")
+    }
 }

@@ -21,21 +21,41 @@ extension LibraryStore {
     public func assignMoods(with scorer: MoodScorer) throws -> Int {
         let state = moodState()
         var ids: [Int64] = [], raw: [Float] = []
-        try forEachEmbeddingChunk(modelVersion: ClapEmbedder.versionTag) { chunkIDs, flat, count in
+        // Regular samples set the standard. A recording's composite embedding is an average of unrelated sounds, so
+        // field recordings are judged by their segments instead, against that same standard.
+        try forEachEmbeddingChunk(modelVersion: ClapEmbedder.versionTag, excludingFieldRecordings: true) { chunkIDs, flat, count in
             ids += chunkIDs
             raw += scorer.rawScores(flat: flat, count: count)
         }
         let assignments = scorer.assign(raw: raw, count: ids.count)
+        var rows: [(id: Int64, mood: Int, z: Float)] = []
+        for (id, moods) in zip(ids, assignments) { rows += moods.map { (id: id, mood: $0.mood, z: $0.z) } }
+        if ids.count >= SoundMoods.minimumLibrary {
+            rows += try fieldRecordingMoods(scorer: scorer, against: scorer.statistics(raw: raw, count: ids.count))
+        }
         try db.transaction {
             try db.run("DELETE FROM sample_moods", [])
-            for (id, moods) in zip(ids, assignments) {
-                for mood in moods {
-                    try db.run("INSERT INTO sample_moods(sample_id, mood, z) VALUES(?, ?, ?)",
-                               [.int(id), .text(scorer.names[mood.mood]), .double(Double(mood.z))])
-                }
+            for row in rows {
+                try db.run("INSERT INTO sample_moods(sample_id, mood, z) VALUES(?, ?, ?)",
+                           [.int(row.id), .text(scorer.names[row.mood]), .double(Double(row.z))])
             }
         }
         try setMeta("mood_state", state)
         return ids.count
+    }
+
+    /// Every mood that any segment of a field recording has, with the best z among its segments.
+    /// Not capped per file: a long recording can well be dark in one place and happy in another.
+    func fieldRecordingMoods(scorer: MoodScorer, against stats: MoodScorer.Statistics) throws -> [(id: Int64, mood: Int, z: Float)] {
+        var best: [Int64: [Int: Float]] = [:]
+        try forEachSegmentChunk(modelVersion: ClapEmbedder.versionTag) { ids, _, flat in
+            let raw = scorer.rawScores(flat: flat, count: ids.count)
+            for (id, moods) in zip(ids, scorer.assign(raw: raw, count: ids.count, against: stats)) {
+                for m in moods { best[id, default: [:]][m.mood] = max(best[id]?[m.mood] ?? -.infinity, m.z) }
+            }
+        }
+        return best.sorted { $0.key < $1.key }.flatMap { id, moods in
+            moods.sorted { $0.key < $1.key }.map { (id: id, mood: $0.key, z: $0.value) }
+        }
     }
 }

@@ -125,7 +125,8 @@ enum Format {
     static func duration(_ seconds: Double) -> String {
         guard seconds > 0 else { return "" }
         if seconds < 10 { return String(format: "%.2fs", seconds) }
-        let m = Int(seconds) / 60, s = Int(seconds) % 60
+        let h = Int(seconds) / 3600, m = Int(seconds) / 60 % 60, s = Int(seconds) % 60
+        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
         return m > 0 ? String(format: "%d:%02d", m, s) : String(format: "%.1fs", seconds)
     }
 

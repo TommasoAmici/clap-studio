@@ -2,7 +2,9 @@ import Foundation
 
 /// Filters on measured properties, applied together with the sidebar and search filters.
 public struct DescriptorFilter: Equatable, Sendable {
-    public enum Kind: String, CaseIterable, Sendable { case any = "All", oneShot = "One-shots", loop = "Loops" }
+    public enum Kind: String, CaseIterable, Sendable {
+        case any = "All", oneShot = "One-shots", loop = "Loops", fieldRecording = "Field recordings"
+    }
 
     public var kind: Kind = .any
     public var bpmMin: Double?
@@ -22,8 +24,10 @@ public struct DescriptorFilter: Equatable, Sendable {
     public func matches(_ s: SampleRecord) -> Bool {
         switch kind {
         case .any: break
-        case .oneShot: if s.isLoop == true { return false }
-        case .loop: if s.isLoop != true { return false }
+        // Field recordings are neither: they have no single tempo and are not played as one hit.
+        case .oneShot: if s.isLoop == true || s.isFieldRecording { return false }
+        case .loop: if s.isLoop != true || s.isFieldRecording { return false }
+        case .fieldRecording: if !s.isFieldRecording { return false }
         }
         if bpmMin != nil || bpmMax != nil {
             guard let bpm = s.effectiveBPM else { return false }

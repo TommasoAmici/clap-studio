@@ -45,17 +45,19 @@ struct MapColoring {
                                legend: names.indices.filter { counts[$0] > 0 }.map { Entry(id: $0, label: names[$0], count: counts[$0]) },
                                gradient: nil)
         case .kind:
-            var counts = [0, 0, 0]
+            var counts = [0, 0, 0, 0]
             let indices = ids.map { id -> UInt8 in
+                if samples[id]?.isFieldRecording == true { counts[2] += 1; return 2 }
                 switch samples[id]?.isLoop {
                 case true?: counts[0] += 1; return 0
                 case false?: counts[1] += 1; return 1
-                default: counts[2] += 1; return UInt8(unknown)
+                default: counts[3] += 1; return UInt8(unknown)
                 }
             }
-            return MapColoring(indices: indices, palette: (0..<24).map { $0 == 0 ? Palette.color(0) : ($0 == 1 ? Palette.color(3) : .gray) },
+            return MapColoring(indices: indices, palette: (0..<24).map { $0 == 0 ? Palette.color(0) : ($0 == 1 ? Palette.color(3) : ($0 == 2 ? Palette.color(6) : .gray)) },
                                legend: [Entry(id: 0, label: "Loops", count: counts[0]), Entry(id: 1, label: "One-shots", count: counts[1]),
-                                        Entry(id: unknown, label: "Not measured", count: counts[2])].filter { $0.count > 0 },
+                                        Entry(id: 2, label: "Field recordings", count: counts[2]),
+                                        Entry(id: unknown, label: "Not measured", count: counts[3])].filter { $0.count > 0 },
                                gradient: nil)
         case .usage:
             var counts = [0, 0]

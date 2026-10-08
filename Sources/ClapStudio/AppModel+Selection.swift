@@ -253,3 +253,8 @@ extension AppModel {
         } catch { errorMessage = String(describing: error) }
     }
 }
+
+extension AppModel {
+    /// How many segments a field recording was split into.
+    func segmentCount(_ id: Int64) -> Int { store?.segmentCount(sampleID: id) ?? 0 }
+}

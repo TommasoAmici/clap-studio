@@ -12,7 +12,7 @@ struct FilterBar: View {
             Picker("Type", selection: $model.descriptorFilter.kind) {
                 ForEach(DescriptorFilter.Kind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 230)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 340)
 
             Button { showTempo.toggle() } label: {
                 FilterLabel(tempoTitle, systemImage: "metronome")

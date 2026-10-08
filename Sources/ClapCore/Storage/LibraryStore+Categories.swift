@@ -16,9 +16,14 @@ extension LibraryStore {
     @discardableResult
     public func categorize(with categorizer: Categorizer) throws -> Int {
         var pending: [(id: Int64, result: Categorizer.Result)] = []
+        let long = Set(try db.query("SELECT id FROM samples WHERE duration >= ?",
+                                    [.double(FieldRecording.minimumSeconds)]) { $0.int(0) })
         try forEachEmbeddingChunk(modelVersion: ClapEmbedder.versionTag) { ids, flat, count in
             let results = categorizer.classify(flat: flat, count: count)
-            pending += zip(ids, results).map { (id: $0, result: $1) }
+            // Field recordings are told apart by their length, not by what they sound like.
+            pending += zip(ids, results).map { id, result in
+                (id: id, result: long.contains(id) ? Categorizer.Result(category: SoundCategories.fieldRecording, confidence: 1) : result)
+            }
         }
         try db.transaction {
             for item in pending {

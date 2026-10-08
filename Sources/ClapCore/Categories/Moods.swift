@@ -102,24 +102,44 @@ public final class MoodScorer: @unchecked Sendable {
         return scores
     }
 
-    /// Moods per sound from the raw scores of the whole library. Raw CLAP scores for moods are small and bunched
-    /// together, so each mood is judged against the library: z = (score - mean) / standard deviation. A sound keeps
-    /// its best moods (at most `maxPerSound`) whose z reaches `threshold`.
-    public func assign(raw: [Float], count: Int) -> [[Assignment]] {
+    /// How each mood scores across a set of sounds: the average and the spread of the raw cosine.
+    public struct Statistics: Sendable, Equatable {
+        public var mean: [Float]
+        public var spread: [Float]
+    }
+
+    /// Statistics of `count` sounds' raw scores (count × names.count).
+    public func statistics(raw: [Float], count: Int) -> Statistics {
         let k = names.count
-        guard count >= SoundMoods.minimumLibrary, k > 0, raw.count == count * k else {
-            return [[Assignment]](repeating: [], count: count)
-        }
         var mean = [Float](repeating: 0, count: k), spread = [Float](repeating: 1, count: k)
+        guard count > 0, raw.count == count * k else { return Statistics(mean: mean, spread: spread) }
         for m in 0..<k {
             var sum: Float = 0, sumSquares: Float = 0
             for row in 0..<count { let v = raw[row * k + m]; sum += v; sumSquares += v * v }
             mean[m] = sum / Float(count)
             spread[m] = max((sumSquares / Float(count) - mean[m] * mean[m]).squareRoot(), 1e-6)
         }
+        return Statistics(mean: mean, spread: spread)
+    }
+
+    /// Moods per sound from the raw scores of the whole library. Raw CLAP scores for moods are small and bunched
+    /// together, so each mood is judged against the library: z = (score - mean) / standard deviation. A sound keeps
+    /// its best moods (at most `maxPerSound`) whose z reaches `threshold`.
+    public func assign(raw: [Float], count: Int) -> [[Assignment]] {
+        guard count >= SoundMoods.minimumLibrary else { return [[Assignment]](repeating: [], count: count) }
+        return assign(raw: raw, count: count, against: statistics(raw: raw, count: count))
+    }
+
+    /// Like `assign(raw:count:)`, but judged against statistics of other sounds. Used for the segments of field
+    /// recordings, which must be compared with ordinary samples, not with each other.
+    public func assign(raw: [Float], count: Int, against stats: Statistics) -> [[Assignment]] {
+        let k = names.count
+        guard k > 0, raw.count == count * k, stats.mean.count == k else {
+            return [[Assignment]](repeating: [], count: count)
+        }
         return (0..<count).map { row in
             (0..<k)
-                .map { Assignment(mood: $0, z: (raw[row * k + $0] - mean[$0]) / spread[$0]) }
+                .map { Assignment(mood: $0, z: (raw[row * k + $0] - stats.mean[$0]) / stats.spread[$0]) }
                 .filter { $0.z >= SoundMoods.threshold }
                 .sorted { $0.z > $1.z }
                 .prefix(SoundMoods.maxPerSound)
