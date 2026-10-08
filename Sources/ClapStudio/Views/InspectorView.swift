@@ -19,6 +19,7 @@ struct InspectorView: View {
                     SimilarList()
                 }
                 .padding(14)
+                .padding(.top, 20)      // clear of the hide button in the corner
             }
         } else {
             ContentUnavailableView("No sample selected", systemImage: "waveform",

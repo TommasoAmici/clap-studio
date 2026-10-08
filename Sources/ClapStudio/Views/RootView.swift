@@ -44,15 +44,21 @@ struct RootView: View {
                     Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                         .help("Play a sample when it is selected")
                 }
+                if !showInspector {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { showInspector = true } label: { Image(systemName: "sidebar.trailing") }
+                            .help("Show the inspector")
+                    }
+                }
             }
             .inspector(isPresented: $showInspector) {
                 InspectorView()
                     .inspectorColumnWidth(min: 300, ideal: 360, max: 480)
-                    .toolbar {
-                        ToolbarItem {
-                            Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
-                                .help("Show or hide the inspector")
-                        }
+                    .ignoresSafeArea(.container, edges: .top)    // use the strip beside the toolbar too
+                    .overlay(alignment: .topTrailing) {
+                        Button { showInspector = false } label: { Image(systemName: "sidebar.trailing") }
+                            .buttonStyle(.borderless).padding(8)
+                            .help("Hide the inspector")
                     }
             }
         }
