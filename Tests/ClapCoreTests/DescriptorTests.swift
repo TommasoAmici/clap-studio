@@ -324,3 +324,43 @@ import Testing
         #expect(AspectSimilarity.pitch(record(1, pitch: nil), record(2, pitch: 100)) == 0.5)
     }
 }
+
+@Suite struct KitBuilderTests {
+    private func record(_ id: Int64, _ category: String, folder: String = "", loudness: Double = -20, loop: Bool? = false, hidden: Bool = false) -> SampleRecord {
+        var s = SampleRecord(id: id, rootID: 1, rootPath: "/", relPath: folder.isEmpty ? "s\(id).wav" : "\(folder)/s\(id).wav",
+                             name: "s\(id)", ext: "wav", duration: 1, sampleRate: 44100, channels: 1, size: 1, mtime: 0,
+                             status: .ok, useCount: 0, lastUsed: nil, cueCount: 0)
+        s.category = category; s.loudnessDB = loudness; s.isLoop = loop; s.hidden = hidden
+        return s
+    }
+
+    @Test func fillsSlotsWithTheBestFitAndKeepsTheAnchor() {
+        // 1 kick (anchor); snares 2 (close), 3 (far), 4 (close but a loop), 5 (close but hidden); hat 6; no clap in the library.
+        let vectors: [[Float]] = [[1, 0], [0.95, 0.31], [0.2, 0.98], [0.99, 0.14], [0.99, 0.14], [0.8, 0.6]]
+        let flat = vectors.flatMap { v -> [Float] in let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot(); return v.map { $0 / n } }
+        let index = VectorIndex(ids: [1, 2, 3, 4, 5, 6], vectors: flat, dim: 2)
+        let samples = [record(1, "Kick"), record(2, "Snare"), record(3, "Snare"), record(4, "Snare", loop: true),
+                       record(5, "Snare", hidden: true), record(6, "Hi-hat")]
+        let kit = KitBuilder.suggest(anchor: samples[0], samples: samples, index: index)
+        #expect(kit.map(\.category) == ["Kick", "Snare", "Hi-hat"], "empty categories are skipped")
+        #expect(kit[0].isAnchor && kit[0].candidates == [1])
+        #expect(kit[1].candidates == [2, 3], "loops and hidden samples never suggested, nearer first")
+    }
+
+    @Test func packAndLevelBreakTies() {
+        let vectors: [[Float]] = [[1, 0], [0.9, 0.436], [0.9, 0.436], [0.9, 0.436]]
+        let flat = vectors.flatMap { v -> [Float] in let n = (v.map { $0 * $0 }.reduce(0, +)).squareRoot(); return v.map { $0 / n } }
+        let index = VectorIndex(ids: [1, 2, 3, 4], vectors: flat, dim: 2)
+        let samples = [record(1, "Kick", folder: "PackA"), record(2, "Snare", folder: "PackB", loudness: -20),
+                       record(3, "Snare", folder: "PackA", loudness: -20), record(4, "Snare", folder: "PackB", loudness: -40)]
+        let kit = KitBuilder.suggest(anchor: samples[0], samples: samples, index: index)
+        #expect(kit[1].candidates == [3, 2, 4], "same pack first, then matching level")
+    }
+
+    @Test func uncategorisedAnchorStillAppears() {
+        let index = VectorIndex(ids: [1], vectors: [1, 0], dim: 2)
+        var s = record(1, "Kick"); s.category = nil
+        let kit = KitBuilder.suggest(anchor: s, samples: [s], index: index)
+        #expect(kit.count == 1 && kit[0].isAnchor)
+    }
+}
