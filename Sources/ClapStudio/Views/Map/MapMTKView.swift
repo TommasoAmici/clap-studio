@@ -9,6 +9,7 @@ final class MapMTKView: MTKView, NSDraggingSource {
     // Callbacks
     var onHover: (Int?) -> Void = { _ in }
     var onClick: (Int) -> Void = { _ in }
+    var menuForRow: (Int) -> NSMenu? = { _ in nil }
     var urlForRow: (Int) -> URL? = { _ in nil }
     var onGrab: (Int) -> Void = { _ in }
     var onLasso: ([Int]) -> Void = { _ in }
@@ -245,6 +246,12 @@ final class MapMTKView: MTKView, NSDraggingSource {
         }
         if let row = downHit, !draggedOut { onClick(row) }
         downHit = nil
+    }
+
+    /// Right-click (or control-click) on a dot shows the sample menu.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard let row = hit(at: convert(event.locationInWindow, from: nil)) else { return nil }
+        return menuForRow(row)
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .copy }

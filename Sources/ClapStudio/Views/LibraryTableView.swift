@@ -60,35 +60,7 @@ struct LibraryTableView: View {
             .width(56)
         }
         .contextMenu(forSelectionType: Int64.self) { ids in
-            let list = Array(ids)
-            let samples = list.compactMap { model.sampleByID[$0] }
-            if let first = samples.first {
-                if list.count == 1 {
-                    Button("Find Similar Sounds") { model.showSimilar(to: first.id) }
-                    Button("Build a Kit From This…") { model.buildKit(around: first.id) }
-                }
-                Button("Add to Drum Machine") { model.addToDrums(list) }
-                if model.squidEnabled { Button("Send to Squid…") { model.openSquidExport(ids: list) } }
-                Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) }
-                Divider()
-                Button(samples.allSatisfy(\.favorite) ? "Remove from Favorites" : "Add to Favorites") { model.toggleFavorite(list) }
-                Menu("Add to Collection") {
-                    ForEach(model.collections) { c in Button(c.name) { model.add(list, toCollection: c.id) } }
-                    if !model.collections.isEmpty { Divider() }
-                    Button("New Collection…") { model.newCollectionSeed = list }
-                }
-                if let current = model.collectionSelection {
-                    Button("Remove from This Collection") { model.remove(list, fromCollection: current) }
-                }
-                Button("Add Tag…") { model.tagPromptTargets = list }
-                Button("Copy To…") { model.openExport(ids: list) }
-                Divider()
-                if samples.allSatisfy(\.hidden) {
-                    Button("Show in Library Again") { model.unhide(list) }
-                } else {
-                    Button("Hide from Library") { model.hide(list) }
-                }
-            }
+            SampleMenuContent(entries: model.sampleMenu(for: Array(ids)))
         } primaryAction: { ids in
             if let id = ids.first { model.select(id, play: true) }
         }

@@ -20,6 +20,14 @@ struct MetalMapView: NSViewRepresentable {
         view.onClick = { [model] row in
             if let id = model.snapshot?.index.ids[row] { model.select(id, play: true) }
         }
+        view.menuForRow = { [model] row in
+            guard let id = model.snapshot?.index.ids[row] else { return nil }
+            // On a dot picked with the lasso the menu acts on the whole pick; otherwise on that one sample.
+            let ids: [Int64]
+            if model.mapSelection.count > 1, model.mapSelection.contains(id) { ids = model.mapSelection }
+            else { model.select(id); ids = [id] }
+            return NSMenu(entries: model.sampleMenu(for: ids))
+        }
         view.urlForRow = { [model] row in
             guard let id = model.snapshot?.index.ids[row] else { return nil }
             return model.sampleByID[id]?.url
