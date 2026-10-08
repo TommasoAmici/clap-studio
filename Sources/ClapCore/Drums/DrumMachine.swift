@@ -1,6 +1,13 @@
 import AVFoundation
 import Foundation
 
+/// A sample on a drum track: its file and the part of it to play.
+public struct DrumSource: Equatable, Sendable {
+    public var url: URL
+    public var trim: SampleTrim?
+    public init(url: URL, trim: SampleTrim? = nil) { self.url = url; self.trim = trim }
+}
+
 /// Plays a `DrumPattern` in a loop on its own audio engine. Steps are scheduled a short time ahead against the
 /// host clock, so timing is set by the audio hardware rather than by when a timer happens to fire.
 public final class DrumMachine: @unchecked Sendable {
@@ -21,7 +28,9 @@ public final class DrumMachine: @unchecked Sendable {
 
     private let lock = NSLock()
     private var pattern = DrumPattern()
-    private var urls: [Int64: URL] = [:]
+    private var sources: [Int64: DrumSource] = [:]
+    private var ready: [Int64: ReadySound] = [:]        // decoded (and trimmed) audio, by sample id
+    private struct ReadySound { let source: DrumSource; let buffer: AVAudioPCMBuffer }
     private var _bpm = DrumTiming.defaultBPM
     private var sequencer: DrumSequencer?
 
@@ -47,18 +56,34 @@ public final class DrumMachine: @unchecked Sendable {
     }
 
     /// Replaces the pattern (takes effect from the next step, so it can be edited while playing).
-    /// `urls` maps each track's sample id to its file; the files are decoded in the background.
-    public func update(pattern new: DrumPattern, urls newURLs: [Int64: URL]) {
+    /// `sources` says where each track's sample is and how it is trimmed; the audio is prepared in the background.
+    public func update(pattern new: DrumPattern, sources newSources: [Int64: DrumSource]) {
         lock.lock()
         pattern = new
-        urls = newURLs
+        sources = newSources
+        let missing = newSources.filter { ready[$0.key]?.source != $0.value }
+        ready = ready.filter { newSources[$0.key] == $0.value.source }
         lock.unlock()
         for (i, track) in new.tracks.enumerated() where i < nodes.count {
             nodes[i].volume = track.muted ? 0 : track.volume
         }
-        for url in newURLs.values where cache.cached(url) == nil {
-            decodeQueue.async { [cache] in _ = try? cache.buffer(for: url) }
+        for (id, source) in missing {
+            decodeQueue.async { [weak self] in self?.prepare(id: id, source: source) }
         }
+    }
+
+    private func prepare(id: Int64, source: DrumSource) {
+        let buffer: AVAudioPCMBuffer?
+        if let trim = source.trim {
+            buffer = try? TrimRender.read(url: source.url, start: trim.start, end: trim.end, fadeIn: SampleTrim.declick,
+                                          fadeOut: trim.effectiveFadeOut, convertTo: cache.format, maxSeconds: 60)
+        } else {
+            buffer = try? cache.buffer(for: source.url)
+        }
+        guard let buffer else { return }
+        lock.lock()
+        if sources[id] == source { ready[id] = ReadySound(source: source, buffer: buffer) }
+        lock.unlock()
     }
 
     public func start() {
@@ -91,7 +116,7 @@ public final class DrumMachine: @unchecked Sendable {
 
     private func tick() {
         lock.lock()
-        let pattern = self.pattern, urls = self.urls, bpm = _bpm
+        let pattern = self.pattern, ready = self.ready, bpm = _bpm
         var seq = sequencer ?? DrumSequencer(startTime: Self.nowSeconds())
         lock.unlock()
 
@@ -102,7 +127,7 @@ public final class DrumMachine: @unchecked Sendable {
         for event in events {
             let when = AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: event.time))
             for index in event.tracks where index < nodes.count {
-                guard let url = urls[pattern.tracks[index].sampleID], let buffer = cache.cached(url) else { continue }
+                guard let buffer = ready[pattern.tracks[index].sampleID]?.buffer else { continue }
                 // .interrupts cuts the previous hit on this track, like a drum machine voice.
                 nodes[index].scheduleBuffer(buffer, at: when, options: .interrupts, completionHandler: nil)
             }

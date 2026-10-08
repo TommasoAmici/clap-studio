@@ -116,7 +116,7 @@ import Testing
         machine.onStep = { steps.add($0) }
         var pattern = DrumPattern()
         pattern.addTrack(sampleID: 1, label: "kick", category: "Kick")
-        machine.update(pattern: pattern, urls: [1: url])
+        machine.update(pattern: pattern, sources: [1: DrumSource(url: url)])
         machine.bpm = 240                                    // 62.5 ms per step
         machine.start()
         try await Task.sleep(for: .milliseconds(300))

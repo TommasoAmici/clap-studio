@@ -111,6 +111,27 @@ public final class SamplePlayer: @unchecked Sendable {
         }
     }
 
+    /// Plays part of a file read straight from disk (so the region can be anywhere in a very long file),
+    /// with a click-free start and a fade at the end. The playhead reports positions in the file.
+    public func playRegion(sampleID: Int64, url: URL, start: Double, end: Double?, fadeOut: Double = SampleTrim.declick,
+                           rate: Float = 1, pitchCents: Float = 0, gainDB: Float = 0,
+                           completion: (@Sendable (Error?) -> Void)? = nil) {
+        lock.lock(); requestToken += 1; let token = requestToken; lock.unlock()
+        decodeQueue.async { [weak self] in
+            guard let self else { return }
+            do {
+                let buffer = try TrimRender.read(url: url, start: start, end: end, fadeIn: SampleTrim.declick, fadeOut: fadeOut,
+                                                 convertTo: self.cache.format, maxSeconds: 300)
+                self.lock.lock(); let current = self.requestToken; self.lock.unlock()
+                guard current == token else { completion?(nil); return }
+                DispatchQueue.main.async {
+                    self.start(buffer, sampleID: sampleID, startSeconds: 0, origin: start, rate: rate, pitchCents: pitchCents,
+                               gainDB: gainDB, token: token, completion: completion)
+                }
+            } catch { completion?(error) }
+        }
+    }
+
     public func prefetch(_ urls: [URL]) {
         for url in urls where cache.cached(url) == nil {
             decodeQueue.async { [cache] in _ = try? cache.buffer(for: url) }
@@ -124,7 +145,7 @@ public final class SamplePlayer: @unchecked Sendable {
         setState(PlaybackState())
     }
 
-    private func start(_ buffer: AVAudioPCMBuffer, sampleID: Int64, startSeconds: Double, rate playbackRate: Float,
+    private func start(_ buffer: AVAudioPCMBuffer, sampleID: Int64, startSeconds: Double, origin: Double = 0, rate playbackRate: Float,
                        pitchCents: Float, gainDB: Float, token: Int,
                        completion: (@Sendable (Error?) -> Void)?) {
         lock.lock(); let current = requestToken; lock.unlock()
@@ -150,8 +171,8 @@ public final class SamplePlayer: @unchecked Sendable {
                 DispatchQueue.main.async { self?.finished(voice: voice, voiceToken: voiceToken, sampleID: sampleID) }
             }
             voice.node.play()
-            setState(PlaybackState(sampleID: sampleID, startSeconds: Double(startFrame) / rate,
-                                   startedAt: Date(), duration: Double(buffer.frameLength) / rate,
+            setState(PlaybackState(sampleID: sampleID, startSeconds: origin + Double(startFrame) / rate,
+                                   startedAt: Date(), duration: origin + Double(buffer.frameLength) / rate,
                                    rate: Double(playbackRate)))
             completion?(nil)
         } catch { completion?(error) }
