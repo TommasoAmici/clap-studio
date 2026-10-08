@@ -31,6 +31,14 @@ extension AppModel {
         if let current = collectionSelection {
             menu.append(.action("Remove from This Collection") { [unowned self] in remove(ids, fromCollection: current) })
         }
+        var categoryItems = SoundCategories.names.map { name in
+            SampleMenuEntry.action(name) { [unowned self] in setCategory(ids, name) }
+        }
+        if samples.contains(where: { $0.categoryManual != nil }) {
+            categoryItems.append(.divider)
+            categoryItems.append(.action("Use Automatic") { [unowned self] in setCategory(ids, nil) })
+        }
+        menu.append(.submenu("Set Category", categoryItems))
         menu.append(.action("Add Tag…") { [unowned self] in tagPromptTargets = ids })
         menu.append(.action("Copy To…") { [unowned self] in openExport(ids: ids) })
         menu.append(.divider)

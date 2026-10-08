@@ -180,6 +180,11 @@ import Testing
         #expect(store.loadSamples().first?.effectiveCategory == "Snare")
         try store.setManualCategory(sampleID: id, nil)
         #expect(store.loadSamples().first?.effectiveCategory == "Kick")
+
+        try store.setManualCategories([(id, "Snare")])             // the same for several samples at once
+        #expect(store.loadSamples().first?.effectiveCategory == "Snare")
+        try store.setManualCategories([(id, nil)])
+        #expect(store.loadSamples().first?.effectiveCategory == "Kick")
     }
 }
 

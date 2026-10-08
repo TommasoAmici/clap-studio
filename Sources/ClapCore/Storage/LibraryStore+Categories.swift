@@ -37,6 +37,16 @@ extension LibraryStore {
         return pending.count
     }
 
+    /// Several samples at once, each with its own value (nil goes back to the automatic category).
+    public func setManualCategories(_ values: [(id: Int64, category: String?)]) throws {
+        try db.transaction {
+            for value in values {
+                try db.run("UPDATE samples SET category_manual = ? WHERE id = ?",
+                           [value.category.map { .text($0) } ?? .null, .int(value.id)])
+            }
+        }
+    }
+
     /// The user's own category (pass nil to go back to the automatic one).
     public func setManualCategory(sampleID: Int64, _ category: String?) throws {
         try db.run("UPDATE samples SET category_manual = ? WHERE id = ?",

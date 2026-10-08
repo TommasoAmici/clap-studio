@@ -183,6 +183,30 @@ extension AppModel {
         if descriptorFilter.isActive { refilter() }
     }
 
+    /// Sets (or with nil clears) the category of several samples at once, as one undoable change.
+    func setCategory(_ ids: [Int64], _ category: String?) {
+        let before = ids.compactMap { id in sampleByID[id].map { (id: id, category: $0.categoryManual) } }
+        let changed = before.filter { $0.category != category }
+        guard !changed.isEmpty else { return }
+        let after = changed.map { (id: $0.id, category: category) }
+        let name = category.map { "Set Category to \($0) for \(samplesPhrase(changed.count))" }
+            ?? "Use Automatic Category for \(samplesPhrase(changed.count))"
+        record(LibraryEdit(name: name,
+                           undo: { [unowned self] in applyCategories(changed) },
+                           redo: { [unowned self] in applyCategories(after) }))
+        applyCategories(after)
+    }
+
+    private func applyCategories(_ values: [(id: Int64, category: String?)]) {
+        guard let store, !values.isEmpty else { return }
+        do { try store.setManualCategories(values) } catch { errorMessage = "Could not save the categories: \(error)"; return }
+        for value in values { mutate(value.id) { $0.categoryManual = value.category } }
+        updateCategoryCounts()
+        buildClusterInfo()
+        if mapColorMode == .category { refreshMapColoring() }
+        if descriptorFilter.isActive { refilter() }
+    }
+
     // MARK: cues
 
     private var nativeRate: Double { (selectedSample?.sampleRate ?? 0) > 0 ? selectedSample!.sampleRate : 44_100 }
