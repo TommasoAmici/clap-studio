@@ -56,26 +56,7 @@ public final class AudioBufferCache: @unchecked Sendable {
             throw AudioDecodeError.empty
         }
         try file.read(into: input, frameCount: frames)
-        if src.sampleRate == format.sampleRate && src.channelCount == format.channelCount
-            && src.commonFormat == format.commonFormat && !src.isInterleaved { return input }
-
-        guard let converter = AVAudioConverter(from: src, to: format) else {
-            throw AudioDecodeError.conversion("unsupported format")
-        }
-        let capacity = AVAudioFrameCount(Double(frames) * format.sampleRate / src.sampleRate) + 1024
-        guard let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else {
-            throw AudioDecodeError.conversion("buffer allocation")
-        }
-        var supplied = false
-        var error: NSError?
-        let status = converter.convert(to: output, error: &error) { _, outStatus in
-            if supplied { outStatus.pointee = .endOfStream; return nil }
-            supplied = true
-            outStatus.pointee = .haveData
-            return input
-        }
-        if status == .error { throw AudioDecodeError.conversion(error?.localizedDescription ?? "unknown") }
-        return output
+        return try AudioConvert.convert(input, to: format)
     }
 
     /// Min/max envelope for drawing: `bins` pairs (min, max) over the first channel mix.
