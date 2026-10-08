@@ -79,13 +79,13 @@ extension AppModel {
 
     // MARK: export
 
-    /// The samples the export sheet acts on: one sample sent from the inspector, otherwise the tray.
-    var exportSamples: [SampleRecord] {
-        exportIDs.map { $0.compactMap { sampleByID[$0] } } ?? traySamples
-    }
+    /// The samples the export sheet acts on.
+    var exportSamples: [SampleRecord] { (exportIDs ?? []).compactMap { sampleByID[$0] } }
 
-    func exportTrimmed(_ id: Int64) {
-        exportIDs = [id]
+    func exportTrimmed(_ id: Int64) { openExport(ids: [id]) }
+
+    func openExport(ids: [Int64]) {
+        exportIDs = ids
         showExport = true
     }
 }

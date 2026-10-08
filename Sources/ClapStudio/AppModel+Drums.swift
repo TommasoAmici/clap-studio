@@ -2,7 +2,7 @@ import ClapCore
 import Foundation
 
 /// A small step sequencer for trying samples together. It follows the project tempo and takes its sounds from
-/// the selection, the tray or the kit builder.
+/// the selection or the kit builder.
 extension AppModel {
     /// Tempo the drum machine plays at: the project's, or a neutral 120 when none is set.
     var drumTempo: Double { project.bpm ?? DrumTiming.defaultBPM }

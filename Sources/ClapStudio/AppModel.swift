@@ -82,7 +82,6 @@ final class AppModel {
     var collections: [CollectionRecord] = []
     var collectionSelection: Int64? { didSet { reloadCollections(); refilter() } }
     var collectionMembers: Set<Int64> = []
-    var tray: [Int64] = []
     var newCollectionSeed: [Int64]?       // non-nil while the "new collection" prompt is open
     var duplicateGroups: [DuplicateGroup]?
     var duplicateSearchRunning = false

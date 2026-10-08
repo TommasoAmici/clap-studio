@@ -56,7 +56,7 @@ enum DroppedFiles {
 }
 
 extension View {
-    /// Accepts file drags (from the library list, the kit builder, the tray, or Finder) and hands over their URLs.
+    /// Accepts file drags (from the library list, the kit builder, or Finder) and hands over their URLs.
     /// Highlights through `isTargeted` while a drag is over the view.
     func fileDrop(isTargeted: Binding<Bool>? = nil, perform: @escaping @MainActor ([URL]) -> Void) -> some View {
         onDrop(of: [.fileURL], isTargeted: isTargeted) { providers in DroppedFiles.load(from: providers, perform: perform) }

@@ -45,8 +45,6 @@ struct InspectorView: View {
                 Button { model.toggleFavorite([s.id]) } label: { Image(systemName: s.favorite ? "star.fill" : "star") }
                     .buttonStyle(.borderless).foregroundStyle(s.favorite ? .yellow : .secondary)
                     .help(s.favorite ? "Remove from favorites (F)" : "Add to favorites (F)")
-                Button { model.addToTray([s.id]) } label: { Image(systemName: "tray.and.arrow.down") }
-                    .buttonStyle(.borderless).help("Add to the tray (T)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([s.url]) } label: {
                     Image(systemName: "magnifyingglass.circle")
                 }

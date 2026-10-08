@@ -121,8 +121,6 @@ struct SquidExportSheet: View {
                 Spacer()
                 Button("Add Selected") { model.squidItems += model.actionTargets.filter { !model.squidItems.contains($0) } }
                     .controlSize(.small).disabled(model.actionTargets.isEmpty)
-                Button("From Tray") { model.squidItems += model.tray.filter { !model.squidItems.contains($0) } }
-                    .controlSize(.small).disabled(model.tray.isEmpty)
                 Button("From Drums") { model.squidItems += model.drumPattern.tracks.map(\.sampleID).filter { !model.squidItems.contains($0) } }
                     .controlSize(.small).disabled(model.drumPattern.tracks.isEmpty)
             }

@@ -2,7 +2,7 @@ import AppKit
 import ClapCore
 import Foundation
 
-/// Favorites, collections and the tray (a scratch list to drag out or copy several samples at once).
+/// Favorites, collections and copying samples to a folder.
 extension AppModel {
     // MARK: sidebar selection
 
@@ -135,21 +135,6 @@ extension AppModel {
         guard let store else { return [] }
         return Set(collections.filter { store.collectionMembers(id: $0.id).contains(sampleID) }.map(\.id))
     }
-
-    // MARK: tray
-
-    var traySamples: [SampleRecord] { tray.compactMap { sampleByID[$0] } }
-
-    func addToTray(_ ids: [Int64]) {
-        for id in ids where !tray.contains(id) { tray.append(id) }
-    }
-
-    func removeFromTray(_ id: Int64) { tray.removeAll { $0 == id } }
-
-    func clearTray() { tray = [] }
-
-    /// A drag of the whole tray counts as one grab per sample.
-    func registerTrayGrab() { for id in tray { registerGrab(id) } }
 
     /// Copies the chosen samples into a folder the user picks (trimmed ones as trimmed WAV files); the originals stay where they are.
     func exportSelection(template: String, format: ExportFormat) {

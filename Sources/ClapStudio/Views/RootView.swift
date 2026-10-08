@@ -24,7 +24,6 @@ struct RootView: View {
                     }
                 }
                 DrumPanel()
-                TrayView()
                 StatusBar()
             }
             .inspector(isPresented: $showInspector) {
@@ -88,12 +87,6 @@ struct RootView: View {
             guard !isTypingInTextField else { return .ignored }
             guard !model.actionTargets.isEmpty else { return .ignored }
             model.toggleFavorite(model.actionTargets)
-            return .handled
-        }
-        .onKeyPress(characters: .init(charactersIn: "t")) { _ in
-            guard !isTypingInTextField else { return .ignored }
-            guard !model.actionTargets.isEmpty else { return .ignored }
-            model.addToTray(model.actionTargets)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "m")) { _ in

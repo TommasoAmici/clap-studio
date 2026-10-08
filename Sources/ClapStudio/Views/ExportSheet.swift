@@ -1,7 +1,7 @@
 import ClapCore
 import SwiftUI
 
-/// Copies the tray's files (or one sample sent from the inspector) to a folder, naming each from a template.
+/// Copies the chosen samples to a folder, naming each from a template.
 /// Trimmed samples are written as trimmed WAV files; the originals are never changed.
 struct ExportSheet: View {
     @Environment(AppModel.self) private var model

@@ -223,7 +223,7 @@ private struct MapSelectionBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Text("\(model.mapSelection.count) selected").font(.callout.bold())
-            Button("Add to Tray") { model.addToTray(model.mapSelection) }
+            Button("Copy To…") { model.openExport(ids: model.mapSelection) }
             Menu("Add to Collection") {
                 ForEach(model.collections) { c in Button(c.name) { model.add(model.mapSelection, toCollection: c.id) } }
                 if !model.collections.isEmpty { Divider() }

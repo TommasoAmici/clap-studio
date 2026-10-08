@@ -30,7 +30,7 @@ struct SquidSetView: View {
                 }
             } else {
                 ContentUnavailableView("No banks yet", systemImage: "square.stack.3d.up",
-                                       description: Text("Send samples from the tray or the drum machine to make the first bank."))
+                                       description: Text("Send samples from the library or the drum machine to make the first bank."))
             }
         }
     }

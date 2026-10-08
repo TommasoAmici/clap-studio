@@ -61,8 +61,6 @@ struct InsightsSheet: View {
                 Text(s.folder.isEmpty ? "/" : s.folder).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
-            Button { model.addToTray([s.id]) } label: { Image(systemName: "tray.and.arrow.down") }
-                .buttonStyle(.borderless).help("Add to the tray")
             Button { model.select(s.id, play: true) } label: { Image(systemName: "play.fill") }
                 .buttonStyle(.borderless).help("Preview")
         }

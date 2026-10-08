@@ -24,7 +24,7 @@ extension AppModel {
         showSquidExport = true
     }
 
-    /// Samples for a sheet that was opened from the tray or the drum machine.
+    /// Samples for a sheet that was opened from the library or the drum machine.
     func squidSources() -> [SquidSource] {
         squidItems.compactMap { sampleByID[$0] }.map { SquidSource(file: $0.url, trim: activeTrim(for: $0), name: $0.name) }
     }

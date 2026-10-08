@@ -81,7 +81,7 @@ struct LibraryTableView: View {
                     Button("Remove from This Collection") { model.remove(list, fromCollection: current) }
                 }
                 Button("Add Tag…") { model.tagPromptTargets = list }
-                Button("Add to Tray") { model.addToTray(list) }
+                Button("Copy To…") { model.openExport(ids: list) }
                 Divider()
                 if samples.allSatisfy(\.hidden) {
                     Button("Show in Library Again") { model.unhide(list) }

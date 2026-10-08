@@ -11,7 +11,7 @@ struct DrumPanel: View {
                 Divider()
                 header
                 if model.drumPattern.tracks.isEmpty {
-                    Text("Add sounds from the library, the tray or the kit builder to start a pattern.")
+                    Text("Add sounds from the library or the kit builder to start a pattern.")
                         .font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 60)
                 } else {
