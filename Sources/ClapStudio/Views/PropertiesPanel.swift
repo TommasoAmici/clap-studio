@@ -26,6 +26,7 @@ struct PropertiesPanel: View {
                 }
                 .font(.caption)
             }
+            if sample.isFieldRecording { FieldSoundsSection(sample: sample).padding(.top, 8) }
             TagEditor(sample: sample).padding(.top, 8)
         }
         .onAppear(perform: syncText)
@@ -142,5 +143,50 @@ struct FlowLayout: Layout {
             x += size.width + spacing; rowHeight = max(rowHeight, size.height); maxX = max(maxX, x - spacing)
         }
         return (CGSize(width: maxX, height: y + rowHeight), origins)
+    }
+}
+
+/// What a field recording contains (birds, water, speech, ...), each with where it is heard.
+/// A timestamp starts playback there; the name shows every recording with that sound.
+struct FieldSoundsSection: View {
+    @Environment(AppModel.self) private var model
+    let sample: SampleRecord
+    @State private var occurrences: [SoundOccurrence] = []
+
+    /// Changes when another recording is selected or its sounds are recomputed.
+    private var reloadKey: String { "\(sample.id)|\(sample.sounds.joined(separator: ","))" }
+    private static let timestampsShown = 4
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Sounds in this recording").font(.subheadline.bold())
+            if occurrences.isEmpty {
+                Text(model.isIndexing ? "Listening…" : "No sounds identified.").font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(occurrences, id: \.name) { occurrence in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Button { model.descriptorFilter.category = occurrence.name } label: {
+                            Label(occurrence.name, systemImage: SoundCategories.symbol(for: occurrence.name))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Show every recording with \(occurrence.name.lowercased())")
+                        Text(Format.duration(occurrence.total)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 4) {
+                        ForEach(Array(occurrence.spans.prefix(Self.timestampsShown).enumerated()), id: \.offset) { _, span in
+                            Button(Format.timestamp(span.start)) { model.placeStartMarker(atSeconds: span.start) }
+                                .buttonStyle(.bordered).controlSize(.mini).monospacedDigit()
+                                .help("Play from \(Format.timestamp(span.start))")
+                        }
+                        if occurrence.spans.count > Self.timestampsShown {
+                            Text("+\(occurrence.spans.count - Self.timestampsShown)").font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .font(.caption)
+        .task(id: reloadKey) { occurrences = model.soundOccurrences(sample.id) }
     }
 }

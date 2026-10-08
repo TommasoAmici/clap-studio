@@ -4,7 +4,9 @@ import simd
 
 /// Distinct cluster colours (golden-angle hues, alternating saturation/brightness).
 enum Palette {
-    static let count = 24
+    /// Enough for every category (they have more than the 24 clusters can use) and a grey for "unknown".
+    static let count = 48
+    static let clusterLimit = 24
 
     static func color(_ i: Int) -> NSColor {
         let hue = (Double(i) * 0.381966).truncatingRemainder(dividingBy: 1)
@@ -50,7 +52,7 @@ vertex VOut vmain(uint vid [[vertex_id]],
     if (vis[vid] == 0) { p = float2(4.0, 4.0); }   // filtered out: move outside the clip volume
     o.position = float4(p, 0.0, 1.0);
     o.size = u.pointSize;
-    float4 c = palette[cl[vid] % 24];
+    float4 c = palette[cl[vid] % 48];
     c.a = u.alpha;
     o.color = c;
     o.kind = 0.0;
@@ -70,7 +72,7 @@ vertex VOut vhigh(uint vid [[vertex_id]],
     float2 p = (pos[idx] - u.center) * u.scale * 2.0 / u.viewport;
     o.position = float4(p, 0.0, 1.0);
     o.size = u.pointSize * (kind == 2 ? 2.8 : (kind == 3 ? 2.4 : (kind == 4 ? 3.2 : 1.7)));
-    float4 c = palette[cl[idx] % 24];
+    float4 c = palette[cl[idx] % 48];
     c.a = 1.0;
     o.color = c;
     o.kind = float(kind);
@@ -152,7 +154,7 @@ final class MapRenderer: NSObject, MTKViewDelegate {
         visibility = bytes.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: max(1, $0.count), options: .storageModeShared) }
     }
 
-    /// Replaces the 24 dot colours (the default is the cluster palette).
+    /// Replaces the dot colours (the default is the cluster palette).
     func setPalette(_ colors: [NSColor]?) {
         basePalette = (0..<Palette.count).map { i in
             guard let colors, i < colors.count, let c = colors[i].usingColorSpace(.deviceRGB) else { return Palette.simd(i) }

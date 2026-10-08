@@ -37,7 +37,8 @@ public struct DescriptorFilter: Equatable, Sendable {
         if let tonic {
             guard let name = s.keyName, Self.tonic(of: name) == tonic else { return false }
         }
-        if let category, s.effectiveCategory != category { return false }
+        // A field recording also matches the sounds heard in it (birds, water, ...).
+        if let category, s.effectiveCategory != category, !s.sounds.contains(category) { return false }
         if !moods.isEmpty, moods.isDisjoint(with: s.moods) { return false }
         return true
     }

@@ -294,4 +294,7 @@ extension AppModel {
 extension AppModel {
     /// How many segments a field recording was split into.
     func segmentCount(_ id: Int64) -> Int { store?.segmentCount(sampleID: id) ?? 0 }
+
+    /// The sounds heard in a field recording and where, longest first.
+    func soundOccurrences(_ id: Int64) -> [SoundOccurrence] { store?.soundOccurrences(sampleID: id) ?? [] }
 }

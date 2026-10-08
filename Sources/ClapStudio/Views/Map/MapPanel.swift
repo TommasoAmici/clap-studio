@@ -117,7 +117,7 @@ private struct MapControls: View {
         HStack(spacing: 12) {
             Toggle("Hover to play", isOn: $model.hoverPlay).toggleStyle(.switch).controlSize(.small)
             Divider().frame(height: 16)
-            Stepper(value: Binding(get: { model.clusterCount }, set: { model.setClusterCount($0) }), in: 2...Palette.count) {
+            Stepper(value: Binding(get: { model.clusterCount }, set: { model.setClusterCount($0) }), in: 2...Palette.clusterLimit) {
                 Text("\(model.clusterCount) clusters").monospacedDigit()
             }
             Divider().frame(height: 16)

@@ -5,9 +5,10 @@ import Foundation
 /// near the phrases that describe it, so no training data is needed.
 public enum SoundCategories {
     /// Bumped whenever names or phrases change, so stored categories are recomputed.
-    public static let version = "cat-v2"
+    public static let version = "cat-v3"
 
-    public static let all: [(name: String, prompts: [String])] = [
+    /// Musical categories.
+    public static let musical: [(name: String, prompts: [String])] = [
         ("Kick", ["a kick drum", "a bass drum hit", "an 808 kick"]),
         ("Snare", ["a snare drum", "a snare hit", "a rimshot"]),
         ("Clap", ["a hand clap", "claps", "a clap drum machine sound"]),
@@ -29,6 +30,44 @@ public enum SoundCategories {
         ("FX", ["a sound effect", "a riser", "an impact", "a sweep or whoosh"]),
         ("Ambience", ["an ambient atmosphere", "field recording", "background noise", "a drone texture"]),
     ]
+
+    /// Bumped whenever the sounds named in field recordings (vocabulary, phrases, cut-offs) change.
+    public static let soundsVersion = "sounds-v1"
+
+    /// Sound names in the canonical (sidebar) order; unknown names go last.
+    public static func sortedSounds(_ sounds: [String]) -> [String] {
+        let order = Dictionary(uniqueKeysWithValues: names.enumerated().map { ($1, $0) })
+        return sounds.sorted { (order[$0] ?? .max, $0) < (order[$1] ?? .max, $1) }
+    }
+
+    /// Sounds of the world outside the studio. Ordinary samples (a single bird call) can have these categories, and
+    /// they are what the segments of a field recording are named with.
+    public static let environment: [(name: String, prompts: [String])] = [
+        ("Birds", ["birds singing", "a bird chirping", "birdsong in the morning"]),
+        ("Water", ["flowing water", "a stream or river", "waves on a shore", "a water fountain"]),
+        ("Rain", ["rain falling", "raindrops on a roof", "a heavy rain shower"]),
+        ("Wind", ["wind blowing", "a strong wind howling", "wind in the trees"]),
+        ("Thunder", ["thunder rumbling", "a thunderstorm"]),
+        ("Fire", ["a crackling fire", "flames burning", "a campfire"]),
+        ("Insects", ["insects buzzing", "crickets chirping", "cicadas", "a fly buzzing"]),
+        ("Animals", ["a dog barking", "an animal calling", "cows and sheep", "frogs croaking"]),
+        ("Speech", ["people speaking", "a person talking", "a conversation", "a voice announcing"]),
+        ("Crowd", ["a crowd of people", "a busy crowd murmuring", "people cheering", "children playing"]),
+        ("Footsteps", ["footsteps", "someone walking on gravel", "steps on a wooden floor"]),
+        ("Traffic", ["traffic noise", "cars passing on a road", "a busy street", "a car horn"]),
+        ("Aircraft", ["an airplane flying overhead", "a helicopter", "a jet engine"]),
+        ("Trains", ["a train passing", "a train on tracks", "a subway arriving"]),
+        ("Machinery", ["machinery running", "an engine humming", "a motor", "a factory"]),
+        ("Bells", ["church bells ringing", "a bell chiming", "wind chimes"]),
+    ]
+
+    /// Every category that phrases describe, in sidebar order.
+    public static var all: [(name: String, prompts: [String])] { musical + environment }
+
+    /// What the segments of a field recording are scored against: every category except the catch-alls.
+    public static var segmentVocabulary: [(name: String, prompts: [String])] {
+        all.filter { !["Ambience", "FX"].contains($0.name) }
+    }
 
     /// Long recordings. Not described by phrases: it is decided by duration (`FieldRecording.minimumSeconds`).
     public static let fieldRecording = FieldRecording.categoryName
@@ -70,6 +109,32 @@ public final class Categorizer: @unchecked Sendable {
         self.dim = dim
     }
 
+    public struct Label: Sendable, Equatable {
+        public let name: String
+        public let confidence: Float
+    }
+
+    /// Up to `limit` best categories per vector whose softmax share reaches `minimum`, best first. For segments
+    /// of field recordings, which often hold more than one sound.
+    public func classifyTop(flat: [Float], count: Int, limit: Int = 2, minimum: Float = 0.2) -> [[Label]] {
+        let k = names.count
+        guard count > 0, k > 0, flat.count == count * dim else { return [] }
+        var scores = [Float](repeating: 0, count: count * k)
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, Int32(count), Int32(k), Int32(dim),
+                    1, flat, Int32(dim), matrix, Int32(dim), 0, &scores, Int32(k))
+        return (0..<count).map { row in
+            let slice = scores[(row * k)..<((row + 1) * k)].map { $0 * Self.temperature }
+            let top = slice.max() ?? 0
+            let exps = slice.map { expf($0 - top) }
+            let total = exps.reduce(0, +)
+            return exps.indices
+                .map { Label(name: names[$0], confidence: exps[$0] / total) }
+                .filter { $0.confidence >= minimum }
+                .sorted { $0.confidence > $1.confidence }
+                .prefix(limit).map { $0 }
+        }
+    }
+
     /// Classifies `count` vectors laid out back to back in `flat`.
     public func classify(flat: [Float], count: Int) -> [Result] {
         let k = names.count
@@ -105,6 +170,22 @@ extension SoundCategories {
         case "FX": return "wand.and.stars"
         case "Ambience": return "cloud"
         case "Field recording": return "leaf"
+        case "Birds": return "bird"
+        case "Water": return "water.waves"
+        case "Rain": return "cloud.rain"
+        case "Wind": return "wind"
+        case "Thunder": return "cloud.bolt"
+        case "Fire": return "flame"
+        case "Insects": return "ant"
+        case "Animals": return "pawprint"
+        case "Speech": return "person.wave.2"
+        case "Crowd": return "person.3"
+        case "Footsteps": return "figure.walk"
+        case "Traffic": return "car"
+        case "Aircraft": return "airplane"
+        case "Trains": return "tram"
+        case "Machinery": return "gearshape.2"
+        case "Bells": return "bell"
         default: return "tag"
         }
     }

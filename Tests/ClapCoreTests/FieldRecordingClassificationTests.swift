@@ -19,7 +19,7 @@ import Testing
     @Test func longFilesAreFieldRecordingsWhateverTheySoundLike() throws {
         #expect(SoundCategories.names.last == "Field recording")
         #expect(!SoundCategories.all.map(\.name).contains("Field recording"))
-        #expect(SoundCategories.names.count <= 24, "the map palette has 24 colours")
+        #expect(SoundCategories.names.count < 48, "the map palette has 48 colours, one is for unknown")
 
         let (store, _) = try TestSupport.makeStore()
         let root = try store.addRoot(path: "/tmp/x")

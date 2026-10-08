@@ -46,6 +46,8 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var tags: [String] = []
     /// Automatic moods, in the sidebar's order.
     public var moods: [String] = []
+    /// What the segments of a field recording sound like (birds, water, ...), in the sidebar's order.
+    public var sounds: [String] = []
 
     /// The user's BPM correction wins over the detected one.
     /// Long recordings are analysed in segments (see `FieldRecording`).
