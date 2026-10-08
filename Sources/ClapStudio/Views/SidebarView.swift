@@ -75,6 +75,7 @@ struct SidebarView: View {
                 }
             }
         }
+        .modifier(NoToolbarSeparator())
         .alert("Rename Collection", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $renameText)
             Button("Rename") { if let renaming { model.rename(collection: renaming.id, to: renameText) } }
@@ -95,5 +96,13 @@ struct SidebarView: View {
             }
             .buttonStyle(.borderless).padding(10)
         }
+    }
+}
+
+/// Long sidebars scrolled under the window buttons drew a black line through them: the toolbar's separator, which
+/// appears whenever scrolled content sits beneath the toolbar. The sidebar has no use for it.
+struct NoToolbarSeparator: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) { content.toolbarBackgroundVisibility(.hidden, for: .windowToolbar) } else { content }
     }
 }
