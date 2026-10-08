@@ -24,6 +24,7 @@ struct DrumPanel: View {
                 }
             }
             .background(.bar)
+            .fileDrop { model.dropOnDrums(files: $0) }
         }
     }
 
@@ -73,6 +74,7 @@ private struct DrumTrackRow: View {
     @Environment(AppModel.self) private var model
     let index: Int
     let track: DrumTrack
+    @State private var dropTargeted = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -95,7 +97,7 @@ private struct DrumTrackRow: View {
             }
             .buttonStyle(.borderless)
             .disabled(model.selectedID == nil || model.selectedID == track.sampleID)
-            .help("Replace this sound with the selected sample, or drop a sample onto the track")
+            .help("Replace this sound with the selected sample (or drag a sample onto the track)")
             steps
             toggle("M", on: track.muted, color: .orange, help: "Mute") { model.drumPattern.tracks[index].muted.toggle() }
             toggle("S", on: track.solo, color: .yellow, help: "Solo") { model.drumPattern.tracks[index].solo.toggle() }
@@ -105,7 +107,10 @@ private struct DrumTrackRow: View {
             Button { model.drumPattern.removeTrack(at: index) } label: { Image(systemName: "minus.circle") }
                 .buttonStyle(.borderless).help("Remove this track")
         }
-        .dropDestination(for: URL.self) { urls, _ in model.replaceDrumSample(track: index, withFileAt: urls) }
+        .padding(.vertical, 2).padding(.horizontal, 4)
+        .background(dropTargeted ? Color.accentColor.opacity(0.25) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: dropTargeted ? 1.5 : 0))
+        .fileDrop(isTargeted: $dropTargeted) { model.dropOnDrumTrack(index, files: $0) }
         .contextMenu {
             if let id = model.selectedID, id != track.sampleID {
                 Button("Use Selected Sample Here") { model.replaceDrumSample(track: index, with: id) }

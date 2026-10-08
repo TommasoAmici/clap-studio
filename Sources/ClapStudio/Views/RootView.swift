@@ -55,10 +55,9 @@ struct RootView: View {
                 }
             }
         }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let file = urls.first(where: { FolderScanner.isSupported($0) }) else { return false }
-            model.findSimilar(toFileAt: file)
-            return true
+        .fileDrop { urls in
+            // Dropping an audio file anywhere that does not take drops itself finds similar sounds.
+            if let file = urls.first(where: { FolderScanner.isSupported($0) }) { model.findSimilar(toFileAt: file) }
         }
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
         .sheet(isPresented: $model.showKit) { KitSheet() }

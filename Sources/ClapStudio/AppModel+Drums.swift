@@ -82,13 +82,25 @@ extension AppModel {
         else if !drumPattern.tracks[index].alternatives.contains(id) { drumPattern.tracks[index].alternatives.append(id) }
     }
 
-    /// Handles a sample dragged onto a track. Only files that are in the library can be used.
-    func replaceDrumSample(track index: Int, withFileAt urls: [URL]) -> Bool {
-        let paths = Set(urls.map { $0.standardizedFileURL.path })
-        guard let sample = samples.first(where: { paths.contains($0.url.standardizedFileURL.path) }) else { return false }
+    /// Library samples for dragged files (files that are not in the library are ignored).
+    func librarySamples(forFiles urls: [URL]) -> [SampleRecord] {
+        let paths = urls.map { $0.standardizedFileURL.path }
+        let wanted = Set(paths)
+        let found = samples.filter { wanted.contains($0.url.standardizedFileURL.path) }
+        let order = Dictionary(paths.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return found.sorted { (order[$0.url.standardizedFileURL.path] ?? 0) < (order[$1.url.standardizedFileURL.path] ?? 0) }
+    }
+
+    /// A sample dragged onto a track replaces its sound (and is previewed).
+    func dropOnDrumTrack(_ index: Int, files urls: [URL]) {
+        guard let sample = librarySamples(forFiles: urls).first else { return }
         replaceDrumSample(track: index, with: sample.id)
         select(sample.id, play: true)
-        return true
+    }
+
+    /// Samples dragged onto the empty part of the drawer become new tracks.
+    func dropOnDrums(files urls: [URL]) {
+        addToDrums(librarySamples(forFiles: urls).map(\.id))
     }
 
     func drumSampleName(_ track: DrumTrack) -> String {

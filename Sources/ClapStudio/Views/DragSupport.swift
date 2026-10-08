@@ -32,6 +32,32 @@ extension View {
     }
 }
 
+extension View {
+    /// Accepts file drags (from the library list, the kit builder, the tray, or Finder) and hands over their URLs.
+    /// Highlights through `isTargeted` while a drag is over the view.
+    func fileDrop(isTargeted: Binding<Bool>? = nil, perform: @escaping @MainActor ([URL]) -> Void) -> some View {
+        onDrop(of: [.fileURL], isTargeted: isTargeted) { providers in
+            let accepting = providers.filter { $0.canLoadObject(ofClass: URL.self) }
+            guard !accepting.isEmpty else { return false }
+            let group = DispatchGroup()
+            let lock = NSLock()
+            var found: [URL] = []
+            for provider in accepting {
+                group.enter()
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    if let url { lock.lock(); found.append(url); lock.unlock() }
+                    group.leave()
+                }
+            }
+            group.notify(queue: .main) {
+                let urls = found
+                MainActor.assumeIsolated { perform(urls) }
+            }
+            return true
+        }
+    }
+}
+
 /// An AppKit drag source: drag one or several files into a DAW.
 struct FileDragHandle: NSViewRepresentable {
     let urls: [URL]
