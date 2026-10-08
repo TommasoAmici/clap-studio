@@ -26,8 +26,36 @@ jobs:
           xcode-select -p
           swift --version
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements.txt
+
+      - name: Cache Hugging Face downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-laion-clap-htsat-unfused-v1
+
+      - name: Export CLAP model
+        # Writes CLAPAudio/CLAPText.mlpackage and the tokenizer files to
+        # ~/Library/Application Support/ClapStudio/Models, where bundle.sh picks them up.
+        run: |
+          pip install -r tools/requirements.txt
+          python3 tools/export_clap.py
+
       - name: Build app bundle
         run: scripts/bundle.sh
+
+      - name: Verify CLAP model is bundled
+        run: |
+          RES="build/ClapStudio.app/Contents/Resources"
+          for item in CLAPAudio.mlpackage CLAPText.mlpackage clap_vocab.json clap_merges.txt; do
+            test -e "$RES/$item" || { echo "Missing $item in app bundle"; exit 1; }
+          done
+          du -sh "$RES"/CLAP*.mlpackage
 
       - name: Stamp version and re-sign
         id: version
@@ -62,4 +90,4 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Clap Studio $TAG" \
             --generate-notes \
-            --notes "The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. Core ML models are not bundled, so this build uses the built-in DSP embedder until models are exported (see README)."
+            --notes "The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. This build bundles the LAION-CLAP model (Apache-2.0)."
