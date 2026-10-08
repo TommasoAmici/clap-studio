@@ -26,6 +26,13 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 - **Squid Salmple** (Settings, off by default): connected USB drives appear in the sidebar with the sets, banks and Pool of the [ALM022 module](https://busycircuits.com/pages/alm022). Banks show their eight channels to hear, drag out or try in the drum machine. *Send to Squid…* (library menu, drum machine, library menu, or the drive) writes up to eight samples as a bank (`Bank N/1…8/Name.wav`, `info.txt`, optionally in a `Set NAME` folder) or any number into the Pool, converted to 16-bit 44.1 kHz mono and cut at 11 s. Existing banks are never overwritten silently. Samples on a stick are analysed but kept out of the library, the map and the saved index, and are never written to.
 - **Tags and export names**: free-text tags (searchable, in the sidebar); *Copy To…* names files from a template such as `{category} - {name} - {bpm}`.
 - **Everyday**: multi-select with batch actions, undo for hide/favorite/tag/collection edits (option-command-Z), folders are watched and rescanned automatically, and previews can be level-matched.
+- **Training data export** (Settings, Developer): *Export Embeddings…* writes a new folder with `embeddings.npy` (float32, one 512-number row per sample), `labels.csv` (path, category, whether it is a manual or automatic label, CLAP's own category and confidence, file fingerprint) and `metadata.json`. Samples whose category you set by hand export with it; *Manual labels only* leaves out the automatic ones. Field recordings and samples without a category are not exported, and the library is not changed. Load it with:
+
+  ```python
+  import numpy as np, pandas as pd
+  X = np.load("embeddings.npy")            # (N, 512), row i belongs to labels.csv row i
+  labels = pd.read_csv("labels.csv")       # train on labels["category"]; group by "fingerprint" to split duplicates apart
+  ```
 
 ## Persistence
 

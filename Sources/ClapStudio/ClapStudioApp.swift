@@ -39,7 +39,7 @@ struct ClapStudioApp: App {
         }
 
         Settings {
-            SquidSettingsView().environment(model)
+            SettingsView().environment(model)
         }
     }
 }

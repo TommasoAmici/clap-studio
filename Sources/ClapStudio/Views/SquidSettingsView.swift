@@ -15,6 +15,5 @@ struct SquidSettingsView: View {
             } header: { Text("Busy Circuits Squid Salmple (ALM022)") }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 210)
     }
 }

@@ -114,6 +114,13 @@ final class AppModel {
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
     var moodCounts: [(name: String, count: Int)] = []       // sidebar; only moods that have samples
 
+    // MARK: developer export
+    var exportManualLabelsOnly = UserDefaults.standard.bool(forKey: "developer.exportManualOnly") {
+        didSet { UserDefaults.standard.set(exportManualLabelsOnly, forKey: "developer.exportManualOnly") }
+    }
+    var trainingExportRunning = false
+    var trainingExportResult: TrainingExportResult?
+
     // MARK: Squid Salmple (USB sticks)
     var squidEnabled = UserDefaults.standard.bool(forKey: SquidSettings.enabledKey) { didSet { if squidEnabled != oldValue { squidEnabledChanged() } } }
     var usbDrives: [UsbDrive] = []
