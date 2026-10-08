@@ -19,7 +19,8 @@ public struct StoredProjection: Sendable {
 
 /// Persistence of derived data (PCA, centroids, cluster ids, map coordinates).
 extension LibraryStore {
-    private static let embeddedFilter = "status = 'ok' AND model_version = ? AND embedding IS NOT NULL"
+    /// Samples that take part in the similarity map. Temporary roots (a USB stick) are left out.
+    private static let embeddedFilter = "status = 'ok' AND model_version = ? AND embedding IS NOT NULL AND root_id IN (SELECT id FROM roots WHERE transient = 0)"
 
     public func embeddedCount(modelVersion: String) -> Int {
         Int((try? db.scalarInt("SELECT COUNT(*) FROM samples WHERE \(Self.embeddedFilter)",

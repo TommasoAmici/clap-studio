@@ -7,6 +7,8 @@ public enum SampleStatus: String, Sendable {
 public struct RootRecord: Identifiable, Hashable, Sendable {
     public let id: Int64
     public let path: String
+    /// True for a temporary root such as a USB stick: not part of the library proper and never kept between runs.
+    public var isTransient = false
 }
 
 public struct SampleRecord: Identifiable, Hashable, Sendable {

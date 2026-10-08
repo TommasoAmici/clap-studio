@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 4
+    static let currentVersion = 5
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -10,6 +10,7 @@ enum Schema {
         if version < 2 { try v2(db) }
         if version < 3 { try v3(db) }
         if version < 4 { try v4(db) }
+        if version < 5 { try v5(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -87,5 +88,11 @@ enum Schema {
             sample_id INTEGER PRIMARY KEY,
             start_seconds REAL NOT NULL, end_seconds REAL NOT NULL, fade_out REAL NOT NULL DEFAULT 0);
         """)
+    }
+
+    /// Temporary roots (a USB stick): analysed like any folder, but kept out of the library views and
+    /// the similarity map, and removed again when the stick is unplugged or the app starts.
+    private static func v5(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE roots ADD COLUMN transient INTEGER NOT NULL DEFAULT 0")
     }
 }

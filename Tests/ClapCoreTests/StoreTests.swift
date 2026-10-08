@@ -94,3 +94,26 @@ import Testing
         #expect(FileFingerprint.compute(url: dir.appendingPathComponent("a.wav")) != nil)
     }
 }
+
+@Suite struct TransientRootTests {
+    @Test func temporaryRootsStayOutOfTheLibraryAndAreForgotten() throws {
+        let (store, dir) = try TestSupport.makeStore()
+        let lib = try store.addRoot(path: "/tmp/lib")
+        let usb = try store.addRoot(path: "/Volumes/SQUID/ALM022", transient: true)
+        #expect(!lib.isTransient && usb.isTransient)
+        #expect(store.roots().map(\.path) == ["/tmp/lib"], "library roots exclude the stick")
+        #expect(store.transientRoots().map(\.path) == ["/Volumes/SQUID/ALM022"])
+        _ = try store.sync(rootID: lib.id, scanned: [ScannedFile(relPath: "a.wav", size: 1, mtime: 1)]) { _ in nil }
+        _ = try store.sync(rootID: usb.id, scanned: [ScannedFile(relPath: "Bank 1/1/k.wav", size: 1, mtime: 1)]) { _ in nil }
+        #expect(store.loadSamples().map(\.relPath) == ["a.wav"])
+        #expect(store.loadTransientSamples().map(\.relPath) == ["Bank 1/1/k.wav"])
+        #expect(store.pendingCount() == 2, "both get analysed")
+        #expect(try store.addRoot(path: "/Volumes/SQUID/ALM022").isTransient, "adding again keeps it temporary")
+
+        try store.purgeTransientRoots()
+        #expect(store.transientRoots().isEmpty && store.loadTransientSamples().isEmpty)
+        #expect(store.loadSamples().count == 1, "the library is untouched")
+        let reopened = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        #expect(reopened.roots().count == 1)
+    }
+}

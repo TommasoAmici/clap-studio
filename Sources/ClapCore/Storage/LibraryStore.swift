@@ -41,16 +41,27 @@ public final class LibraryStore: @unchecked Sendable {
     // MARK: roots
 
     @discardableResult
-    public func addRoot(path: String) throws -> RootRecord {
-        try db.run("INSERT OR IGNORE INTO roots(path) VALUES(?)", [.text(path)])
+    public func addRoot(path: String, transient: Bool = false) throws -> RootRecord {
+        try db.run("INSERT OR IGNORE INTO roots(path, transient) VALUES(?, ?)", [.text(path), .int(transient ? 1 : 0)])
         let id = try db.scalarInt("SELECT id FROM roots WHERE path = ?", [.text(path)]) ?? 0
-        return RootRecord(id: id, path: path)
+        let isTransient = (try db.scalarInt("SELECT transient FROM roots WHERE id = ?", [.int(id)]) ?? 0) != 0
+        return RootRecord(id: id, path: path, isTransient: isTransient)
     }
 
-    public func roots() -> [RootRecord] {
-        (try? db.query("SELECT id, path FROM roots ORDER BY id") {
-            RootRecord(id: $0.int(0), path: $0.text(1))
+    /// The library's folders (not temporary ones such as USB sticks).
+    public func roots() -> [RootRecord] { allRoots().filter { !$0.isTransient } }
+
+    public func transientRoots() -> [RootRecord] { allRoots().filter(\.isTransient) }
+
+    private func allRoots() -> [RootRecord] {
+        (try? db.query("SELECT id, path, transient FROM roots ORDER BY id") {
+            RootRecord(id: $0.int(0), path: $0.text(1), isTransient: $0.int(2) != 0)
         }) ?? []
+    }
+
+    /// Forgets every temporary root and what was learned about its files.
+    public func purgeTransientRoots() throws {
+        for root in transientRoots() { try removeRoot(id: root.id) }
     }
 
     public func removeRoot(id: Int64) throws {
@@ -211,7 +222,11 @@ public final class LibraryStore: @unchecked Sendable {
 
     // MARK: loading
 
-    public func loadSamples() -> [SampleRecord] { querySamples(extraFilter: "", params: []) }
+    /// The library's samples (not those of temporary roots).
+    public func loadSamples() -> [SampleRecord] { querySamples(extraFilter: "AND r.transient = 0", params: []) }
+
+    /// Samples of temporary roots, such as a USB stick.
+    public func loadTransientSamples() -> [SampleRecord] { querySamples(extraFilter: "AND r.transient = 1", params: []) }
 
     public func sample(id: Int64) -> SampleRecord? {
         querySamples(extraFilter: "AND s.id = ?", params: [.int(id)]).first

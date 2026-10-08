@@ -10,7 +10,7 @@ extension LibraryStore {
 
     /// File fingerprints by sample id (absent when the file could not be read).
     public func fingerprints() -> [Int64: String] {
-        let rows = (try? db.query("SELECT id, fingerprint FROM samples WHERE fingerprint IS NOT NULL") { ($0.int(0), $0.text(1)) }) ?? []
+        let rows = (try? db.query("SELECT id, fingerprint FROM samples WHERE fingerprint IS NOT NULL AND root_id IN (SELECT id FROM roots WHERE transient = 0)") { ($0.int(0), $0.text(1)) }) ?? []
         return Dictionary(uniqueKeysWithValues: rows)
     }
 }
