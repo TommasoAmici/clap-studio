@@ -85,3 +85,38 @@ import Testing
         #expect(events.count <= 2 && (events.first?.time ?? 100) >= 100)
     }
 }
+
+@Suite struct DrumMachineTests {
+    private final class Steps: @unchecked Sendable {
+        private let lock = NSLock(); private var list: [Int] = []
+        func add(_ s: Int) { lock.lock(); list.append(s); lock.unlock() }
+        var values: [Int] { lock.lock(); defer { lock.unlock() }; return list }
+    }
+
+    /// Needs an audio output; passes without checking anything when the engine cannot start (for example on a headless runner).
+    @Test func runsInTimeAndStopsCleanly() async throws {
+        let dir = TestSupport.tempDir()
+        let url = dir.appendingPathComponent("hit.wav")
+        try writeTestWav(url, seconds: 0.1) { Float(sin(2 * .pi * 200 * $0)) * 0.3 }
+        let machine = DrumMachine(cache: AudioBufferCache(sampleRate: 48_000))
+        let steps = Steps()
+        machine.onStep = { steps.add($0) }
+        var pattern = DrumPattern()
+        pattern.addTrack(sampleID: 1, label: "kick", category: "Kick")
+        machine.update(pattern: pattern, urls: [1: url])
+        machine.bpm = 240                                    // 62.5 ms per step
+        machine.start()
+        try await Task.sleep(for: .milliseconds(300))
+        guard machine.isRunning else { return }
+        try await Task.sleep(for: .milliseconds(1000))
+        machine.stop()
+        try await Task.sleep(for: .milliseconds(300))
+        let seen = steps.values
+        #expect(seen.count >= 10, "about 20 steps in 1.3 s at 240 BPM, got \(seen.count)")
+        #expect(zip(seen, seen.dropFirst()).allSatisfy { ($0 + 1) % 16 == $1 }, "steps arrive in order")
+        #expect(!machine.isRunning)
+        let before = steps.values.count
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(steps.values.count == before, "nothing plays after stop")
+    }
+}
