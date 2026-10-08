@@ -96,7 +96,7 @@ private struct MapPlaceholder: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.07, green: 0.075, blue: 0.09))
+        .background(MapTheme.backgroundColor)
     }
 }
 

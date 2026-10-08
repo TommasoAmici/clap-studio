@@ -44,11 +44,25 @@ final class MapMTKView: MTKView, NSDraggingSource {
         renderer = MapRenderer(view: self)
         renderer?.uniformsProvider = { [unowned self] in self.uniforms() }
         layer?.isOpaque = true
-        lassoLayer.fillColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        lassoLayer.strokeColor = NSColor.white.withAlphaComponent(0.9).cgColor
+        applyAppearance()
         lassoLayer.lineWidth = 1.2
         lassoLayer.lineDashPattern = [5, 4]
         layer?.addSublayer(lassoLayer)
+    }
+
+    /// Follows light and dark mode: canvas, dot colours and the lasso outline.
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyAppearance()
+        needsDisplay = true
+    }
+
+    private func applyAppearance() {
+        let light = MapTheme.isLight(effectiveAppearance)
+        renderer?.setLight(light, view: self)
+        let ink: NSColor = light ? NSColor(srgbRed: 0.1, green: 0.1, blue: 0.15, alpha: 1) : .white
+        lassoLayer.fillColor = ink.withAlphaComponent(0.08).cgColor
+        lassoLayer.strokeColor = ink.withAlphaComponent(0.9).cgColor
     }
 
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }

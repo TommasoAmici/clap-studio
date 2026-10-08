@@ -24,7 +24,7 @@ struct MapUniforms {
     var scale: Float = 1
     var pointSize: Float = 3
     var alpha: Float = 0.85
-    var pad: Float = 0
+    var light: Float = 0       // 1 on a light canvas (rings change colour)
 }
 
 struct HighlightEntry {
@@ -36,8 +36,8 @@ private let shaderSource = """
 #include <metal_stdlib>
 using namespace metal;
 
-struct Uniforms { float2 center; float2 viewport; float scale; float pointSize; float alpha; float pad; };
-struct VOut { float4 position [[position]]; float size [[point_size]]; float4 color; float kind; };
+struct Uniforms { float2 center; float2 viewport; float scale; float pointSize; float alpha; float light; };
+struct VOut { float4 position [[position]]; float size [[point_size]]; float4 color; float kind; float light; };
 
 vertex VOut vmain(uint vid [[vertex_id]],
                   const device float2* pos [[buffer(0)]],
@@ -54,6 +54,7 @@ vertex VOut vmain(uint vid [[vertex_id]],
     c.a = u.alpha;
     o.color = c;
     o.kind = 0.0;
+    o.light = u.light;
     return o;
 }
 
@@ -73,6 +74,7 @@ vertex VOut vhigh(uint vid [[vertex_id]],
     c.a = 1.0;
     o.color = c;
     o.kind = float(kind);
+    o.light = u.light;
     return o;
 }
 
@@ -80,7 +82,7 @@ fragment float4 fmain(VOut in [[stage_in]], float2 pc [[point_coord]]) {
     float r = length(pc - 0.5) * 2.0;
     if (r > 1.0) { discard_fragment(); }
     float4 c = in.color;
-    if (in.kind >= 2.0 && r > 0.7) { c = float4(1.0, 1.0, 1.0, 1.0); }
+    if (in.kind >= 2.0 && r > 0.7) { c = in.light > 0.5 ? float4(0.06, 0.07, 0.1, 1.0) : float4(1.0, 1.0, 1.0, 1.0); }
     else if (in.kind >= 1.0 && r > 0.82) { c = float4(0.0, 0.0, 0.0, 0.7); }
     c.a *= smoothstep(1.0, 0.85, r);
     return c;
@@ -99,7 +101,9 @@ final class MapRenderer: NSObject, MTKViewDelegate {
     private var highlights: MTLBuffer?
     private var highlightCount = 0
     private(set) var pointCount = 0
-    private var palette = (0..<Palette.count).map(Palette.simd)
+    private var basePalette = (0..<Palette.count).map(Palette.simd)
+    private var palette: [SIMD4<Float>] = []
+    private(set) var isLight = false
 
     /// Supplied by the owning view so the renderer always draws the latest transform.
     var uniformsProvider: () -> MapUniforms = { MapUniforms() }
@@ -110,7 +114,6 @@ final class MapRenderer: NSObject, MTKViewDelegate {
         self.queue = queue
         view.device = device
         view.colorPixelFormat = .bgra8Unorm
-        view.clearColor = MTLClearColor(red: 0.07, green: 0.075, blue: 0.09, alpha: 1)
         view.isPaused = true
         view.enableSetNeedsDisplay = true
 
@@ -132,6 +135,7 @@ final class MapRenderer: NSObject, MTKViewDelegate {
         highlightPipeline = h
         super.init()
         view.delegate = self
+        setLight(MapTheme.isLight(view.effectiveAppearance), view: view)
     }
 
     func setPoints(xy: [Float], clusters ids: [UInt8]) {
@@ -149,10 +153,23 @@ final class MapRenderer: NSObject, MTKViewDelegate {
 
     /// Replaces the 24 dot colours (the default is the cluster palette).
     func setPalette(_ colors: [NSColor]?) {
-        palette = (0..<Palette.count).map { i in
+        basePalette = (0..<Palette.count).map { i in
             guard let colors, i < colors.count, let c = colors[i].usingColorSpace(.deviceRGB) else { return Palette.simd(i) }
             return SIMD4(Float(c.redComponent), Float(c.greenComponent), Float(c.blueComponent), 1)
         }
+        rebuildPalette()
+    }
+
+    /// Switches between the dark and light canvas (follows the system appearance).
+    func setLight(_ light: Bool, view: MTKView) {
+        isLight = light
+        let bg = MapTheme.background(light: light).usingColorSpace(.sRGB) ?? MapTheme.darkBackground
+        view.clearColor = MTLClearColor(red: bg.redComponent, green: bg.greenComponent, blue: bg.blueComponent, alpha: 1)
+        rebuildPalette()
+    }
+
+    private func rebuildPalette() {
+        palette = isLight ? basePalette.map(MapTheme.forLightBackground) : basePalette
     }
 
     func setClusters(_ ids: [UInt8]) {
@@ -173,6 +190,7 @@ final class MapRenderer: NSObject, MTKViewDelegate {
               let cmd = queue.makeCommandBuffer(), let enc = cmd.makeRenderCommandEncoder(descriptor: pass) else { return }
         if let positions, let clusters, let visibility, pointCount > 0 {
             var u = uniformsProvider()
+            u.light = isLight ? 1 : 0
             enc.setRenderPipelineState(normalPipeline)
             enc.setVertexBuffer(positions, offset: 0, index: 0)
             enc.setVertexBuffer(clusters, offset: 0, index: 1)
