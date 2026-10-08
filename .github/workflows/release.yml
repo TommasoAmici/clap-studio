@@ -14,9 +14,9 @@ permissions:
   contents: write # needed to create the tag and the GitHub release
 
 env:
-  # BirdNET (bird species) is CC BY-NC-SA 4.0. To sell the app, set the repository variable NON_COMMERCIAL to 0:
-  # the build then leaves out the feature and its models. Any other value (or none) keeps it.
-  NON_COMMERCIAL: ${{ vars.NON_COMMERCIAL != '0' && '1' || '0' }}
+  # BirdNET (bird species) is CC BY-NC-SA 4.0, and for now every release includes it. To sell the app, change this
+  # to '0': the build then leaves out the feature and its models.
+  NON_COMMERCIAL: '1'
 
 jobs:
   release:
