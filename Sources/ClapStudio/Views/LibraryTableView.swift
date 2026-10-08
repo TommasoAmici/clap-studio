@@ -15,12 +15,18 @@ struct LibraryTableView: View {
         Table(model.visible, selection: selection, sortOrder: $model.sortOrder) {
             TableColumn("Name", value: \.name) { s in
                 HStack(spacing: 6) {
-                    Image(systemName: "waveform").foregroundStyle(.secondary)
+                    if let track = model.drumTracks[s.id] {
+                        Image(systemName: "circle.grid.3x3.fill").foregroundStyle(.orange)
+                            .help("Loaded in the drum machine (track \(track))")
+                    } else {
+                        Image(systemName: "waveform").foregroundStyle(.secondary)
+                    }
                     Text(s.name).lineLimit(1)
                     if s.favorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
                     if s.status == .pending { ProgressView().controlSize(.mini) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .background(model.drumTracks[s.id] == nil ? Color.clear : Color.orange.opacity(0.22), in: RoundedRectangle(cornerRadius: 4))
                 .contentShape(Rectangle())
                 .onTapGesture { model.select(s.id, play: true) }
                 .sampleDrag(s, model: model)

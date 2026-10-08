@@ -97,7 +97,8 @@ final class AppModel {
     var trims: [Int64: SampleTrim] = [:]   // non-destructive start/end per sample
     var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
     var showDrums = false
-    var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern() } } }
+    var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern(); updateDrumTracks() } } }
+    var drumTracks: [Int64: Int] = [:]     // sample id -> its (first) drum track number, 1-based; for highlighting
     var dropZones: [DropZone: CGRect] = [:]     // where dropped files are taken, in window coordinates
     var dropHover: DropZone?                    // the place a drag is currently over
     var drumStep: Int?                     // step currently sounding, nil when stopped

@@ -29,7 +29,7 @@ struct MapUniforms {
 
 struct HighlightEntry {
     var index: UInt32
-    var kind: UInt32     // 1 similar, 2 selected, 3 hover
+    var kind: UInt32     // 1 similar, 2 selected, 3 hover, 4 loaded in the drum machine
 }
 
 private let shaderSource = """
@@ -69,7 +69,7 @@ vertex VOut vhigh(uint vid [[vertex_id]],
     uint kind = hl[vid].y;
     float2 p = (pos[idx] - u.center) * u.scale * 2.0 / u.viewport;
     o.position = float4(p, 0.0, 1.0);
-    o.size = u.pointSize * (kind == 2 ? 2.8 : (kind == 3 ? 2.4 : 1.7));
+    o.size = u.pointSize * (kind == 2 ? 2.8 : (kind == 3 ? 2.4 : (kind == 4 ? 3.2 : 1.7)));
     float4 c = palette[cl[idx] % 24];
     c.a = 1.0;
     o.color = c;
@@ -82,7 +82,8 @@ fragment float4 fmain(VOut in [[stage_in]], float2 pc [[point_coord]]) {
     float r = length(pc - 0.5) * 2.0;
     if (r > 1.0) { discard_fragment(); }
     float4 c = in.color;
-    if (in.kind >= 2.0 && r > 0.7) { c = in.light > 0.5 ? float4(0.06, 0.07, 0.1, 1.0) : float4(1.0, 1.0, 1.0, 1.0); }
+    if (in.kind > 3.5 && r > 0.5) { c = float4(1.0, 0.6, 0.05, 1.0); }
+    else if (in.kind >= 2.0 && in.kind < 3.5 && r > 0.7) { c = in.light > 0.5 ? float4(0.06, 0.07, 0.1, 1.0) : float4(1.0, 1.0, 1.0, 1.0); }
     else if (in.kind >= 1.0 && r > 0.82) { c = float4(0.0, 0.0, 0.0, 0.7); }
     c.a *= smoothstep(1.0, 0.85, r);
     return c;

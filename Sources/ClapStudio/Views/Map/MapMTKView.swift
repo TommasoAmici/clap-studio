@@ -28,6 +28,7 @@ final class MapMTKView: MTKView, NSDraggingSource {
     private var selectedRow: Int?
     private var similarRows: [Int] = []
     private var markedRows: [Int] = []
+    private var drumRows: [Int] = []       // loaded in the drum machine
     private var lassoPoints: [NSPoint] = []
     private let lassoLayer = CAShapeLayer()
     private(set) var hoverRow: Int?
@@ -97,11 +98,12 @@ final class MapMTKView: MTKView, NSDraggingSource {
         needsDisplay = true
     }
 
-    func setSelection(selected: Int?, similar: [Int], marked: [Int] = []) {
-        guard selected != selectedRow || similar != similarRows || marked != markedRows else { return }
+    func setSelection(selected: Int?, similar: [Int], marked: [Int] = [], drums: [Int] = []) {
+        guard selected != selectedRow || similar != similarRows || marked != markedRows || drums != drumRows else { return }
         selectedRow = selected
         similarRows = similar
         markedRows = marked
+        drumRows = drums
         refreshHighlights()
     }
 
@@ -115,6 +117,7 @@ final class MapMTKView: MTKView, NSDraggingSource {
     private func refreshHighlights() {
         var entries = markedRows.prefix(20_000).filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 1) }
         entries += similarRows.filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 1) }
+        entries += drumRows.filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 4) }
         if let h = hoverRow, isVisible(h) { entries.append(HighlightEntry(index: UInt32(h), kind: 3)) }
         if let s = selectedRow, isVisible(s) { entries.append(HighlightEntry(index: UInt32(s), kind: 2)) }
         renderer?.setHighlights(entries)

@@ -31,6 +31,14 @@ extension AppModel {
         drumMachine.update(pattern: drumPattern, sources: sources)
     }
 
+    /// Which samples are loaded in the drum machine (shown highlighted in the Library and on the map). Only assigned
+    /// when it changes, so toggling steps does not redraw the list.
+    func updateDrumTracks() {
+        var tracks: [Int64: Int] = [:]
+        for (index, track) in drumPattern.tracks.enumerated() where tracks[track.sampleID] == nil { tracks[track.sampleID] = index + 1 }
+        if tracks != drumTracks { drumTracks = tracks }
+    }
+
     func toggleDrumPlayback() {
         if drumPlaying { drumMachine.stop(); return }
         pushDrumPattern()

@@ -66,7 +66,8 @@ struct MetalMapView: NSViewRepresentable {
         }
         let selectedRow = model.selectedID.flatMap { snap.index.row(forID: $0) }
         let marked = model.mapSelection.compactMap { snap.index.row(forID: $0) }
-        view.setSelection(selected: selectedRow, similar: model.similarRows, marked: marked)
+        let drums = model.drumTracks.keys.compactMap { snap.index.row(forID: $0) }.sorted()
+        view.setSelection(selected: selectedRow, similar: model.similarRows, marked: marked, drums: drums)
     }
 }
 
