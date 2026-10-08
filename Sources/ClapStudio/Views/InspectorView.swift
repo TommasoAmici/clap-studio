@@ -74,9 +74,12 @@ struct InspectorView: View {
             .keyboardShortcut(.return, modifiers: [])
             Text(fitNote(for: s) ?? "Space to play · M adds a cue · 1–9 jumps to a cue")
                 .font(.caption2).foregroundStyle(fitNote(for: s) == nil ? Color.secondary : Color.accentColor)
+                .lineLimit(1).truncationMode(.tail)
             Spacer()
             Button("Find Similar") { model.viewMode = .library; model.showSimilar(to: s.id) }
                 .help("Show this sample's neighbours")
+            Button("Build Kit") { model.buildKit(around: s.id) }
+                .help("Suggest matching drums around this sample")
         }
     }
 }

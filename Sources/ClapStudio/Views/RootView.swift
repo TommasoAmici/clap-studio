@@ -56,6 +56,7 @@ struct RootView: View {
             return true
         }
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
+        .sheet(isPresented: $model.showKit) { KitSheet() }
         .sheet(isPresented: $model.showExport) { ExportSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,

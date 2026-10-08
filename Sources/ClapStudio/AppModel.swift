@@ -86,6 +86,9 @@ final class AppModel {
     var duplicateSearchRunning = false
     var showDuplicates = false
     var showInsights = false
+    var showKit = false
+    var kitSlots: [KitSlot] = []
+    var kitChoice: [String: Int] = [:]
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
     // MARK: filters

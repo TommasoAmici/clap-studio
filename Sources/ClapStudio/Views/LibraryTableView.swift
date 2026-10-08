@@ -72,6 +72,7 @@ struct LibraryTableView: View {
             if let first = samples.first {
                 if list.count == 1 {
                     Button("Find Similar Sounds") { model.showSimilar(to: first.id) }
+                    Button("Build a Kit From This…") { model.buildKit(around: first.id) }
                 }
                 Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) }
                 Divider()

@@ -15,6 +15,11 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 - **Sweep**: with a sample selected, `←` and `→` step through its closest sounds, previewing each. Drop any audio file on the window to find library sounds like it.
 - **Ideas**: the lightbulb lists never-used sounds that sit next to the samples you grab most.
 - **Project tempo and key**: set them in the toolbar; loops then preview time-stretched to the tempo and tonal sounds transposed to the key (previews only; dragged files are untouched).
+- **Map colour, axes and lasso**: colour dots by category, loop/one-shot, usage, tempo, loudness or brightness; lay the map out by any two measured properties instead of similarity; shift-drag a lasso to send the picked dots to the tray, a collection, favorites, a tag or Hidden.
+- **Similarity aspects**: the sliders under *What counts as similar* weigh overall sound against brightness, pitch (same note), level/punch and length; the list, map highlight and `←` `→` sweep follow.
+- **Kit builder**: *Build Kit* suggests a snare, clap, hats and more around a chosen kick, by character, level and pack, with alternatives per slot.
+- **Tags and export names**: free-text tags (searchable, in the sidebar); the tray's *Copy To…* names files from a template such as `{category} - {name} - {bpm}`.
+- **Everyday**: multi-select with batch actions, undo for hide/favorite/tag/collection edits (option-command-Z), folders are watched and rescanned automatically, and previews can be level-matched.
 
 ## Persistence
 
