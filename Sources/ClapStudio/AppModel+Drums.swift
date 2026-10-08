@@ -75,7 +75,20 @@ extension AppModel {
 
     /// Puts the selected sample on a track in place of its current sound.
     func replaceDrumSample(track index: Int, with id: Int64) {
+        guard let sample = sampleByID[id] else { return }
         drumPattern.replaceSample(track: index, with: id)
+        // Keep a kit's slot name, but name tracks that came from the library after their sample.
+        if drumPattern.tracks[index].alternatives.isEmpty { drumPattern.tracks[index].label = sample.name }
+        else if !drumPattern.tracks[index].alternatives.contains(id) { drumPattern.tracks[index].alternatives.append(id) }
+    }
+
+    /// Handles a sample dragged onto a track. Only files that are in the library can be used.
+    func replaceDrumSample(track index: Int, withFileAt urls: [URL]) -> Bool {
+        let paths = Set(urls.map { $0.standardizedFileURL.path })
+        guard let sample = samples.first(where: { paths.contains($0.url.standardizedFileURL.path) }) else { return false }
+        replaceDrumSample(track: index, with: sample.id)
+        select(sample.id, play: true)
+        return true
     }
 
     func drumSampleName(_ track: DrumTrack) -> String { sampleByID[track.sampleID]?.name ?? "Missing sample" }

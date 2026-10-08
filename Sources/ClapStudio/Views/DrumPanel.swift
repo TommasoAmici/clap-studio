@@ -83,6 +83,12 @@ private struct DrumTrackRow: View {
                 Button { model.cycleDrumSample(track: index, by: 1) } label: { Image(systemName: "chevron.right") }
             }
             .buttonStyle(.borderless).disabled(track.alternatives.count < 2).help("Try another sound from the kit")
+            Button { if let id = model.selectedID { model.replaceDrumSample(track: index, with: id) } } label: {
+                Image(systemName: "arrow.left.arrow.right.square")
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.selectedID == nil || model.selectedID == track.sampleID)
+            .help("Replace this sound with the selected sample, or drop a sample onto the track")
             steps
             toggle("M", on: track.muted, color: .orange, help: "Mute") { model.drumPattern.tracks[index].muted.toggle() }
             toggle("S", on: track.solo, color: .yellow, help: "Solo") { model.drumPattern.tracks[index].solo.toggle() }
@@ -92,6 +98,7 @@ private struct DrumTrackRow: View {
             Button { model.drumPattern.removeTrack(at: index) } label: { Image(systemName: "minus.circle") }
                 .buttonStyle(.borderless).help("Remove this track")
         }
+        .dropDestination(for: URL.self) { urls, _ in model.replaceDrumSample(track: index, withFileAt: urls) }
         .contextMenu {
             if let id = model.selectedID, id != track.sampleID {
                 Button("Use Selected Sample Here") { model.replaceDrumSample(track: index, with: id) }
