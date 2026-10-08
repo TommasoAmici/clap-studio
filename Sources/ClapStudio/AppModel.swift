@@ -59,6 +59,7 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    var aspectWeights = AspectWeights() { didSet { if let id = selectedID { sweepList = []; updateSimilar(for: id) } } }
     var tagFilter: String? { didSet { refilter() } }
     var tagCounts: [(name: String, count: Int)] = []
     var tagPromptTargets: [Int64]?            // non-nil while the "add tag" prompt is open

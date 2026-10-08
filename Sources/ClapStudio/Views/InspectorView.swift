@@ -94,6 +94,7 @@ struct SimilarList: View {
                 }
                 Text("← → to step through").font(.caption2).foregroundStyle(.tertiary)
             }
+            AspectControls()
             if model.snapshot == nil {
                 Text(model.isIndexing ? "Available once indexing finishes." : "Not analysed yet.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -183,5 +184,38 @@ private struct CueRow: View {
         }
         .onAppear { label = cue.label }
         .onChange(of: cue.label) { _, new in label = new }
+    }
+}
+
+/// Sliders for what "similar" should mean. Collapsed until asked for.
+struct AspectControls: View {
+    @Environment(AppModel.self) private var model
+    @State private var open = false
+
+    var body: some View {
+        @Bindable var model = model
+        DisclosureGroup(isExpanded: $open) {
+            VStack(alignment: .leading, spacing: 4) {
+                slider("Overall sound", $model.aspectWeights.overall)
+                slider("Brightness", $model.aspectWeights.brightness)
+                slider("Pitch (same note)", $model.aspectWeights.pitch)
+                slider("Level and punch", $model.aspectWeights.level)
+                slider("Length", $model.aspectWeights.length)
+                if !model.aspectWeights.isDefault {
+                    Button("Reset") { model.aspectWeights = AspectWeights() }.controlSize(.small)
+                }
+            }
+            .padding(.top, 4)
+        } label: {
+            Text(model.aspectWeights.isDefault ? "What counts as similar" : "What counts as similar (custom)")
+                .font(.caption).foregroundStyle(model.aspectWeights.isDefault ? Color.secondary : Color.accentColor)
+        }
+    }
+
+    private func slider(_ title: String, _ value: Binding<Double>) -> some View {
+        HStack {
+            Text(title).font(.caption).frame(width: 110, alignment: .leading)
+            Slider(value: value, in: 0...1)
+        }
     }
 }

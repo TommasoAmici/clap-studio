@@ -16,8 +16,9 @@ extension AppModel {
     }
 
     private func startSweep(from id: Int64) {
-        guard let snap = snapshot, let row = snap.index.row(forID: id) else { sweepList = []; return }
-        let neighbours = snap.index.similar(toRow: row, limit: 100).map { snap.index.ids[$0.row] }
+        guard let snap = snapshot, let reference = sampleByID[id] else { sweepList = []; return }
+        let neighbours = AspectSimilarity.rank(reference: reference, index: snap.index, weights: aspectWeights, limit: 100) { [sampleByID] in sampleByID[$0] }
+            .map { snap.index.ids[$0.row] }
         sweepList = [id] + neighbours.filter { sampleByID[$0]?.hidden == false }
     }
 

@@ -28,8 +28,8 @@ extension AppModel {
     }
 
     func updateSimilar(for id: Int64) {
-        guard let snap = snapshot, let row = snap.index.row(forID: id) else { similar = []; similarRows = []; return }
-        let neighbors = snap.index.similar(toRow: row, limit: 50)
+        guard let snap = snapshot, let reference = sampleByID[id] else { similar = []; similarRows = []; return }
+        let neighbors = AspectSimilarity.rank(reference: reference, index: snap.index, weights: aspectWeights, limit: 50) { [sampleByID] in sampleByID[$0] }
         similarRows = neighbors.map(\.row)
         similar = neighbors.compactMap { n in
             sampleByID[snap.index.ids[n.row]].map { SimilarResult(sample: $0, score: n.score) }
