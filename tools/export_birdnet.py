@@ -14,8 +14,10 @@
     mise exec uv@latest -- uv run --python 3.12 --default-index https://pypi.org/simple tools/export_birdnet.py
 
 Output, in ~/Library/Application Support/ClapStudio/Models/ (or --out):
-    BirdNET.mlpackage       3 s of 48 kHz mono audio (1, 144000) -> 6522 species logits (apply a sigmoid)
-    birdnet_labels.txt      "Scientific name_Common name" per output, in model order
+    BirdNET.mlpackage          3 s of 48 kHz mono audio (1, 144000) -> 6522 species logits (apply a sigmoid)
+    BirdNETLocation.mlpackage  [latitude, longitude, week 1-48 or -1] (1, 3) -> 6522 probabilities that each species
+                               occurs there and then (BirdNET's "meta" model, rebuilt from its TFLite weights)
+    birdnet_labels.txt         "Scientific name_Common name" per output, in model order, for both models
 
 BirdNET's own spectrogram layers use a complex FFT, which Core ML cannot run. The layers keep only the real part
 of the FFT (a `Cast` from complex64 to float32), and the real part of a real FFT is a matrix product with a cosine
@@ -43,6 +45,8 @@ SAMPLES = 144_000                      # 3 s at 48 kHz
 MODEL_SCOPE = "StatefulPartitionedCall/model/"
 SPECTROGRAMS = (("MEL_SPEC1", 2048), ("MEL_SPEC2", 1024))   # layer name, FFT length
 TOLERANCE = 2e-3                       # largest allowed logit difference from the SavedModel
+LOCATION_TOLERANCE = 2e-3              # largest allowed probability difference from the TFLite location model
+LOCATION_TFLITE = "BirdNET_GLOBAL_6K_V2.4_MData_Model_V2_FP16.tflite"
 
 
 def download(destination: Path) -> Path:
@@ -135,10 +139,94 @@ def test_clips() -> np.ndarray:
     return np.stack(clips).astype(np.float32)
 
 
+def location_model(source: Path):
+    """BirdNET's location model as Core ML. TFLite cannot be converted, so rebuild it from its weights.
+
+    Encoding: each of latitude, longitude and week becomes 48 numbers sqrt(2) * sin(2 pi * position + phase_i), where
+    position is (lat + 90) / 180, (lon + 180) / 360 and (week - 1) / 48 (all zero when the week is not 1-48).
+    The 144 numbers go through four dense layers (ReLU after the first three) and a sigmoid.
+    """
+    import coremltools as ct
+    from coremltools.converters.mil import Builder as mb
+
+    interpreter = tf.lite.Interpreter(model_path=str(source / LOCATION_TFLITE))
+    interpreter.allocate_tensors()
+    by_shape = {}
+    for detail in interpreter.get_tensor_details():
+        try:
+            value = interpreter.get_tensor(detail["index"])
+        except ValueError:
+            continue
+        by_shape.setdefault(tuple(value.shape), []).append(value.astype(np.float32))
+    weights = [by_shape[shape][0] for shape in ((256, 144), (512, 256), (1024, 512), (6522, 1024))]
+    biases = [by_shape[(n,)][0] for n in (256, 512, 1024, 6522)]
+    phase = by_shape[(48,)][0].reshape(1, 48)
+    two_pi = np.float32(6.28125)       # the value stored in the (half precision) model
+
+    @mb.program(input_specs=[mb.TensorSpec(shape=(1, 3))], opset_version=ct.target.iOS17)
+    def program(location):
+        def column(index):
+            return mb.slice_by_index(x=location, begin=[0, index], end=[1, index + 1])
+
+        def encode(value, offset, scale):
+            angle = mb.mul(x=mb.mul(x=mb.add(x=value, y=np.float32(offset)), y=np.float32(scale)), y=two_pi)
+            return mb.mul(x=mb.sin(x=mb.add(x=angle, y=phase)), y=np.float32(1.4140625))
+
+        week = column(2)
+        in_year = mb.cast(x=mb.logical_and(x=mb.greater(x=week, y=np.float32(0)), y=mb.less(x=week, y=np.float32(49))),
+                          dtype="fp32")
+        features = mb.concat(values=[encode(column(0), 90.0, 0.00555419921875),
+                                     encode(column(1), 180.0, 0.002777099609375),
+                                     mb.mul(x=encode(week, -1.0, 0.0208282470703125), y=in_year)], axis=1)
+        hidden = features
+        for index in range(3):
+            hidden = mb.relu(x=mb.linear(x=hidden, weight=weights[index], bias=biases[index]))
+        return mb.sigmoid(x=mb.linear(x=hidden, weight=weights[3], bias=biases[3]), name="probabilities")
+
+    model = ct.convert(program, convert_to="mlprogram", minimum_deployment_target=ct.target.macOS14,
+                       compute_precision=ct.precision.FLOAT32)
+
+    worst = 0.0
+    for lat, lon, week in ((51.5, -0.1, 20), (-33.9, 151.2, -1), (9.9, -84.0, 5), (40.0, -74.0, 48), (0.0, 0.0, 1),
+                           (64.1, -21.9, 30), (-77.8, 166.7, 52)):
+        interpreter.set_tensor(interpreter.get_input_details()[0]["index"], np.array([[lat, lon, week]], np.float32))
+        interpreter.invoke()
+        expected = interpreter.get_tensor(interpreter.get_output_details()[0]["index"])
+        got = model.predict({"location": np.array([[lat, lon, week]], np.float32)})["probabilities"]
+        worst = max(worst, float(np.abs(got - expected).max()))
+    print(f"Location model vs TFLite: largest probability difference {worst:.2e}")
+    if worst > LOCATION_TOLERANCE:
+        raise SystemExit(f"Location model differs from TFLite by {worst:.2e}; not written.")
+    return model
+
+
+def reference_clip() -> np.ndarray:
+    """A chirp under a 2.5 Hz envelope. The Swift tests build the same signal."""
+    t = np.arange(SAMPLES, dtype=np.float64) / 48_000
+    return (0.5 * np.sin(2 * np.pi * (2500 * t + 900 * t * t)) * np.maximum(0, np.sin(2 * np.pi * 2.5 * t))).astype(np.float32)
+
+
+def write_reference(path: Path, logits: np.ndarray, location: np.ndarray, point: tuple) -> None:
+    top = np.argsort(-logits)[:5]
+    near = np.argsort(-location)[:5]
+    lines = ["// Generated by tools/export_birdnet.py --reference. Do not edit.", "",
+             "enum BirdNetReference {",
+             "    /// Logits of the original BirdNET SavedModel for the chirp in `chirp(_:)`.",
+             "    static let topLogits: [(index: Int, logit: Float)] = ["]
+    lines += [f"        ({i}, {logits[i]:.5f})," for i in top]
+    lines += ["    ]", f"    static let locationPoint: (lat: Float, lon: Float, week: Float) = ({point[0]}, {point[1]}, {point[2]})",
+              "    /// Largest location probabilities at `locationPoint` from the original TFLite model.",
+              "    static let topLocation: [(index: Int, probability: Float)] = ["]
+    lines += [f"        ({i}, {location[i]:.6f})," for i in near]
+    lines += [f"    ]", f"    static let locationAbove001 = {int((location >= 0.01).sum())}", "}", ""]
+    path.write_text("\n".join(lines))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--source", help="folder holding BirdNET_GLOBAL_6K_V2.4_Model (default: download V2.4.zip)")
     parser.add_argument("--out", default=DEFAULT_OUT)
+    parser.add_argument("--reference", help="also write the Swift test reference (Tests/ClapCoreTests/BirdNetReference.swift)")
     args = parser.parse_args()
 
     source = find_model_dir(Path(args.source)) if args.source else (
@@ -175,8 +263,24 @@ def main() -> None:
         shutil.rmtree(package)
     model.short_description = "BirdNET V2.4: 3 s of 48 kHz audio to 6522 species logits (CC BY-NC-SA 4.0)"
     model.save(str(package))
+    location = location_model(source)
+    if args.reference:
+        london = (51.5, -0.1, 20)
+        interpreter = tf.lite.Interpreter(model_path=str(source / LOCATION_TFLITE))
+        interpreter.allocate_tensors()
+        interpreter.set_tensor(interpreter.get_input_details()[0]["index"], np.array([london], np.float32))
+        interpreter.invoke()
+        probabilities = interpreter.get_tensor(interpreter.get_output_details()[0]["index"])[0]
+        chirp_logits = original(tf.constant(reference_clip()[None])).numpy()[0]
+        write_reference(Path(args.reference), chirp_logits, probabilities, london)
+        print(f"Wrote {args.reference}")
+    location.short_description = "BirdNET V2.4 location model: latitude, longitude, week to 6522 occurrence probabilities"
+    location_package = out / "BirdNETLocation.mlpackage"
+    if location_package.exists():
+        shutil.rmtree(location_package)
+    location.save(str(location_package))
     shutil.copy(source / "BirdNET_GLOBAL_6K_V2.4_Labels.txt", out / "birdnet_labels.txt")
-    print(f"Wrote {package} and birdnet_labels.txt")
+    print(f"Wrote {package}, {location_package} and birdnet_labels.txt")
 
 
 if __name__ == "__main__":
