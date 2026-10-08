@@ -16,11 +16,18 @@ struct DrumPanel: View {
                     Text("Add sounds from the library or the kit builder to start a pattern.")
                         .font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 60)
+                        .overlay(alignment: .top) { if model.dropHover == .drumInsert(0) { InsertionLine().offset(y: -1) } }
                 } else {
                     let labels = model.drumPattern.displayLabels
                     VStack(spacing: 4) {
                         ForEach(Array(model.drumPattern.tracks.enumerated()), id: \.element.id) { index, track in
                             DrumTrackRow(index: index, track: track, title: labels.indices.contains(index) ? labels[index] : track.label)
+                                .overlay(alignment: .top) { if model.dropHover == .drumInsert(index) { InsertionLine().offset(y: -3) } }
+                                .overlay(alignment: .bottom) {
+                                    if index == model.drumPattern.tracks.count - 1, model.dropHover == .drumInsert(index + 1) {
+                                        InsertionLine().offset(y: 3)
+                                    }
+                                }
                         }
                     }
                     .padding(.horizontal, 12).padding(.bottom, 8)
@@ -226,5 +233,18 @@ private struct StepCell: View {
             .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(playing ? Color.white.opacity(0.9) : .clear, lineWidth: 1.5))
             .frame(minWidth: 16, maxWidth: 34, minHeight: 22, maxHeight: 22)
             .contentShape(Rectangle())
+    }
+}
+
+/// Shows where a dragged sound will be inserted: a line with a dot at its start, across the width of the track list.
+private struct InsertionLine: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            Circle().frame(width: 8, height: 8)
+            Rectangle().frame(height: 2)
+        }
+        .foregroundStyle(Color.accentColor)
+        .frame(height: 8)
+        .allowsHitTesting(false)
     }
 }

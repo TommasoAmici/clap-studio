@@ -162,4 +162,28 @@ import Testing
         #expect(fixed.tracks[0].hits.count == DrumPattern.stepCount && fixed.tracks[0].hits[0] && fixed.tracks[0].hits[2])
         #expect(fixed.tracks[0].volume == 1 && fixed.swing == 0.5)
     }
+
+    @Test func droppingResolvesToAReplaceOrAnInsertionPoint() {
+        let rows: [ClosedRange<Double>] = [100...126, 130...156, 160...186]        // three rows with 4pt gaps
+        #expect(DrumDropTarget.resolve(y: 113, rows: rows) == .replace(0), "middle of a row swaps it")
+        #expect(DrumDropTarget.resolve(y: 143, rows: rows) == .replace(1))
+        #expect(DrumDropTarget.resolve(y: 101, rows: rows) == .insert(0), "top edge of the first row")
+        #expect(DrumDropTarget.resolve(y: 125, rows: rows) == .insert(1), "bottom edge of the first row")
+        #expect(DrumDropTarget.resolve(y: 128, rows: rows) == .insert(1), "the gap between rows")
+        #expect(DrumDropTarget.resolve(y: 131, rows: rows) == .insert(1), "top edge of the second row")
+        #expect(DrumDropTarget.resolve(y: 40, rows: rows) == .insert(0), "above the list")
+        #expect(DrumDropTarget.resolve(y: 185, rows: rows) == .insert(3), "bottom edge of the last row")
+        #expect(DrumDropTarget.resolve(y: 400, rows: rows) == .insert(3), "anywhere below the list appends")
+        #expect(DrumDropTarget.resolve(y: 400, rows: []) == .insert(0), "an empty pattern")
+    }
+
+    @Test func tracksCanBeInsertedAtAPosition() {
+        var p = DrumPattern()
+        p.addTrack(sampleID: 1, label: "Kick", category: "Kick")
+        p.addTrack(sampleID: 2, label: "Snare", category: "Snare")
+        p.addTrack(sampleID: 3, label: "Hi-hat", category: "Hi-hat", at: 1)
+        p.addTrack(sampleID: 4, label: "Clap", category: "Clap", at: 0)
+        p.addTrack(sampleID: 5, label: "Tom", category: "Tom", at: 99)          // out of range: goes last
+        #expect(p.tracks.map(\.sampleID) == [4, 1, 3, 2, 5])
+    }
 }

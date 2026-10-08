@@ -62,11 +62,11 @@ public struct DrumPattern: Equatable, Sendable, Codable {
         tracks[track].hits[step].toggle()
     }
 
-    /// Adds a track unless the pattern is full. A rhythm for its category is filled in when `starter` is set: the
+    /// Adds a track (at the end, or at `index`) unless the pattern is full. A rhythm for its category is filled in when `starter` is set: the
     /// preset's, or a plain one without a preset.
     @discardableResult
     public mutating func addTrack(sampleID: Int64, label: String, category: String?, alternatives: [Int64] = [],
-                                  starter: Bool = true, preset: DrumPreset? = nil) -> Bool {
+                                  starter: Bool = true, preset: DrumPreset? = nil, at index: Int? = nil) -> Bool {
         guard !isFull else { return false }
         var hits = Array(repeating: false, count: Self.stepCount)
         if starter {
@@ -77,7 +77,8 @@ public struct DrumPattern: Equatable, Sendable, Codable {
                 hits = DrumStarter.hits(for: category)
             }
         }
-        tracks.append(DrumTrack(sampleID: sampleID, label: label, hits: hits, alternatives: alternatives))
+        let track = DrumTrack(sampleID: sampleID, label: label, hits: hits, alternatives: alternatives)
+        tracks.insert(track, at: min(max(index ?? tracks.count, 0), tracks.count))
         return true
     }
 
@@ -111,5 +112,24 @@ public enum DrumStarter {
         default: steps = []
         }
         return (0..<DrumPattern.stepCount).map { steps.contains($0) }
+    }
+}
+
+/// What dropping a sound at a height over the track list does.
+public enum DrumDropTarget: Equatable, Sendable {
+    /// The sound takes over this track.
+    case replace(Int)
+    /// A new track goes in at this position (0 is above the first track, the track count is below the last).
+    case insert(Int)
+
+    /// The middle of a row replaces it; the edges of a row, the gaps between rows and everything above or below
+    /// the list insert at the nearest boundary, so the drop never needs to be aimed precisely.
+    /// `rows` are the rows' vertical extents, top to bottom.
+    public static func resolve(y: Double, rows: [ClosedRange<Double>], edge: Double = 0.28) -> DrumDropTarget {
+        if let index = rows.firstIndex(where: { $0.contains(y) }) {
+            let row = rows[index], margin = (row.upperBound - row.lowerBound) * edge
+            if y >= row.lowerBound + margin && y <= row.upperBound - margin { return .replace(index) }
+        }
+        return .insert(rows.filter { ($0.lowerBound + $0.upperBound) / 2 < y }.count)
     }
 }

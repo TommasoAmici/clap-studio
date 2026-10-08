@@ -136,13 +136,18 @@ extension AppModel {
         drumMachine.start()
     }
 
-    /// Adds samples as new tracks (up to the track limit), each with a starter rhythm for its category.
-    func addToDrums(_ ids: [Int64]) {
+    /// Adds samples as new tracks (up to the track limit, at `index` when given, else at the end), each with a
+    /// starter rhythm for its category.
+    func addToDrums(_ ids: [Int64], at index: Int? = nil) {
         var pattern = drumPattern
         var skipped = 0
+        var position = index
         for id in ids {
             guard let sample = sampleByID[id], !pattern.tracks.contains(where: { $0.sampleID == id }) else { continue }
-            if !pattern.addTrack(sampleID: id, label: sample.effectiveCategory ?? "Sample", category: sample.effectiveCategory, preset: drumPreset) { skipped += 1 }
+            if pattern.addTrack(sampleID: id, label: sample.effectiveCategory ?? "Sample", category: sample.effectiveCategory,
+                                preset: drumPreset, at: position) {
+                position = position.map { $0 + 1 }
+            } else { skipped += 1 }
         }
         drumPattern = pattern
         showDrums = true
@@ -220,15 +225,26 @@ extension AppModel {
 
     // MARK: dropping files on the window
 
-    /// Which drop place is under a point (window coordinates). Tracks win over the drawer around them.
+    /// Which drop place is under a point (window coordinates). Over the drum machine the answer is always a track to
+    /// swap or a gap to insert into, and the drawer counts a little beyond its edges (above it, and down through the
+    /// status bar), so missing the exact spot still lands a new track at the end.
     func dropZone(at point: CGPoint) -> DropZone? {
-        let tracks = dropZones.filter { if case .drumTrack = $0.key { return true } else { return false } }
-        return tracks.first { $0.value.contains(point) }?.key ?? (dropZones[.drums]?.contains(point) == true ? .drums : nil)
+        guard let drawer = dropZones[.drums] else { return nil }
+        let reach = CGRect(x: drawer.minX, y: drawer.minY - 28, width: drawer.width, height: drawer.height + 28 + 90)
+        guard reach.contains(point) else { return nil }
+        let rows = dropZones.compactMap { zone, frame -> (Int, CGRect)? in
+            if case .drumTrack(let index) = zone { return (index, frame) } else { return nil }
+        }.sorted { $0.0 < $1.0 }
+        switch DrumDropTarget.resolve(y: Double(point.y), rows: rows.map { Double($0.1.minY)...Double($0.1.maxY) }) {
+        case .replace(let position): return .drumTrack(rows[position].0)
+        case .insert(let position): return .drumInsert(position)
+        }
     }
 
     func handleDrop(_ urls: [URL], on zone: DropZone?) {
         switch zone {
         case .drumTrack(let index): dropOnDrumTrack(index, files: urls)
+        case .drumInsert(let index): addToDrums(librarySamples(forFiles: urls).map(\.id), at: index)
         case .drums: dropOnDrums(files: urls)
         case nil:
             // Anywhere else, an audio file finds similar sounds.

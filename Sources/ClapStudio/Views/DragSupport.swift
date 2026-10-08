@@ -82,8 +82,9 @@ extension View {
 /// Places inside the window that take dropped files. Nested drop targets are unreliable on macOS, so the window has
 /// a single one and finds the place under the pointer from these frames.
 enum DropZone: Hashable {
-    case drumTrack(Int)
-    case drums
+    case drumTrack(Int)         // a track row: dropping here swaps its sound
+    case drums                  // the whole drawer
+    case drumInsert(Int)        // not a frame: the gap before this track (or after the last), worked out from the pointer
 }
 
 struct DropZoneFrames: PreferenceKey {
