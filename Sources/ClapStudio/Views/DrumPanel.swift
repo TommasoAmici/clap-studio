@@ -45,8 +45,15 @@ struct DrumPanel: View {
             .help("The project tempo")
             HStack(spacing: 4) {
                 Text("Swing").foregroundStyle(.secondary)
-                Slider(value: $model.drumPattern.swing, in: 0...0.5).frame(width: 90)
+                Slider(value: Binding(get: { DrumTiming.swingPercent(model.drumPattern.swing) },
+                                      set: { model.drumPattern.swing = DrumTiming.swing(percent: $0.rounded()) }),
+                       in: 25...75)
+                    .frame(width: 100)
+                Text("\(Int(DrumTiming.swingPercent(model.drumPattern.swing).rounded()))%")
+                    .monospacedDigit().frame(width: 34, alignment: .trailing)
+                    .onTapGesture(count: 2) { model.drumPattern.swing = 0 }
             }
+            .help("50% is straight. Higher pushes every second step late, lower pulls it early. Double-click the value to reset.")
             Spacer()
             Button("Add Selected") { model.addToDrums(model.actionTargets) }
                 .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)

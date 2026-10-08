@@ -6,6 +6,11 @@ public enum DrumTiming {
 
     public static func stepDuration(bpm: Double) -> Double { 60 / max(20, bpm) / 4 }
 
+    /// Swing as drum machines show it: the share of each pair of steps taken by the first one.
+    /// 50% is straight, 66.7% is a triplet feel, below 50% pushes the odd steps early.
+    public static func swingPercent(_ swing: Double) -> Double { 50 + 50 * swing }
+    public static func swing(percent: Double) -> Double { (percent - 50) / 50 }
+
     /// Seconds from the start of the bar to the start of `step` (0...15, then continuing into the next bar).
     public static func offset(ofStep step: Int, bpm: Double, swing: Double) -> Double {
         let d = stepDuration(bpm: bpm)

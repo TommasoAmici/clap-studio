@@ -86,6 +86,19 @@ import Testing
     }
 }
 
+@Suite struct SwingDisplayTests {
+    @Test func percentIsCenteredOnStraight() {
+        #expect(DrumTiming.swingPercent(0) == 50)
+        #expect(abs(DrumTiming.swingPercent(1.0 / 3) - 66.667) < 0.01, "triplet feel")
+        #expect(DrumTiming.swing(percent: 75) == 0.5 && DrumTiming.swing(percent: 25) == -0.5)
+        #expect(DrumTiming.swing(percent: DrumTiming.swingPercent(0.2)) == 0.2)
+    }
+
+    @Test func earlySwingPullsOddStepsForward() {
+        #expect(DrumTiming.offset(ofStep: 1, bpm: 120, swing: -0.4) < DrumTiming.stepDuration(bpm: 120))
+    }
+}
+
 @Suite struct DrumMachineTests {
     private final class Steps: @unchecked Sendable {
         private let lock = NSLock(); private var list: [Int] = []
