@@ -199,11 +199,12 @@ private struct ClusterLegend: View {
                         Text("\(c.count)").foregroundStyle(.secondary).monospacedDigit()
                     }
                     .font(.caption)
+                    .help(c.detail)
                 }
             }
             .padding(10)
         }
-        .frame(maxWidth: 230, maxHeight: 190)
+        .frame(maxWidth: 300, maxHeight: 190)
         .fixedSize(horizontal: true, vertical: false)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }

@@ -29,10 +29,11 @@ struct SimilarResult: Identifiable {
     var id: Int64 { sample.id }
 }
 
-struct ClusterInfo: Identifiable {
+struct ClusterInfo: Identifiable, Equatable {
     let id: Int
     let count: Int
     let label: String
+    let detail: String      // what the cluster holds, as a tooltip
 }
 
 /// Central app state. Heavy work runs off the main actor; results are published here.
@@ -269,6 +270,7 @@ final class AppModel {
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
         updateMoodCounts()
+        buildClusterInfo()
         updateHiddenCount()
         updateTagCounts()
         if mapColorMode != .cluster { refreshMapColoring() }

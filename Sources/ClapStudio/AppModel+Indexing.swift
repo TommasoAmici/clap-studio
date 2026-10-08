@@ -135,20 +135,27 @@ extension AppModel {
         if let id = selectedID { updateSimilar(for: id) }
     }
 
-    private func buildClusterInfo() {
-        guard let snap = snapshot else { clusterInfo = []; return }
+    /// Names the map's clusters from what is in them (see `ClusterNamer`). Clusters without categorised sounds fall back
+    /// to their most common folder, then to "Cluster N". Cheap; runs whenever samples or the clustering change.
+    func buildClusterInfo() {
+        guard let snap = snapshot else { if !clusterInfo.isEmpty { clusterInfo = [] }; return }
+        let members = snap.index.ids.map { sampleByID[$0] }
+        let names = ClusterNamer.names(clusters: snap.clusters, samples: members)
         var counts = [Int: Int](), folders = [Int: [String: Int]]()
-        for (row, cluster) in snap.clusters.enumerated() {
+        for (cluster, sample) in zip(snap.clusters, members) {
             let c = Int(cluster)
             counts[c, default: 0] += 1
-            if let s = sampleByID[snap.index.ids[row]] {
+            if let s = sample {
                 let name = s.folder.isEmpty ? (s.rootPath as NSString).lastPathComponent
                                             : (s.folder as NSString).lastPathComponent
                 folders[c, default: [:]][name, default: 0] += 1
             }
         }
-        clusterInfo = counts.keys.sorted().map { c in
-            ClusterInfo(id: c, count: counts[c] ?? 0, label: folders[c]?.max { $0.value < $1.value }?.key ?? "Cluster \(c + 1)")
+        let info = counts.keys.sorted().map { c in
+            ClusterInfo(id: c, count: counts[c] ?? 0,
+                        label: names[c]?.label ?? folders[c]?.max { $0.value < $1.value }?.key ?? "Cluster \(c + 1)",
+                        detail: names[c]?.detail ?? "")
         }
+        if info != clusterInfo { clusterInfo = info }
     }
 }

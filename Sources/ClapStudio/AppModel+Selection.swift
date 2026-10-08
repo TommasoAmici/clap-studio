@@ -141,6 +141,7 @@ extension AppModel {
         do { try store.setManualCategory(sampleID: id, category) } catch { errorMessage = "Could not save the category: \(error)"; return }
         mutate(id) { $0.categoryManual = category }
         updateCategoryCounts()
+        buildClusterInfo()
         if mapColorMode == .category { refreshMapColoring() }
         if descriptorFilter.isActive { refilter() }
     }
