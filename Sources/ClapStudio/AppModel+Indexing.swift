@@ -38,10 +38,10 @@ extension AppModel {
                 statusMessage = "Indexing samples"
                 let pipeline = IndexingPipeline(store: store, embedder: embedder)
                 var lastReload = Date()
-                await pipeline.run(onProgress: { [weak self] p in
+                await pipeline.run(onProgress: { p in
                     Task { @MainActor in
-                        self?.progress = p
-                        if Date().timeIntervalSince(lastReload) > 5 { lastReload = Date(); self?.reloadSamples() }
+                        self.progress = p
+                        if Date().timeIntervalSince(lastReload) > 5 { lastReload = Date(); self.reloadSamples() }
                     }
                 }, isCancelled: { token.isCancelled })
                 try? store.setMeta("model_version", version)
@@ -50,8 +50,8 @@ extension AppModel {
 
             // Libraries indexed before descriptors existed: measure them without re-embedding.
             if store.descriptorBacklog() > 0, !token.isCancelled {
-                await DescriptorBackfill(store: store).run(onProgress: { [weak self] done, total in
-                    Task { @MainActor in self?.statusMessage = "Measuring sounds (\(done)/\(total))" }
+                await DescriptorBackfill(store: store).run(onProgress: { done, total in
+                    Task { @MainActor in self.statusMessage = "Measuring sounds (\(done)/\(total))" }
                 }, isCancelled: { token.isCancelled })
             }
             if store.categoryBacklog() > 0, !token.isCancelled {

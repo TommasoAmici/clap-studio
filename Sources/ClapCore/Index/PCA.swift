@@ -52,12 +52,12 @@ public struct PCAModel: Sendable {
     /// Row-major upper triangle == column-major lower triangle, hence uplo "L".
     private static func topEigenvectors(_ matrix: inout [Float], dim: Int, k: Int) throws -> [Float] {
         var jobz = CChar(UInt8(ascii: "V")), uplo = CChar(UInt8(ascii: "L"))
-        var n = __CLPK_integer(dim), lda = n, info: __CLPK_integer = 0
+        var n = __LAPACK_int(dim), lda = n, info: __LAPACK_int = 0
         var w = [Float](repeating: 0, count: dim)
         var work = [Float](repeating: 0, count: 1)
-        var lwork: __CLPK_integer = -1
+        var lwork: __LAPACK_int = -1
         ssyev_(&jobz, &uplo, &n, &matrix, &lda, &w, &work, &lwork, &info)
-        lwork = __CLPK_integer(work[0])
+        lwork = __LAPACK_int(work[0])
         work = [Float](repeating: 0, count: Int(lwork))
         ssyev_(&jobz, &uplo, &n, &matrix, &lda, &w, &work, &lwork, &info)
         guard info == 0 else { throw DBError.sql("eigendecomposition failed (\(info))") }

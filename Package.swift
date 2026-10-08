@@ -11,6 +11,8 @@ let package = Package(
     targets: [
         .target(
             name: "ClapCore",
+            // Use Accelerate's current BLAS/LAPACK headers; the default ones are deprecated since macOS 13.3.
+            swiftSettings: [.unsafeFlags(["-Xcc", "-DACCELERATE_NEW_LAPACK"])],
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .executableTarget(name: "ClapStudio", dependencies: ["ClapCore"]),
