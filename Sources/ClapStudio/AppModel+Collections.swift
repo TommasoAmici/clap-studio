@@ -8,6 +8,7 @@ extension AppModel {
 
     /// One thing is selected in the sidebar at a time: a folder, a collection, a category or a smart filter.
     var sidebarTag: String {
+        if let usb = usbSelection { return usb.tag }
         if let folder = folderSelection { return folder }
         if let id = collectionSelection { return "col.\(id)" }
         if let tag = tagFilter { return "tag.\(tag)" }
@@ -16,12 +17,14 @@ extension AppModel {
     }
 
     func selectSidebar(_ tag: String) {
+        usbSelection = nil
         folderSelection = nil
         collectionSelection = nil
         tagFilter = nil
         descriptorFilter.category = nil
         smartFilter = .all
-        if tag.hasPrefix("tag.") { tagFilter = String(tag.dropFirst(4)) }
+        if let usb = UsbSelection(tag: tag) { usbSelection = usb }
+        else if tag.hasPrefix("tag.") { tagFilter = String(tag.dropFirst(4)) }
         else if tag.hasPrefix("col.") { collectionSelection = Int64(tag.dropFirst(4)) }
         else if tag.hasPrefix("cat.") { descriptorFilter.category = String(tag.dropFirst(4)) }
         else if tag.hasPrefix("smart.") { smartFilter = SmartFilter(rawValue: String(tag.dropFirst(6))) ?? .all }

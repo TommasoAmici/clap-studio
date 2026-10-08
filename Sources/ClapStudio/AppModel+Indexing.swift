@@ -9,7 +9,7 @@ extension AppModel {
         isIndexing = true
         cancelToken = CancelToken()
         let token = cancelToken
-        let roots = self.roots
+        let roots = self.roots + (squidEnabled ? store.transientRoots() : [])
 
         Task {
             statusMessage = "Loading embedding model"
@@ -64,6 +64,7 @@ extension AppModel {
             if !token.isCancelled { await runAnalysis(modelVersion: version, force: false, analyzer: analyzer) }
             statusMessage = ""
             isIndexing = false
+            if usbIndexQueued { usbIndexQueued = false; startIndexing() }
         }
     }
 

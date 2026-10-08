@@ -12,7 +12,9 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 340)
         } detail: {
             VStack(spacing: 0) {
-                if model.roots.isEmpty {
+                if let usb = model.usbSelection, model.squidEnabled {
+                    UsbBrowser(selection: usb)
+                } else if model.roots.isEmpty {
                     OnboardingView()
                 } else {
                     FilterBar()
@@ -112,6 +114,29 @@ struct RootView: View {
                                                     set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }
         } message: { Text(model.errorMessage ?? "") }
+    }
+}
+
+/// What the main area shows for a place on a stick: the banks of a set, or the Pool as a plain list.
+struct UsbBrowser: View {
+    @Environment(AppModel.self) private var model
+    let selection: UsbSelection
+
+    var body: some View {
+        switch selection.area {
+        case .set(let name):
+            SquidSetView(selection: selection, setName: name)
+        case .pool:
+            HStack {
+                Label("Pool", systemImage: "tray.2").font(.headline)
+                Text("on \(model.drive(id: selection.drive)?.name ?? "USB drive")").foregroundStyle(.secondary)
+                Spacer()
+                Button("Send Samples…") { model.openSquidExport(ids: model.actionTargets, drive: selection.drive, pool: true) }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            Divider()
+            LibraryTableView()
+        }
     }
 }
 

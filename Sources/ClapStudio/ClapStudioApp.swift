@@ -35,5 +35,9 @@ struct ClapStudioApp: App {
                     .disabled(model.isIndexing || model.roots.isEmpty)
             }
         }
+
+        Settings {
+            SquidSettingsView().environment(model)
+        }
     }
 }

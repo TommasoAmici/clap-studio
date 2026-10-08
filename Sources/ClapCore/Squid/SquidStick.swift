@@ -22,6 +22,10 @@ public struct SquidStickContents: Equatable, Sendable {
     public var sets: [SquidSet] = []
     public var hasPool = false
 
+    public init(hasSquidFolder: Bool = false, sets: [SquidSet] = [], hasPool: Bool = false) {
+        self.hasSquidFolder = hasSquidFolder; self.sets = sets; self.hasPool = hasPool
+    }
+
     public var namedSetCount: Int { sets.filter { $0.name != nil }.count }
 
     public func set(named name: String?) -> SquidSet? { sets.first { $0.name == name } }

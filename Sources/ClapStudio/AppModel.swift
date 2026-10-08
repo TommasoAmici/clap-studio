@@ -98,6 +98,20 @@ final class AppModel {
     var drumPlaying = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
+    // MARK: Squid Salmple (USB sticks)
+    var squidEnabled = UserDefaults.standard.bool(forKey: SquidSettings.enabledKey) { didSet { if squidEnabled != oldValue { squidEnabledChanged() } } }
+    var usbDrives: [UsbDrive] = []
+    var usbContents: [String: SquidStickContents] = [:]      // by drive id
+    var usbSamples: [SampleRecord] = []                      // analysed, but not part of the library
+    var usbSelection: UsbSelection? { didSet { if usbSelection != oldValue { refilter() } } }
+    var showSquidExport = false
+    var squidItems: [Int64] = []                              // what the export sheet will send, in order
+    var squidTarget = SquidTarget()
+    @ObservationIgnored var usbSampleIDs: Set<Int64> = []
+    @ObservationIgnored var usbObservers: [NSObjectProtocol] = []
+    @ObservationIgnored var usbRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var usbIndexQueued = false
+
     // MARK: filters
     var searchText = "" { didSet { if !searchText.isEmpty { exampleQuery = nil }; scheduleSoundSearch(); refilter() } }
     var textSearchAvailable = false
@@ -171,6 +185,9 @@ final class AppModel {
             sync.syncAllDirty()
             NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
                                                    queue: nil) { _ in sync.flush() }
+            try? store.purgeTransientRoots()     // a stick from an earlier run is not necessarily plugged in now
+            NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
+                                                   queue: nil) { _ in try? store.purgeTransientRoots() }
             roots = store.roots()
             collections = store.collections()
             reloadSamples()
@@ -188,6 +205,7 @@ final class AppModel {
                 if let root = try? store.addRoot(path: url.resolvingSymlinksInPath().path) { roots = store.roots(); _ = root }
             }
             if !roots.isEmpty { startIndexing() }
+            watchUsbDrives()
         } catch {
             errorMessage = "Could not open the library database: \(error)"
         }
@@ -232,8 +250,10 @@ final class AppModel {
     func reloadSamples() {
         guard let store else { return }
         samples = store.loadSamples()
+        usbSamples = squidEnabled ? store.loadTransientSamples() : []
+        usbSampleIDs = Set(usbSamples.map(\.id))
         trims = store.trims()
-        sampleByID = Dictionary(uniqueKeysWithValues: samples.map { ($0.id, $0) })
+        sampleByID = Dictionary(uniqueKeysWithValues: (samples + usbSamples).map { ($0.id, $0) })
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
         updateHiddenCount()
@@ -248,7 +268,8 @@ final class AppModel {
         // While a semantic search is running, keep showing the previous results (list and map)
         // instead of flashing a partial or empty set; the finished search calls refilter() again.
         if searchPending { return }
-        var list = smartFilter == .hidden ? samples.filter(\.hidden) : samples.filter { !$0.hidden }
+        let base = usbSelection.map(usbSamples(in:)) ?? samples
+        var list = smartFilter == .hidden ? base.filter(\.hidden) : base.filter { !$0.hidden }
         switch smartFilter {
         case .all, .hidden: break
         case .favorites: list = list.filter(\.favorite)
@@ -291,7 +312,7 @@ final class AppModel {
 
     private func publish(_ list: [SampleRecord]) {
         visible = list
-        filtersActive = smartFilter != .all || tagFilter != nil || exampleQuery != nil || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filtersActive = usbSelection != nil || smartFilter != .all || tagFilter != nil || exampleQuery != nil || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1
     }
 

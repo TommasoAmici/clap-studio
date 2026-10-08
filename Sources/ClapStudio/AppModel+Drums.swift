@@ -88,7 +88,7 @@ extension AppModel {
     func librarySamples(forFiles urls: [URL]) -> [SampleRecord] {
         let paths = urls.map { $0.standardizedFileURL.path }
         let wanted = Set(paths)
-        let found = samples.filter { wanted.contains($0.url.standardizedFileURL.path) }
+        let found = (samples + usbSamples).filter { wanted.contains($0.url.standardizedFileURL.path) }
         let order = Dictionary(paths.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         return found.sorted { (order[$0.url.standardizedFileURL.path] ?? 0) < (order[$1.url.standardizedFileURL.path] ?? 0) }
     }

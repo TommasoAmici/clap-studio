@@ -57,6 +57,7 @@ struct SidebarView: View {
                     }
                 }
             }
+            if model.squidEnabled { SquidSidebarSection() }
             Section("Folders") {
                 OutlineGroup(model.folderTree, children: \.children) { node in
                     HStack {

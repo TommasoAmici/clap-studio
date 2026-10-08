@@ -1,0 +1,158 @@
+import AppKit
+import ClapCore
+import Foundation
+
+/// A place on a USB stick that is selected in the sidebar.
+struct UsbSelection: Hashable {
+    enum Area: Hashable { case set(String?), pool }
+    let drive: String          // UsbDrive.id
+    let area: Area
+
+    private static let separator = "\u{1F}"
+
+    var tag: String {
+        switch area {
+        case .pool: return ["usb", "pool", "", drive].joined(separator: Self.separator)
+        case .set(let name): return ["usb", "set", name ?? "", drive].joined(separator: Self.separator)
+        }
+    }
+
+    init(drive: String, area: Area) { self.drive = drive; self.area = area }
+
+    init?(tag: String) {
+        let parts = tag.split(separator: Character(Self.separator), maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 4, parts[0] == "usb" else { return nil }
+        self.drive = parts[3]
+        switch parts[1] {
+        case "pool": self.area = .pool
+        case "set": self.area = .set(parts[2].isEmpty ? nil : parts[2])
+        default: return nil
+        }
+    }
+}
+
+/// Where the export sheet starts: which drive, which set, and whether the Pool is meant.
+struct SquidTarget {
+    var drive: String?
+    var set: String?
+    var pool = false
+}
+
+enum SquidSettings {
+    static let enabledKey = "squid.enabled"
+}
+
+/// Squid Salmple support: USB sticks in the sidebar, their banks and Pool browsable and analysed, and export to them.
+/// All of it is off unless the user turns it on in Settings.
+extension AppModel {
+    // MARK: setting
+
+    func squidEnabledChanged() {
+        UserDefaults.standard.set(squidEnabled, forKey: SquidSettings.enabledKey)
+        if squidEnabled {
+            refreshUsbDrives(settle: false)
+        } else {
+            usbRefreshTask?.cancel()
+            usbDrives = []
+            usbContents = [:]
+            if usbSelection != nil { selectSidebar("smart.\(SmartFilter.all.rawValue)") }
+            try? store?.purgeTransientRoots()
+            reloadSamples()
+        }
+    }
+
+    // MARK: drives
+
+    /// Starts listening for sticks being plugged in, renamed or removed.
+    func watchUsbDrives() {
+        guard usbObservers.isEmpty else { return }
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification, NSWorkspace.didRenameVolumeNotification] {
+            usbObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshUsbDrives() }
+            })
+        }
+        // Edits made in Finder while the app was in the background show up when it comes back.
+        usbObservers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil,
+                                                                   queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshUsbDrives(settle: false) }
+        })
+        if squidEnabled { refreshUsbDrives(settle: false) }
+    }
+
+    /// Looks at the connected drives again (after a short pause, so a stick that just mounted can finish).
+    func refreshUsbDrives(settle: Bool = true) {
+        guard squidEnabled else { return }
+        usbRefreshTask?.cancel()
+        usbRefreshTask = Task {
+            if settle { try? await Task.sleep(for: .milliseconds(500)) }
+            guard !Task.isCancelled else { return }
+            let found = await Task.detached { () -> ([UsbDrive], [String: SquidStickContents]) in
+                let drives = UsbDrive.current()
+                return (drives, Dictionary(uniqueKeysWithValues: drives.map { ($0.id, SquidStick.read(volume: $0.url)) }))
+            }.value
+            guard !Task.isCancelled, squidEnabled else { return }
+            usbDrives = found.0
+            usbContents = found.1
+            syncUsbRoots()
+        }
+    }
+
+    /// Each stick's ALM022 folder becomes a temporary library root, so its samples are read and analysed
+    /// like any folder but never saved as part of the library.
+    private func syncUsbRoots() {
+        guard let store, squidEnabled else { return }
+        let wanted = usbDrives.filter { usbContents[$0.id]?.hasSquidFolder == true }.map { SquidStick.rootURL(volume: $0.url).path }
+        for root in store.transientRoots() where !wanted.contains(root.path) { try? store.removeRoot(id: root.id) }
+        for path in wanted { _ = try? store.addRoot(path: path, transient: true) }
+        if let selection = usbSelection, !isAvailable(selection) { selectSidebar("smart.\(SmartFilter.all.rawValue)") }
+        reloadSamples()
+        if !wanted.isEmpty { requestIndexing() }
+    }
+
+    private func isAvailable(_ selection: UsbSelection) -> Bool {
+        guard let contents = usbContents[selection.drive], usbDrives.contains(where: { $0.id == selection.drive }) else { return false }
+        switch selection.area {
+        case .pool: return contents.hasPool
+        case .set(let name): return contents.set(named: name) != nil
+        }
+    }
+
+    /// Indexes now, or as soon as the running index finishes.
+    func requestIndexing() {
+        if isIndexing { usbIndexQueued = true } else { startIndexing() }
+    }
+
+    func ejectUsb(_ drive: UsbDrive) {
+        do { try NSWorkspace.shared.unmountAndEjectDevice(at: drive.url) }
+        catch { errorMessage = "Could not eject \(drive.name): \(error.localizedDescription)" }
+    }
+
+    func drive(id: String) -> UsbDrive? { usbDrives.first { $0.id == id } }
+
+    // MARK: samples
+
+    /// The stick's samples that belong to a sidebar selection (one set or the Pool).
+    func usbSamples(in selection: UsbSelection) -> [SampleRecord] {
+        guard let drive = drive(id: selection.drive) else { return [] }
+        let root = SquidStick.rootURL(volume: drive.url).path
+        return usbSamples.filter { sample in
+            guard sample.rootPath == root else { return false }
+            switch (SquidLayout.location(ofRelativePath: sample.relPath), selection.area) {
+            case (.bank(let set, _, _), .set(let wanted)): return set == wanted
+            case (.pool, .pool): return true
+            default: return false
+            }
+        }
+    }
+
+    /// Files on a stick are never written to (not even to store cues in them).
+    func isOnUsb(_ id: Int64) -> Bool { usbSampleIDs.contains(id) }
+
+    /// Replaces the drum machine's sounds with a bank's samples.
+    func loadBankIntoDrums(_ samples: [SampleRecord]) {
+        drumMachine.stop()
+        drumPattern = DrumPattern(swing: drumPattern.swing)
+        addToDrums(samples.map(\.id))
+    }
+}

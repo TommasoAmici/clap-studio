@@ -205,6 +205,7 @@ extension AppModel {
     /// Why the selected sample's cues are not (or not yet) stored in its file, if they are not.
     var cueFileNote: String? {
         guard let sample = selectedSample else { return nil }
+        if isOnUsb(sample.id) && !cues.isEmpty { return "Files on a USB drive are never changed, so these cues stay in Clap Studio." }
         if let problem = cueSyncIssues[sample.id] { return "Could not save cues into the file (\(problem)). They are kept in Clap Studio." }
         if !cues.isEmpty && !CueFileSync.canStoreCues(ext: sample.ext) {
             return "Only WAV files can hold cues, so these stay in Clap Studio."
@@ -232,7 +233,7 @@ extension AppModel {
         do {
             let changed = try body()
             reloadCues()
-            if let changed { cueSync?.markChanged(sampleID: changed) }
+            if let changed, !isOnUsb(changed) { cueSync?.markChanged(sampleID: changed) }
         } catch { errorMessage = String(describing: error) }
     }
 }
