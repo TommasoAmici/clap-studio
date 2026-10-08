@@ -44,11 +44,10 @@ extension AppModel {
 
     private func loadWaveform(_ sample: SampleRecord) {
         waveform = []
-        let player = self.player
         Task {
             let peaks = await Task.detached { () -> [Float] in
-                guard let buffer = try? player.cache.buffer(for: sample.url) else { return [] }
-                return AudioBufferCache.peaks(of: buffer, bins: 800)
+                // The whole file, however long (the preview cache only holds the first two minutes).
+                (try? WaveformPeaks.compute(url: sample.url, bins: 800)) ?? []
             }.value
             if selectedID == sample.id { waveform = peaks }
         }
@@ -56,7 +55,18 @@ extension AppModel {
 
     // MARK: playback
 
-    func playSample(_ sample: SampleRecord, from seconds: Double = 0) {
+    /// Plays a sample. A trimmed sample plays just its trimmed part, unless it is started from a spot
+    /// the user picked (clicking the waveform, a cue) or `fullFile` is set. Spots beyond what the preview
+    /// cache holds in very long files are read from disk.
+    func playSample(_ sample: SampleRecord, from seconds: Double = 0, fullFile: Bool = false) {
+        if seconds == 0, !fullFile, let trim = activeTrim(for: sample) {
+            playRegion(of: sample, start: trim.start, end: trim.end, fadeOut: trim.effectiveFadeOut)
+            return
+        }
+        if seconds >= AudioBufferCache.maxSeconds - 1 {
+            playRegion(of: sample, start: seconds, end: nil)
+            return
+        }
         guard FileManager.default.isReadableFile(atPath: sample.url.path) else {
             errorMessage = "\(sample.name) is not available (is the volume mounted?)"
             return

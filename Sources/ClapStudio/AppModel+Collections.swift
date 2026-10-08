@@ -148,22 +148,23 @@ extension AppModel {
     /// A drag of the whole tray counts as one grab per sample.
     func registerTrayGrab() { for id in tray { registerGrab(id) } }
 
-    /// Copies the tray's files into a folder the user picks; the originals stay where they are.
-    func exportTray(template: String) {
-        let samples = traySamples
+    /// Copies the chosen samples into a folder the user picks (trimmed ones as trimmed WAV files); the originals stay where they are.
+    func exportSelection(template: String, format: ExportFormat) {
+        let samples = exportSamples
         guard !samples.isEmpty else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.prompt = "Copy Here"
-        panel.message = "Copy \(samples.count) samples to this folder"
+        panel.message = "Copy \(samplesPhrase(samples.count)) to this folder"
         guard panel.runModal() == .OK, let folder = panel.url else { return }
         let items = samples.enumerated().map { index, sample in
-            (source: sample.url, fileName: ExportNaming.fileName(template: template, for: sample, position: index + 1, of: samples.count))
+            TrimExporter.Item(source: sample.url, trim: activeTrim(for: sample),
+                              fileName: ExportNaming.fileName(template: template, for: sample, position: index + 1, of: samples.count))
         }
         Task {
-            let report = await Task.detached { SampleExporter.copy(items, to: folder) }.value
+            let report = await Task.detached { TrimExporter.export(items, format: format, to: folder) }.value
             if let first = report.copied.first { NSWorkspace.shared.activateFileViewerSelecting([first]) }
             if !report.failures.isEmpty {
                 errorMessage = "Copied \(report.copied.count) of \(samples.count). Could not copy: "

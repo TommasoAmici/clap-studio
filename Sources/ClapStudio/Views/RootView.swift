@@ -62,7 +62,7 @@ struct RootView: View {
         }
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
         .sheet(isPresented: $model.showKit) { KitSheet() }
-        .sheet(isPresented: $model.showExport) { ExportSheet() }
+        .sheet(isPresented: $model.showExport, onDismiss: { model.exportIDs = nil }) { ExportSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")

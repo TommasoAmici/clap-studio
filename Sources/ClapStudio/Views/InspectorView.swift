@@ -13,6 +13,7 @@ struct InspectorView: View {
                     transport(sample)
                     FileDragHandle(url: sample.url) { model.registerGrab(sample.id) }
                         .frame(height: 44)
+                    TrimPanel(sample: sample)
                     PropertiesPanel(sample: sample)
                     CuePanel()
                     SimilarList()

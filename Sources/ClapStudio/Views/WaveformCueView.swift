@@ -22,6 +22,10 @@ struct WaveformCueView: View {
                 }
                 .allowsHitTesting(false)
 
+                if let trim = model.selectedTrim {
+                    TrimOverlay(trim: trim, duration: duration, width: geo.size.width, height: geo.size.height)
+                }
+
                 if let marker = model.startMarkerSeconds {
                     StartMarker(height: geo.size.height)
                         .offset(x: geo.size.width * marker / duration - 5)

@@ -90,6 +90,8 @@ final class AppModel {
     var showKit = false
     var kitSlots: [KitSlot] = []
     var kitChoice: [String: Int] = [:]
+    var trims: [Int64: SampleTrim] = [:]   // non-destructive start/end per sample
+    var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
     var showDrums = false
     var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern() } } }
     var drumStep: Int?                     // step currently sounding, nil when stopped
@@ -230,6 +232,7 @@ final class AppModel {
     func reloadSamples() {
         guard let store else { return }
         samples = store.loadSamples()
+        trims = store.trims()
         sampleByID = Dictionary(uniqueKeysWithValues: samples.map { ($0.id, $0) })
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()

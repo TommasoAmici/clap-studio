@@ -24,11 +24,11 @@ extension AppModel {
 
     /// Sends the current pattern, and the files it needs, to the engine.
     func pushDrumPattern() {
-        var urls: [Int64: URL] = [:]
+        var sources: [Int64: DrumSource] = [:]
         for track in drumPattern.tracks {
-            if let sample = sampleByID[track.sampleID] { urls[track.sampleID] = sample.url }
+            if let sample = sampleByID[track.sampleID] { sources[track.sampleID] = DrumSource(url: sample.url, trim: activeTrim(for: sample)) }
         }
-        drumMachine.update(pattern: drumPattern, urls: urls)
+        drumMachine.update(pattern: drumPattern, sources: sources)
     }
 
     func toggleDrumPlayback() {
@@ -91,5 +91,8 @@ extension AppModel {
         return true
     }
 
-    func drumSampleName(_ track: DrumTrack) -> String { sampleByID[track.sampleID]?.name ?? "Missing sample" }
+    func drumSampleName(_ track: DrumTrack) -> String {
+        guard let sample = sampleByID[track.sampleID] else { return "Missing sample" }
+        return activeTrim(for: sample) == nil ? sample.name : sample.name + " · trimmed"
+    }
 }
