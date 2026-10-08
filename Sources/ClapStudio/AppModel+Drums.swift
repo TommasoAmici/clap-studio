@@ -7,19 +7,30 @@ extension AppModel {
     /// Tempo the drum machine plays at: the project's, or a neutral 120 when none is set.
     var drumTempo: Double { project.bpm ?? DrumTiming.defaultBPM }
 
-    var drumPreset: DrumPreset? { DrumPreset.preset(id: drumPresetID) }
+    var drumPreset: DrumPreset? { DrumPreset.preset(id: drumPresetID, among: userDrumPresets) }
 
-    private static let drumPresetKey = "drum.preset"
+    private static let drumPresetKey = "drum.preset", userDrumPresetsKey = "drum.userPresets"
 
-    func loadDrumPreset() {
-        // Assigned through the setter, which saves it again: harmless, and an id that no longer exists is dropped.
-        let id = UserDefaults.standard.string(forKey: Self.drumPresetKey)
-        drumPresetID = DrumPreset.preset(id: id)?.id
+    func loadDrumGrooves() {
+        let d = UserDefaults.standard
+        let savedID = d.string(forKey: Self.drumPresetKey)     // read first: assigning the grooves below stores the (still empty) choice
+        if let data = d.data(forKey: Self.userDrumPresetsKey), let saved = try? JSONDecoder().decode([DrumPreset].self, from: data) {
+            userDrumPresets = saved.compactMap { preset in
+                guard let name = DrumPreset.cleanName(preset.name) else { return nil }
+                guard preset.id.hasPrefix("user.") else { return nil }
+                var copy = preset; copy.isUser = true; copy.name = name
+                return copy
+            }
+        }
+        // An id that no longer exists (a deleted groove) is dropped.
+        drumPresetID = DrumPreset.preset(id: savedID, among: userDrumPresets)?.id
     }
 
-    func saveDrumPreset() {
-        if let drumPresetID { UserDefaults.standard.set(drumPresetID, forKey: Self.drumPresetKey) }
-        else { UserDefaults.standard.removeObject(forKey: Self.drumPresetKey) }
+    func storeDrumGrooves() {
+        let d = UserDefaults.standard
+        if let drumPresetID { d.set(drumPresetID, forKey: Self.drumPresetKey) } else { d.removeObject(forKey: Self.drumPresetKey) }
+        if userDrumPresets.isEmpty { d.removeObject(forKey: Self.userDrumPresetsKey) }
+        else if let data = try? JSONEncoder().encode(userDrumPresets) { d.set(data, forKey: Self.userDrumPresetsKey) }
     }
 
     /// Picks a groove: the project takes its tempo (loop matching and previews follow it), the pattern takes its
@@ -31,6 +42,24 @@ extension AppModel {
         var pattern = drumPattern
         pattern.apply(preset)
         drumPattern = pattern
+    }
+
+    /// Saves the pattern on screen, with the project tempo and its swing, as a groove of the user's own and selects
+    /// it. A groove saved under the same name is replaced.
+    func saveDrumPreset(named rawName: String) {
+        guard let name = DrumPreset.cleanName(rawName) else { return }
+        let existing = userDrumPresets.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        guard let preset = drumPattern.makePreset(name: name, id: existing?.id ?? "user." + UUID().uuidString, bpm: drumTempo) else {
+            errorMessage = "Turn on some steps before saving a groove."
+            return
+        }
+        if let existing, let index = userDrumPresets.firstIndex(of: existing) { userDrumPresets[index] = preset } else { userDrumPresets.append(preset) }
+        drumPresetID = preset.id
+    }
+
+    func deleteDrumPreset(_ id: String) {
+        userDrumPresets.removeAll { $0.id == id }
+        if drumPresetID == id { drumPresetID = nil }
     }
 
     func makeDrumMachine() -> DrumMachine {

@@ -4,6 +4,8 @@ import SwiftUI
 /// A drawer with a 16-step sequencer for auditioning samples together at the project tempo.
 struct DrumPanel: View {
     @Environment(AppModel.self) private var model
+    @State private var naming = false
+    @State private var grooveName = ""
 
     var body: some View {
         if model.showDrums {
@@ -29,6 +31,42 @@ struct DrumPanel: View {
         }
     }
 
+    /// Ready-made grooves, the user's own, and saving the pattern on screen as a new one.
+    private var grooveMenu: some View {
+        Menu {
+            Picker("Groove", selection: Binding(get: { model.drumPresetID }, set: { model.selectDrumPreset($0) })) {
+                Text("Starter rhythms").tag(String?.none)
+                ForEach(DrumPreset.all) { Text($0.name).tag(String?.some($0.id)) }
+                if !model.userDrumPresets.isEmpty {
+                    Divider()
+                    ForEach(model.userDrumPresets) { Text($0.name).tag(String?.some($0.id)) }
+                }
+            }
+            .pickerStyle(.inline).labelsHidden()
+            Divider()
+            Button("Save Pattern as Groove…") { grooveName = ""; naming = true }
+                .disabled(!model.drumPattern.tracks.contains { $0.hits.contains(true) })
+            if !model.userDrumPresets.isEmpty {
+                Menu("Delete Groove") {
+                    ForEach(model.userDrumPresets) { preset in
+                        Button(preset.name, role: .destructive) { model.deleteDrumPreset(preset.id) }
+                    }
+                }
+            }
+        } label: {
+            Text(model.drumPreset?.name ?? "Starter rhythms")
+        }
+        .fixedSize()
+        .help("A groove sets the project tempo and swing and gives each sound a rhythm that fits its category. Save your own from the pattern on screen.")
+        .alert("Save Groove", isPresented: $naming) {
+            TextField("Name", text: $grooveName)
+            Button("Save") { model.saveDrumPreset(named: grooveName) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Keeps these rhythms, the swing and the project tempo. Saving under an existing name replaces it.")
+        }
+    }
+
     private var header: some View {
         @Bindable var model = model
         return HStack(spacing: 10) {
@@ -38,15 +76,7 @@ struct DrumPanel: View {
             .disabled(model.drumPattern.tracks.isEmpty)
             .help(model.drumPlaying ? "Stop the pattern" : "Play the pattern in a loop")
             Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
-            Picker("Groove", selection: Binding(get: { model.drumPresetID }, set: { model.selectDrumPreset($0) })) {
-                Text("Starter rhythms").tag(String?.none)
-                Divider()
-                ForEach(DrumPreset.all) { preset in
-                    Text("\(preset.name) · \(Int(preset.bpm)) BPM").tag(String?.some(preset.id))
-                }
-            }
-            .labelsHidden().pickerStyle(.menu).fixedSize()
-            .help("A ready-made groove. It sets the project tempo and swing and gives each sound a rhythm that fits its category.")
+            grooveMenu
             HStack(spacing: 4) {
                 TextField("BPM", value: $model.project.bpm, format: .number.precision(.fractionLength(0...1)),
                           prompt: Text(String(format: "%.0f", DrumTiming.defaultBPM)))

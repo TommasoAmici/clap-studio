@@ -58,4 +58,40 @@ import Testing
         pattern.addTrack(sampleID: 4, label: "Kick", category: "Kick")
         #expect(pattern.tracks[3].hits == DrumStarter.hits(for: "Kick"), "no preset: plain starter")
     }
+
+    @Test func aPatternCanBeSavedAsAGroove() throws {
+        var pattern = DrumPattern()
+        pattern.addTrack(sampleID: 1, label: "Kick", category: "Kick", preset: nil)
+        pattern.addTrack(sampleID: 2, label: "Hi-hat", category: "Hi-hat", preset: nil)
+        pattern.addTrack(sampleID: 3, label: "Hi-hat", category: "Hi-hat", starter: false)
+        pattern.toggle(track: 2, step: 3)
+        pattern.swing = 0.2
+        let saved = try #require(pattern.makePreset(name: "  My\ngroove  ", bpm: 101))
+        #expect(saved.name == "My groove" && saved.isUser && saved.bpm == 101 && saved.id.hasPrefix("user."))
+        #expect(abs(saved.swingPercent - 60) < 1e-9)
+
+        // Applied to another kit it brings the same rhythms back, per category and in track order.
+        var other = DrumPattern()
+        other.addTrack(sampleID: 9, label: "Kick", category: "Kick", starter: false)
+        other.addTrack(sampleID: 8, label: "Hi-hat", category: "Hi-hat", starter: false)
+        other.addTrack(sampleID: 7, label: "Hi-hat", category: "Hi-hat", starter: false)
+        other.apply(saved)
+        #expect(other.tracks.map(\.hits) == pattern.tracks.map(\.hits))
+        #expect(other.swing == pattern.swing)
+
+        // Survives storage.
+        let decoded = try JSONDecoder().decode([DrumPreset].self, from: JSONEncoder().encode([saved]))
+        #expect(decoded == [saved])
+        #expect(DrumPreset.preset(id: saved.id, among: decoded) == saved && DrumPreset.preset(id: saved.id) == nil)
+    }
+
+    @Test func emptyPatternsAndBlankNamesAreNotSaved() {
+        var pattern = DrumPattern()
+        pattern.addTrack(sampleID: 1, label: "Kick", category: "Kick", starter: false)
+        #expect(pattern.makePreset(name: "Silent", bpm: 120) == nil, "no steps")
+        pattern.toggle(track: 0, step: 0)
+        #expect(pattern.makePreset(name: "   ", bpm: 120) == nil)
+        #expect(pattern.makePreset(name: String(repeating: "a", count: 100), bpm: 500)?.name.count == DrumPreset.maxNameLength)
+        #expect(pattern.makePreset(name: "x", bpm: 500)?.bpm == 300, "tempo is kept in range")
+    }
 }

@@ -2,15 +2,17 @@ import Foundation
 
 /// A ready-made groove: a tempo, a swing and one or more rhythms for each kind of sound. Sounds are matched to
 /// rhythms by their track label (their category), so a preset fits whatever kit is loaded.
-public struct DrumPreset: Identifiable, Equatable, Sendable {
+public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
     public let id: String
-    public let name: String
+    public var name: String
     public let bpm: Double
     /// Swing as drum machines show it (50 is straight).
     public let swingPercent: Double
     /// Rhythms per category, written as 16 characters ("x" hits, anything else rests). A second track of the same
     /// category takes the next rhythm in its list, so two hi-hats can play a closed and an open line.
     let rhythms: [String: [String]]
+    /// True for grooves the user saved, as opposed to the ones shipped with the app.
+    public var isUser = false
 
     public var swing: Double { DrumTiming.swing(percent: swingPercent) }
 
@@ -97,7 +99,19 @@ public struct DrumPreset: Identifiable, Equatable, Sendable {
         ]),
     ]
 
-    public static func preset(id: String?) -> DrumPreset? { id.flatMap { id in all.first { $0.id == id } } }
+    public static let maxNameLength = 40
+
+    /// Looks a groove up among the built-in ones and, when given, the user's own.
+    public static func preset(id: String?, among user: [DrumPreset] = []) -> DrumPreset? {
+        guard let id else { return nil }
+        return (all + user).first { $0.id == id }
+    }
+
+    /// A name fit for a menu: trimmed, one line, not too long. nil when nothing is left.
+    public static func cleanName(_ raw: String) -> String? {
+        let name = raw.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? nil : String(name.prefix(maxNameLength))
+    }
 }
 
 extension DrumPattern {
@@ -113,5 +127,20 @@ extension DrumPattern {
             seen[role, default: 0] += 1
         }
         swing = preset.swing
+    }
+}
+
+extension DrumPattern {
+    /// Captures this pattern's rhythms (per category, in track order), swing and the given tempo as a groove that can
+    /// be applied to any kit later. Returns nil for an unusable name or when no track has a step.
+    public func makePreset(name: String, id: String = "user." + UUID().uuidString, bpm: Double) -> DrumPreset? {
+        guard let name = DrumPreset.cleanName(name), tracks.contains(where: { $0.hits.contains(true) }) else { return nil }
+        var rhythms: [String: [String]] = [:]
+        for track in tracks {
+            let line = String((0..<Self.stepCount).map { track.hits.indices.contains($0) && track.hits[$0] ? "x" : "." })
+            rhythms[DrumPreset.role(for: track.label), default: []].append(line)
+        }
+        return DrumPreset(id: id, name: name, bpm: min(max(bpm, 20), 300), swingPercent: DrumTiming.swingPercent(swing),
+                          rhythms: rhythms, isUser: true)
     }
 }
