@@ -31,6 +31,7 @@ struct FilterBar: View {
             .menuStyle(.button).fixedSize()
 
             CategoryFilterMenu()
+            MoodFilterMenu()
 
             if let example = model.exampleQuery {
                 HStack(spacing: 4) {
@@ -118,6 +119,40 @@ struct CategoryFilterMenu: View {
                 Label(model.descriptorFilter.category ?? "Category", systemImage: "tag")
             }
             .menuStyle(.button).fixedSize()
+        }
+    }
+}
+
+/// Moods can be combined: a sample matches when it has any of the ticked moods.
+struct MoodFilterMenu: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if !model.moodCounts.isEmpty {
+            Menu {
+                Button("Any mood") { model.descriptorFilter.moods = [] }
+                Divider()
+                ForEach(model.moodCounts, id: \.name) { item in
+                    Toggle("\(item.name) (\(item.count))", isOn: Binding(
+                        get: { model.descriptorFilter.moods.contains(item.name) },
+                        set: { on in
+                            if on { model.descriptorFilter.moods.insert(item.name) }
+                            else { model.descriptorFilter.moods.remove(item.name) }
+                        }))
+                }
+            } label: {
+                Label(title, systemImage: "face.smiling")
+            }
+            .menuStyle(.button).fixedSize()
+        }
+    }
+
+    private var title: String {
+        let moods = SoundMoods.sorted(Array(model.descriptorFilter.moods))
+        switch moods.count {
+        case 0: return "Mood"
+        case 1, 2: return moods.joined(separator: ", ")
+        default: return "\(moods.count) moods"
         }
     }
 }

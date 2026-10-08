@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 5
+    static let currentVersion = 6
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -11,6 +11,7 @@ enum Schema {
         if version < 3 { try v3(db) }
         if version < 4 { try v4(db) }
         if version < 5 { try v5(db) }
+        if version < 6 { try v6(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -94,5 +95,15 @@ enum Schema {
     /// the similarity map, and removed again when the stick is unplugged or the app starts.
     private static func v5(_ db: SQLiteDB) throws {
         try db.exec("ALTER TABLE roots ADD COLUMN transient INTEGER NOT NULL DEFAULT 0")
+    }
+
+    /// Moods: several per sample, with how far each stands out in the library (z-score).
+    private static func v6(_ db: SQLiteDB) throws {
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS sample_moods(
+            sample_id INTEGER NOT NULL, mood TEXT NOT NULL, z REAL NOT NULL,
+            PRIMARY KEY(sample_id, mood));
+        CREATE INDEX IF NOT EXISTS sample_moods_mood ON sample_moods(mood);
+        """)
     }
 }

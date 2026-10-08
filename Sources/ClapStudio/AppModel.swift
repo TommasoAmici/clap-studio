@@ -103,6 +103,7 @@ final class AppModel {
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumPlaying = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
+    var moodCounts: [(name: String, count: Int)] = []       // sidebar; only moods that have samples
 
     // MARK: Squid Salmple (USB sticks)
     var squidEnabled = UserDefaults.standard.bool(forKey: SquidSettings.enabledKey) { didSet { if squidEnabled != oldValue { squidEnabledChanged() } } }
@@ -266,6 +267,7 @@ final class AppModel {
         sampleByID = Dictionary(uniqueKeysWithValues: (samples + usbSamples).map { ($0.id, $0) })
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
+        updateMoodCounts()
         updateHiddenCount()
         updateTagCounts()
         if mapColorMode != .cluster { refreshMapColoring() }

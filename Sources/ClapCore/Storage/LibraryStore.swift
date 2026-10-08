@@ -72,6 +72,7 @@ public final class LibraryStore: @unchecked Sendable {
             try db.run("DELETE FROM usage_events WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM collection_items WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM sample_tags WHERE sample_id IN (\(sub))", [.int(id)])
+            try db.run("DELETE FROM sample_moods WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM sample_trims WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM samples WHERE root_id = ?", [.int(id)])
             try db.run("DELETE FROM roots WHERE id = ?", [.int(id)])
@@ -242,7 +243,8 @@ public final class LibraryStore: @unchecked Sendable {
                    (SELECT COUNT(*) FROM cue_points c WHERE c.sample_id = s.id),
                    s.loudness, s.peak, s.crest, s.centroid, s.is_loop, s.bpm, s.bpm_manual, s.pitch_hz, s.key_name,
                    s.category, s.category_manual, s.favorite, s.hidden,
-                   (SELECT group_concat(tag, char(31)) FROM sample_tags t WHERE t.sample_id = s.id)
+                   (SELECT group_concat(tag, char(31)) FROM sample_tags t WHERE t.sample_id = s.id),
+                   (SELECT group_concat(mood, char(31)) FROM sample_moods m WHERE m.sample_id = s.id)
             FROM samples s JOIN roots r ON r.id = s.root_id
             WHERE s.status IN ('ok', 'pending') \(extraFilter)
             """, params) {
@@ -260,7 +262,8 @@ public final class LibraryStore: @unchecked Sendable {
                 category: $0.isNull(24) ? nil : $0.text(24), categoryManual: $0.isNull(25) ? nil : $0.text(25),
                 favorite: $0.int(26) != 0, hidden: $0.int(27) != 0,
                 tags: $0.isNull(28) ? [] : $0.text(28).split(separator: "\u{1F}").map(String.init).sorted {
-                    $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
+                    $0.localizedCaseInsensitiveCompare($1) == .orderedAscending },
+                moods: $0.isNull(29) ? [] : SoundMoods.sorted($0.text(29).split(separator: "\u{1F}").map(String.init)))
         }) ?? []
     }
 

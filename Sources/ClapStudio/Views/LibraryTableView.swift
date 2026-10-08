@@ -50,6 +50,10 @@ struct LibraryTableView: View {
                 Text(s.effectiveCategory ?? "").foregroundStyle(.secondary).lineLimit(1)
             }
             .width(min: 60, ideal: 90)
+            TableColumn("Mood", value: \.moodText) { s in
+                Text(s.moodText).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .width(min: 60, ideal: 110)
             TableColumn("Cues", value: \.cueCount) { s in
                 Text(s.cueCount == 0 ? "" : "\(s.cueCount)").monospacedDigit().foregroundStyle(.secondary)
             }

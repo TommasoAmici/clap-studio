@@ -16,6 +16,7 @@ struct PropertiesPanel: View {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
                     row("Type", sample.typeText)
                     categoryRow
+                    if !sample.moods.isEmpty { row("Mood", sample.moodText) }
                     if sample.isLoop == true { tempoRow }
                     row(sample.isLoop == true ? "Key" : "Note", sample.keyName ?? "–")
                     row("Level", sample.levelText)

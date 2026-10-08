@@ -44,6 +44,8 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var hidden: Bool = false
     /// The user's own labels, sorted.
     public var tags: [String] = []
+    /// Automatic moods, in the sidebar's order.
+    public var moods: [String] = []
 
     /// The user's BPM correction wins over the detected one.
     public var effectiveBPM: Double? { bpmManual ?? bpm }

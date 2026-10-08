@@ -10,6 +10,8 @@ public struct DescriptorFilter: Equatable, Sendable {
     /// Tonic such as "A" or "C#"; matches both note names ("A1") and keys ("A minor").
     public var tonic: String?
     public var category: String?
+    /// A sample matches when it has any of these moods.
+    public var moods: Set<String> = []
 
     public init() {}
 
@@ -32,6 +34,7 @@ public struct DescriptorFilter: Equatable, Sendable {
             guard let name = s.keyName, Self.tonic(of: name) == tonic else { return false }
         }
         if let category, s.effectiveCategory != category { return false }
+        if !moods.isEmpty, moods.isDisjoint(with: s.moods) { return false }
         return true
     }
 

@@ -45,6 +45,18 @@ struct SidebarView: View {
                     }
                 }
             }
+            if !model.moodCounts.isEmpty {
+                Section("Moods") {
+                    ForEach(model.moodCounts, id: \.name) { item in
+                        HStack {
+                            Label(item.name, systemImage: SoundMoods.symbol(for: item.name))
+                            Spacer()
+                            Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                        }
+                        .tag("mood.\(item.name)")
+                    }
+                }
+            }
             if !model.tagCounts.isEmpty {
                 Section("Tags") {
                     ForEach(model.tagCounts, id: \.name) { item in
