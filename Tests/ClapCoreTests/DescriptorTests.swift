@@ -291,3 +291,36 @@ import Testing
         #expect(LoudnessMatch.gainDB(loudnessDB: -120, peakDB: -120) == 0, "silence is left alone")
     }
 }
+
+@Suite struct AspectSimilarityTests {
+    private func record(_ id: Int64, pitch: Double? = nil, centroid: Double = 2000, duration: Double = 1) -> SampleRecord {
+        var s = SampleRecord(id: id, rootID: 1, rootPath: "/", relPath: "s\(id).wav", name: "s\(id)", ext: "wav", duration: duration,
+                             sampleRate: 44100, channels: 1, size: 1, mtime: 0, status: .ok, useCount: 0, lastUsed: nil, cueCount: 0)
+        s.pitchHz = pitch; s.centroidHz = centroid; s.loudnessDB = -20; s.crestDB = 10
+        return s
+    }
+
+    @Test func defaultWeightsAreSimpleSimilarity() {
+        let index = VectorIndex(ids: [1, 2, 3], vectors: [1, 0, 0.9, 0.436, 0, 1], dim: 2)
+        let ranked = AspectSimilarity.rank(reference: record(1), index: index, weights: AspectWeights(), limit: 2) { _ in nil }
+        #expect(ranked.map { index.ids[$0.row] } == [2, 3])
+    }
+
+    @Test func pitchAspectPrefersTheSameNoteOverTheClosestTimbre() {
+        // 2 sounds very alike (cosine .99) but a fourth apart; 3 is less alike (.7) but the same note an octave up.
+        let index = VectorIndex(ids: [1, 2, 3], vectors: [1, 0, 0.99, 0.141, 0.7, 0.714], dim: 2)
+        let samples: [Int64: SampleRecord] = [1: record(1, pitch: 220), 2: record(2, pitch: 293.66), 3: record(3, pitch: 440)]
+        let plain = AspectSimilarity.rank(reference: samples[1]!, index: index, weights: AspectWeights(), limit: 2) { samples[$0] }
+        #expect(index.ids[plain[0].row] == 2)
+        let pitched = AspectSimilarity.rank(reference: samples[1]!, index: index, weights: AspectWeights(overall: 0.3, pitch: 1), limit: 2) { samples[$0] }
+        #expect(index.ids[pitched[0].row] == 3, "octave-up match wins when pitch matters")
+    }
+
+    @Test func aspectsScoreInTheirOwnTerms() {
+        #expect(AspectSimilarity.brightness(record(1, centroid: 1000), record(2, centroid: 1000)) == 1)
+        #expect(AspectSimilarity.brightness(record(1, centroid: 1000), record(2, centroid: 4000)) == 0)
+        #expect(AspectSimilarity.length(record(1, duration: 1), record(2, duration: 2)) > 0.6)
+        #expect(AspectSimilarity.pitch(record(1, pitch: 100), record(2, pitch: nil)) == 0)
+        #expect(AspectSimilarity.pitch(record(1, pitch: nil), record(2, pitch: 100)) == 0.5)
+    }
+}
