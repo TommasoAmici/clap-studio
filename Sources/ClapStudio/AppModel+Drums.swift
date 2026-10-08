@@ -62,6 +62,41 @@ extension AppModel {
         if drumPresetID == id { drumPresetID = nil }
     }
 
+    // MARK: remembering the pattern
+
+    private static let drumPatternKey = "drum.pattern", drumOpenKey = "drum.open"
+
+    /// Brings back the pattern (sounds, steps, mix, swing) and whether the drawer was open. Run before the library is
+    /// read, so the sounds are matched up later, in `restoreDrumSounds`.
+    func loadDrumPattern() {
+        let d = UserDefaults.standard
+        let wasOpen = d.bool(forKey: Self.drumOpenKey)       // read first: assigning the pattern stores the (still closed) drawer
+        if let data = d.data(forKey: Self.drumPatternKey), let saved = try? JSONDecoder().decode(DrumPattern.self, from: data) {
+            drumPattern = saved.sanitized()
+        }
+        showDrums = wasOpen && !drumPattern.tracks.isEmpty
+    }
+
+    func storeDrumPattern() {
+        let d = UserDefaults.standard
+        // Sounds read from a USB stick only exist while it is plugged in, so they are not kept.
+        var pattern = drumPattern
+        pattern.tracks.removeAll { usbSampleIDs.contains($0.sampleID) }
+        if let data = try? JSONEncoder().encode(pattern) { d.set(data, forKey: Self.drumPatternKey) }
+        d.set(showDrums, forKey: Self.drumOpenKey)
+    }
+
+    /// Once the library is loaded, drops saved tracks whose sound is gone and hands the rest to the engine.
+    func restoreDrumSounds() {
+        guard !drumSourcesReady, !sampleByID.isEmpty else { return }
+        drumSourcesReady = true
+        guard !drumPattern.tracks.isEmpty else { return }
+        var pattern = drumPattern
+        pattern.tracks.removeAll { sampleByID[$0.sampleID] == nil }
+        if pattern != drumPattern { drumPattern = pattern } else { pushDrumPattern() }
+        if pattern.tracks.isEmpty { showDrums = false }
+    }
+
     func makeDrumMachine() -> DrumMachine {
         let machine = DrumMachine(cache: player.cache)
         machine.bpm = drumTempo

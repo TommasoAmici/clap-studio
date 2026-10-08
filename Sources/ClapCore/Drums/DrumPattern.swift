@@ -1,7 +1,7 @@
 import Foundation
 
 /// One row of the sequencer: a sample and the steps it plays on.
-public struct DrumTrack: Identifiable, Equatable, Sendable {
+public struct DrumTrack: Identifiable, Equatable, Sendable, Codable {
     public let id: UUID
     public var sampleID: Int64
     public var label: String
@@ -20,7 +20,7 @@ public struct DrumTrack: Identifiable, Equatable, Sendable {
 }
 
 /// A one-bar, 16-step pattern over a few tracks.
-public struct DrumPattern: Equatable, Sendable {
+public struct DrumPattern: Equatable, Sendable, Codable {
     public static let stepCount = 16
     public static let maxTracks = 8
 
@@ -39,6 +39,20 @@ public struct DrumPattern: Equatable, Sendable {
             seen[track.label, default: 0] += 1
             return "\(track.label) #\(seen[track.label]!)"
         }
+    }
+
+    /// What was saved, made safe to play: every track has exactly one bar of steps, a volume in range, and there are
+    /// no more tracks than fit.
+    public func sanitized() -> DrumPattern {
+        var copy = self
+        copy.tracks = Array(tracks.prefix(Self.maxTracks)).map { track in
+            var t = track
+            t.hits = (0..<Self.stepCount).map { track.hits.indices.contains($0) && track.hits[$0] }
+            t.volume = min(max(track.volume.isFinite ? track.volume : 0.9, 0), 1)
+            return t
+        }
+        copy.swing = min(max(swing.isFinite ? swing : 0, -0.5), 0.5)
+        return copy
     }
 
     public var isFull: Bool { tracks.count >= Self.maxTracks }

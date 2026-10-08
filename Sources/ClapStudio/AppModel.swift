@@ -97,12 +97,13 @@ final class AppModel {
     var kitChoice: [String: Int] = [:]
     var trims: [Int64: SampleTrim] = [:]   // non-destructive start/end per sample
     var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
-    var showDrums = false
+    var showDrums = false { didSet { if showDrums != oldValue { storeDrumPattern() } } }
     /// The groove picked in the drum machine (remembered between launches); nil uses the plain starter rhythms.
     var drumPresetID: String? { didSet { storeDrumGrooves() } }
     /// Grooves the user saved from their own patterns.
     var userDrumPresets: [DrumPreset] = [] { didSet { storeDrumGrooves() } }
-    var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern(); updateDrumTracks() } } }
+    var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern(); updateDrumTracks(); storeDrumPattern() } } }
+    @ObservationIgnored var drumSourcesReady = false      // the saved pattern's sounds have been matched to the library
     var drumTracks: [Int64: Int] = [:]     // sample id -> its (first) drum track number, 1-based; for highlighting
     var dropZones: [DropZone: CGRect] = [:]     // where dropped files are taken, in window coordinates
     var dropHover: DropZone?                    // the place a drag is currently over
@@ -190,6 +191,7 @@ final class AppModel {
     func bootstrap() {
         loadProjectSettings()
         loadDrumGrooves()
+        loadDrumPattern()
         do {
             let store = try LibraryStore(path: try LibraryStore.defaultURL().path)
             self.store = store
@@ -282,6 +284,7 @@ final class AppModel {
         if mapAxes != nil { refreshMapLayout() }
         refilter()
         if let id = selectedID, sampleByID[id] == nil { selectedID = nil }
+        restoreDrumSounds()
     }
 
     func refilter() {

@@ -144,4 +144,22 @@ import Testing
         try await Task.sleep(for: .milliseconds(300))
         #expect(steps.values.count == before, "nothing plays after stop")
     }
+
+    @Test func aPatternSurvivesStorageAndBadDataIsRepaired() throws {
+        var p = DrumPattern(swing: 0.2)
+        p.addTrack(sampleID: 5, label: "Kick", category: "Kick", alternatives: [5, 6])
+        p.tracks[0].volume = 0.4; p.tracks[0].muted = true
+        let again = try JSONDecoder().decode(DrumPattern.self, from: JSONEncoder().encode(p))
+        #expect(again == p && again.sanitized() == p)
+
+        var broken = p
+        broken.tracks[0].hits = [true, false, true]                        // too short
+        broken.tracks[0].volume = 7
+        broken.swing = 5
+        for i in 0..<20 { broken.tracks.append(DrumTrack(sampleID: Int64(i), label: "x")) }
+        let fixed = broken.sanitized()
+        #expect(fixed.tracks.count == DrumPattern.maxTracks)
+        #expect(fixed.tracks[0].hits.count == DrumPattern.stepCount && fixed.tracks[0].hits[0] && fixed.tracks[0].hits[2])
+        #expect(fixed.tracks[0].volume == 1 && fixed.swing == 0.5)
+    }
 }
