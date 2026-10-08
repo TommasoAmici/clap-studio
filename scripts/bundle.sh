@@ -12,11 +12,15 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$(swift build -c release --show-bin-path)/ClapStudio" "$APP/Contents/MacOS/ClapStudio"
 
-# Bundle whichever Core ML models have been exported (tools/export_clap.py, tools/export_model.py).
+# Bundle whichever Core ML models have been exported (tools/export_clap.py, tools/export_model.py,
+# tools/export_birdnet.py).
 MODELS="$HOME/Library/Application Support/ClapStudio/Models"
-for item in CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.json clap_merges.txt; do
+for item in CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.json clap_merges.txt \
+            BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt; do
   [ -e "$MODELS/$item" ] && cp -R "$MODELS/$item" "$APP/Contents/Resources/" && echo "Bundled $item"
 done
+# BirdNET is CC BY-NC-SA 4.0: its notice travels with it.
+[ -e "$APP/Contents/Resources/BirdNET.mlpackage" ] && cp licenses/BirdNET.txt "$APP/Contents/Resources/BirdNET-LICENSE.txt"
 
 # App icon: render clap.icon (Icon Composer) to an .icns; no Xcode needed.
 ICONSET="build/AppIcon.iconset"

@@ -25,8 +25,8 @@ matrix, so the FFT nodes are swapped for that product in the frozen graph. The r
 The converted model is checked against the original SavedModel before it is written.
 
 Weights: BirdNET V2.4, Cornell Lab of Ornithology and Chemnitz University of Technology, CC BY-NC-SA 4.0
-(https://github.com/birdnet-team/BirdNET-Analyzer). Personal and research use only: do not redistribute the output
-or ship it in a commercial product.
+(https://github.com/birdnet-team/BirdNET-Analyzer). Non-commercial use only: the output may be shared (and is bundled
+into Clap Studio's releases) under the same license, never in a commercial product.
 """
 import argparse
 import os

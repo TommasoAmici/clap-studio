@@ -1,0 +1,12 @@
+BirdNET V2.4 (bird species detection and location filtering)
+
+Copyright Cornell Lab of Ornithology and Chemnitz University of Technology.
+Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+(CC BY-NC-SA 4.0): https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+Source: https://github.com/birdnet-team/BirdNET-Analyzer
+
+Clap Studio ships BirdNET converted to Core ML (BirdNET.mlpackage and BirdNETLocation.mlpackage, produced by
+tools/export_birdnet.py) together with its species labels (birdnet_labels.txt). The conversion changes the
+format, not the weights. These files may be used and shared for non-commercial purposes only, under the same
+license.

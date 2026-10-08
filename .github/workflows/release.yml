@@ -46,16 +46,31 @@ jobs:
           pip install -r tools/requirements.txt
           python3 tools/export_clap.py
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Cache BirdNET download
+        uses: actions/cache@v4
+        with:
+          path: tools/.cache/birdnet
+          key: birdnet-v2.4-download-v1
+
+      - name: Export BirdNET model
+        # Converts BirdNET V2.4 (and its location model) to Core ML next to the CLAP model. The script checks the
+        # Core ML output against the original and fails if they differ. uv installs its own dependencies.
+        run: uv run --python 3.12 tools/export_birdnet.py
+
       - name: Build app bundle
         run: scripts/bundle.sh
 
-      - name: Verify CLAP model is bundled
+      - name: Verify models are bundled
         run: |
           RES="build/ClapStudio.app/Contents/Resources"
-          for item in CLAPAudio.mlpackage CLAPText.mlpackage clap_vocab.json clap_merges.txt; do
+          for item in CLAPAudio.mlpackage CLAPText.mlpackage clap_vocab.json clap_merges.txt \
+                      BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt BirdNET-LICENSE.txt; do
             test -e "$RES/$item" || { echo "Missing $item in app bundle"; exit 1; }
           done
-          du -sh "$RES"/CLAP*.mlpackage
+          du -sh "$RES"/CLAP*.mlpackage "$RES"/BirdNET*.mlpackage
 
       - name: Stamp version and re-sign
         id: version
@@ -90,4 +105,4 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Clap Studio $TAG" \
             --generate-notes \
-            --notes "The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. This build bundles the LAION-CLAP model (Apache-2.0)."
+            --notes "The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. This build bundles the LAION-CLAP model (Apache-2.0) and BirdNET V2.4 (CC BY-NC-SA 4.0: non-commercial use only)."
