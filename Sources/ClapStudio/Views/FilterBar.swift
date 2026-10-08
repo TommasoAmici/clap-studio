@@ -15,7 +15,7 @@ struct FilterBar: View {
             .pickerStyle(.segmented).labelsHidden().frame(width: 230)
 
             Button { showTempo.toggle() } label: {
-                Label(tempoTitle, systemImage: "metronome")
+                FilterLabel(tempoTitle, systemImage: "metronome")
             }
             .popover(isPresented: $showTempo) { TempoRangeEditor().padding(14) }
 
@@ -26,7 +26,7 @@ struct FilterBar: View {
                     Button(tonic) { model.descriptorFilter.tonic = tonic }
                 }
             } label: {
-                Label(model.descriptorFilter.tonic.map { "Key: \($0)" } ?? "Key", systemImage: "music.note")
+                FilterLabel(model.descriptorFilter.tonic.map { "Key: \($0)" } ?? "Key", systemImage: "music.note")
             }
             .menuStyle(.button).fixedSize()
 
@@ -116,7 +116,7 @@ struct CategoryFilterMenu: View {
                     Button("\(item.name) (\(item.count))") { model.descriptorFilter.category = item.name }
                 }
             } label: {
-                Label(model.descriptorFilter.category ?? "Category", systemImage: "tag")
+                FilterLabel(model.descriptorFilter.category ?? "Category", systemImage: "tag")
             }
             .menuStyle(.button).fixedSize()
         }
@@ -141,7 +141,7 @@ struct MoodFilterMenu: View {
                         }))
                 }
             } label: {
-                Label(title, systemImage: "face.smiling")
+                FilterLabel(title, systemImage: "face.smiling")
             }
             .menuStyle(.button).fixedSize()
         }
@@ -153,6 +153,22 @@ struct MoodFilterMenu: View {
         case 0: return "Mood"
         case 1, 2: return moods.joined(separator: ", ")
         default: return "\(moods.count) moods"
+        }
+    }
+}
+
+/// An icon and a title for a filter button. The icon gets a fixed-width slot and is centred on the text's line, so
+/// icons of different shapes line up and sit at the same distance from their titles.
+struct FilterLabel: View {
+    let title: String
+    let systemImage: String
+
+    init(_ title: String, systemImage: String) { self.title = title; self.systemImage = systemImage }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage).imageScale(.small).frame(width: 13)
+            Text(title)
         }
     }
 }
