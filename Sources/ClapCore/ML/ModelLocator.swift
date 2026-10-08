@@ -49,13 +49,13 @@ public enum ModelLocator {
         searchLocations(name).contains { FileManager.default.fileExists(atPath: $0.path) }
     }
 
-    public static func load(_ name: String) throws -> MLModel {
+    public static func load(_ name: String, computeUnits: MLComputeUnits = .all) throws -> MLModel {
         guard let source = searchLocations(name).first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
             throw ModelLoadError.notFound(name)
         }
         do {
             let config = MLModelConfiguration()
-            config.computeUnits = .all
+            config.computeUnits = computeUnits
             return try MLModel(contentsOf: try compiledURL(name: name, source: source), configuration: config)
         } catch let error as ModelLoadError {
             throw error
@@ -72,8 +72,12 @@ public enum ModelLocator {
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    /// Compiling and caching must not interleave: two loads of the same model would race on the cached copy.
+    private static let compileLock = NSLock()
+
     private static func compiledURL(name: String, source: URL) throws -> URL {
         if source.pathExtension == "mlmodelc" { return source }
+        compileLock.lock(); defer { compileLock.unlock() }
         let cached = try modelsDirectory().appendingPathComponent("\(name)-compiled.mlmodelc")
         let fm = FileManager.default
         func modified(_ u: URL) -> Date {
