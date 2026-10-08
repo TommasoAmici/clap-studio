@@ -9,6 +9,8 @@ extension SampleRecord {
     var brightnessSort: Double { centroidHz ?? -1 }
     var categorySort: String { effectiveCategory ?? "" }
     var moodText: String { moods.joined(separator: ", ") }
+    var tagsText: String { tags.joined(separator: ", ") }
+    var formatText: String { ext.uppercased() }
 
     var bpmText: String {
         guard let bpm = effectiveBPM else { return "" }
