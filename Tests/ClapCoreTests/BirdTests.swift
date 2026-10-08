@@ -89,6 +89,38 @@ private func chirp(_ i: Int) -> Float {
         #expect(try detector.detect(url: file, duration: 13, isCancelled: { true }) == nil)
     }
 
+    @Test func locationFilterListsTheSpeciesOfAPlace() throws {
+        let labels = try #require(BirdLabels.load())
+        let filter = BirdLocationFilter(model: try BirdLocationModel.load().get(), labels: labels)
+        let london = try filter.allowed(at: try #require(GeoPoint(latitude: 51.5, longitude: -0.1)))
+        #expect(london.contains("Erithacus rubecula") && !london.contains("Basileuterus rufifrons"))
+        #expect(london.count > 100 && london.count < 1000)
+        #expect(try filter.allowed(at: try #require(GeoPoint(latitude: 51.5, longitude: -0.1))) == london)   // cached
+    }
+
+    @Test func indexerListensToRecordingsOnceAndHonoursCancellation() throws {
+        let classifier = try BirdClassifier.load().get()
+        let labels = try #require(BirdLabels.load())
+        let detector = BirdDetector(classifier: classifier, labels: labels)
+        let dir = TestSupport.tempDir()
+        try writeTestWav(dir.appendingPathComponent("field.wav"), seconds: 35, sampleRate: 48_000) { chirp(Int($0 * 48_000)) }
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        let id = store.pendingJobs(limit: 1)[0].id
+        try store.save(results: [.success(id: id, duration: 35, sampleRate: 48_000, channels: 1, embedding: [1, 0],
+                                          fingerprint: nil, modelVersion: "m1")])
+        store.defaultLocation = GeoPoint(latitude: 51.5, longitude: -0.1)
+        let filter = BirdLocationFilter(model: try BirdLocationModel.load().get(), labels: labels)
+
+        #expect(BirdSpeciesIndexer.run(store: store, detector: detector, filter: filter, isCancelled: { true }) == 0)
+        #expect(store.recordingsNeedingSpecies().count == 1)
+        #expect(BirdSpeciesIndexer.run(store: store, detector: detector, filter: filter) == 1)
+        #expect(store.recordingsNeedingSpecies().isEmpty)
+        #expect(BirdSpeciesIndexer.run(store: store, detector: detector, filter: filter) == 0)
+        BirdSpeciesIndexer.refilter(store: store, filter: filter)               // runs without error on any library
+    }
+
     /// Set BIRDNET_SAMPLE to a recording of European garden birds to check the whole path on real audio.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["BIRDNET_SAMPLE"] != nil))
     func findsRobinsInARealRecording() throws {

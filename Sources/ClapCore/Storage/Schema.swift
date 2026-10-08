@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 8
+    static let currentVersion = 9
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -14,6 +14,7 @@ enum Schema {
         if version < 6 { try v6(db) }
         if version < 7 { try v7(db) }
         if version < 8 { try v8(db) }
+        if version < 9 { try v9(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -128,6 +129,23 @@ enum Schema {
             sample_id INTEGER NOT NULL, idx INTEGER NOT NULL, sound TEXT NOT NULL, score REAL NOT NULL,
             PRIMARY KEY(sample_id, idx, sound));
         CREATE INDEX IF NOT EXISTS segment_sounds_sound ON segment_sounds(sound);
+        """)
+    }
+
+    /// Bird species heard in field recordings. `latitude`/`longitude` are where a recording was made (optional);
+    /// `species_version` records which detector settings produced its rows (NULL: not listened to yet). Every row
+    /// is a candidate; `allowed` says whether the species occurs at the recording's place (always 1 without one).
+    private static func v9(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE samples ADD COLUMN latitude REAL")
+        try db.exec("ALTER TABLE samples ADD COLUMN longitude REAL")
+        try db.exec("ALTER TABLE samples ADD COLUMN species_version TEXT")
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS recording_species(
+            sample_id INTEGER NOT NULL, start REAL NOT NULL, end REAL NOT NULL,
+            scientific TEXT NOT NULL, common TEXT NOT NULL, confidence REAL NOT NULL,
+            allowed INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY(sample_id, start, scientific));
+        CREATE INDEX IF NOT EXISTS recording_species_name ON recording_species(scientific);
         """)
     }
 }

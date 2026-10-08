@@ -7,6 +7,9 @@ extension LibraryStore {
     func writeSegments(_ id: Int64, _ segments: [SegmentEmbedding]) throws {
         try db.run("DELETE FROM sample_segments WHERE sample_id = ?", [.int(id)])
         try db.run("DELETE FROM segment_sounds WHERE sample_id = ?", [.int(id)])
+        // The audio was read again, so the birds in it must be listened for again.
+        try db.run("DELETE FROM recording_species WHERE sample_id = ?", [.int(id)])
+        try db.run("UPDATE samples SET species_version = NULL WHERE id = ?", [.int(id)])
         for (i, s) in segments.enumerated() {
             try db.run("INSERT INTO sample_segments(sample_id, idx, start, end, embedding) VALUES(?, ?, ?, ?, ?)",
                        [.int(id), .int(Int64(i)), .double(s.start), .double(s.end),

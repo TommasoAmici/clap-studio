@@ -12,6 +12,8 @@ public struct DescriptorFilter: Equatable, Sendable {
     /// Tonic such as "A" or "C#"; matches both note names ("A1") and keys ("A minor").
     public var tonic: String?
     public var category: String?
+    /// A bird species (common name) heard in a field recording.
+    public var species: String?
     /// A sample matches when it has any of these moods.
     public var moods: Set<String> = []
 
@@ -39,6 +41,7 @@ public struct DescriptorFilter: Equatable, Sendable {
         }
         // A field recording also matches the sounds heard in it (birds, water, ...).
         if let category, s.effectiveCategory != category, !s.sounds.contains(category) { return false }
+        if let species, !s.species.contains(species) { return false }
         if !moods.isEmpty, moods.isDisjoint(with: s.moods) { return false }
         return true
     }
