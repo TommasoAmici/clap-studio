@@ -2,12 +2,13 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
         if version < 1 { try v1(db) }
         if version < 2 { try v2(db) }
+        if version < 3 { try v3(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -65,6 +66,16 @@ enum Schema {
             collection_id INTEGER NOT NULL, sample_id INTEGER NOT NULL, added REAL NOT NULL,
             PRIMARY KEY(collection_id, sample_id));
         CREATE INDEX IF NOT EXISTS collection_items_sample ON collection_items(sample_id);
+        """)
+    }
+
+    /// Free-text tags.
+    private static func v3(_ db: SQLiteDB) throws {
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS sample_tags(
+            sample_id INTEGER NOT NULL, tag TEXT NOT NULL COLLATE NOCASE,
+            PRIMARY KEY(sample_id, tag));
+        CREATE INDEX IF NOT EXISTS sample_tags_tag ON sample_tags(tag);
         """)
     }
 }

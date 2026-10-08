@@ -65,3 +65,51 @@ import Testing
         #expect(FileManager.default.fileExists(atPath: one.path), "originals stay")
     }
 }
+
+@Suite struct TagTests {
+    @Test func tagsAreCaseInsensitiveSortedAndCleaned() throws {
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: "/tmp/x")
+        try store.sync(rootID: root.id, scanned: ["a.wav", "b.wav"].map { ScannedFile(relPath: $0, size: 1, mtime: 1) }) { _ in nil }
+        let ids = store.loadSamples().map(\.id)
+        try store.addTag("  Dusty, vinyl ", to: ids)
+        try store.addTag("dustyvinyl", to: [ids[0]])
+        try store.addTag("Dustyvinyl", to: [ids[0]])      // same tag, different case: ignored
+        try store.addTag("   ", to: ids)
+        #expect(LibraryStore.cleanTag(" a,b\n") == "ab")
+        #expect(LibraryStore.cleanTag(String(repeating: "x", count: 80)).count == 40)
+        let first = try #require(store.loadSamples().first { $0.id == ids[0] })
+        #expect(first.tags == ["Dusty vinyl", "dustyvinyl"])
+        #expect(store.loadSamples().first { $0.id == ids[1] }?.tags == ["Dusty vinyl"])
+        try store.removeTag("Dusty vinyl", from: [ids[1]])
+        #expect(store.loadSamples().first { $0.id == ids[1] }?.tags == [])
+    }
+}
+
+@Suite struct ExportNamingTests {
+    private func sample(name: String = "Hit 01", category: String? = "Kick", bpm: Double? = nil, key: String? = nil, tags: [String] = []) -> SampleRecord {
+        var s = SampleRecord(id: 1, rootID: 1, rootPath: "/", relPath: "Drums/\(name).wav", name: name, ext: "wav", duration: 1,
+                             sampleRate: 44100, channels: 1, size: 1, mtime: 0, status: .ok, useCount: 0, lastUsed: nil, cueCount: 0)
+        s.category = category; s.bpm = bpm; s.keyName = key; s.tags = tags
+        return s
+    }
+
+    @Test func templatesFillTokensAndDropEmptyOnes() {
+        let loop = sample(name: "Loop", category: "Drum Loop", bpm: 127.6, key: "A minor")
+        #expect(ExportNaming.fileName(template: "{category} - {name} - {bpm} - {key}", for: loop, position: 1, of: 3)
+                == "Drum Loop - Loop - 128 - A minor.wav")
+        let shot = sample()
+        #expect(ExportNaming.fileName(template: "{category} - {name} - {bpm} - {key}", for: shot, position: 1, of: 3) == "Kick - Hit 01.wav",
+                "no BPM or key: no dangling dashes")
+        #expect(ExportNaming.fileName(template: "{n}_{name}", for: shot, position: 7, of: 120) == "007_Hit 01.wav")
+        #expect(ExportNaming.fileName(template: "", for: shot, position: 1, of: 1) == "Hit 01.wav")
+        #expect(ExportNaming.fileName(template: "{folder} {tags}", for: sample(tags: ["dusty", "vinyl"]), position: 1, of: 1) == "Drums dusty vinyl.wav")
+    }
+
+    @Test func unsafeCharactersAreRemoved() {
+        let s = sample(name: "a/b:c")
+        #expect(ExportNaming.fileName(template: "{name}", for: s, position: 1, of: 1) == "a-b-c.wav")
+        #expect(ExportNaming.fileName(template: "../{name}", for: s, position: 1, of: 1) == "a-b-c.wav", "no path traversal")
+        #expect(ExportNaming.fileName(template: "{bpm}", for: sample(category: nil), position: 1, of: 1) == "Hit 01.wav", "empty result falls back to the name")
+    }
+}

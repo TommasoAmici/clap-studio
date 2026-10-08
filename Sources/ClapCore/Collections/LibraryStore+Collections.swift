@@ -77,14 +77,21 @@ public enum SampleExporter {
 
     /// Copies each file into `folder`, never overwriting: a clash becomes "name 2.wav", "name 3.wav", …
     public static func copy(_ sources: [URL], to folder: URL, fileManager fm: FileManager = .default) -> Report {
+        copy(sources.map { (source: $0, fileName: $0.lastPathComponent) }, to: folder, fileManager: fm)
+    }
+
+    /// Like `copy(_:to:)`, with the name each file should get in the destination.
+    public static func copy(_ items: [(source: URL, fileName: String)], to folder: URL, fileManager fm: FileManager = .default) -> Report {
         var report = Report()
+        let sources = items.map(\.source)
         do { try fm.createDirectory(at: folder, withIntermediateDirectories: true) } catch {
             report.failures = sources.map { ($0, error.localizedDescription) }
             return report
         }
-        for source in sources {
-            let stem = source.deletingPathExtension().lastPathComponent, ext = source.pathExtension
-            var target = folder.appendingPathComponent(source.lastPathComponent)
+        for (source, fileName) in items {
+            let named = URL(fileURLWithPath: fileName)
+            let stem = named.deletingPathExtension().lastPathComponent, ext = named.pathExtension
+            var target = folder.appendingPathComponent(fileName)
             var n = 2
             while fm.fileExists(atPath: target.path) {
                 target = folder.appendingPathComponent(ext.isEmpty ? "\(stem) \(n)" : "\(stem) \(n).\(ext)")
