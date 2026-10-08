@@ -66,4 +66,40 @@ public struct SpatialGrid: Sendable {
         }
         return best
     }
+
+    /// Rows whose point lies inside the closed polygon `outline` (a lasso). `isIncluded` skips filtered-out points.
+    public func rows(inPolygon outline: [SIMD2<Float>], isIncluded: ((Int) -> Bool)? = nil) -> [Int] {
+        guard outline.count >= 3, count > 0 else { return [] }
+        var lo = outline[0], hi = outline[0]
+        for p in outline { lo = simd_min(lo, p); hi = simd_max(hi, p) }
+        let axis = cellsPerAxis
+        let x0 = max(0, Int(floorf((lo.x - minX) / cellSize))), x1 = min(axis - 1, Int(floorf((hi.x - minX) / cellSize)))
+        let y0 = max(0, Int(floorf((lo.y - minY) / cellSize))), y1 = min(axis - 1, Int(floorf((hi.y - minY) / cellSize)))
+        guard x0 <= x1, y0 <= y1 else { return [] }
+        var found: [Int] = []
+        for cy in y0...y1 {
+            for cx in x0...x1 {
+                let c = cy * axis + cx
+                for k in Int(cellStart[c])..<Int(cellStart[c + 1]) {
+                    let i = Int(items[k])
+                    if let isIncluded, !isIncluded(i) { continue }
+                    let p = SIMD2(xy[i * 2], xy[i * 2 + 1])
+                    if p.x >= lo.x, p.x <= hi.x, p.y >= lo.y, p.y <= hi.y, Self.contains(outline, p) { found.append(i) }
+                }
+            }
+        }
+        return found.sorted()
+    }
+
+    /// Even-odd ray casting.
+    static func contains(_ polygon: [SIMD2<Float>], _ p: SIMD2<Float>) -> Bool {
+        var inside = false
+        var j = polygon.count - 1
+        for i in 0..<polygon.count {
+            let a = polygon[i], b = polygon[j]
+            if (a.y > p.y) != (b.y > p.y), p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x { inside.toggle() }
+            j = i
+        }
+        return inside
+    }
 }

@@ -156,3 +156,45 @@ func makeBlobs(clusters: Int, perCluster: Int, dim: Int, spread: Float = 0.05, s
         #expect(HybridSearch.rank(ids: [7], nameMatches: [], scores: [:]).isEmpty)
     }
 }
+
+@Suite struct MapAxesTests {
+    private func record(_ id: Int64, centroid: Double? = nil, loudness: Double? = nil, loop: Bool? = nil, bpm: Double? = nil) -> SampleRecord {
+        var s = SampleRecord(id: id, rootID: 1, rootPath: "/", relPath: "s\(id).wav", name: "s\(id)", ext: "wav", duration: 1,
+                             sampleRate: 44100, channels: 1, size: 1, mtime: 0, status: .ok, useCount: 0, lastUsed: nil, cueCount: 0)
+        s.centroidHz = centroid; s.loudnessDB = loudness; s.isLoop = loop; s.bpm = bpm
+        return s
+    }
+
+    @Test func layoutSpreadsByRankAndSkipsUnmeasured() {
+        let samples: [SampleRecord?] = [record(1, centroid: 500, loudness: -30), record(2, centroid: 1000, loudness: -20),
+                                         record(3, centroid: 100_000, loudness: -10), record(4, centroid: nil, loudness: -5), nil]
+        let layout = MapAxes.layout(samples, x: .brightness, y: .loudness, extent: 10)
+        #expect(layout.valid == [true, true, true, false, false])
+        // The outlier at 100 kHz does not squash the others: ranks put the middle sample in the middle.
+        #expect(abs(layout.xy[2]) < 0.5, "middle sample sits near the centre")
+        #expect(layout.xy[0] < layout.xy[2] && layout.xy[2] < layout.xy[4])
+        #expect(layout.xy[1] < layout.xy[3] && layout.xy[3] < layout.xy[5], "louder is higher")
+    }
+
+    @Test func tiesShareARankAndTempoNeedsALoop() {
+        #expect(MapAxes.ranks([1, 2, 2, 3]) == [0, 0.5, 0.5, 1])
+        #expect(MapProperty.tempo.value(of: record(1, loop: false, bpm: 120)) == nil)
+        #expect(MapProperty.tempo.value(of: record(1, loop: true, bpm: 120)) == 120)
+        #expect(MapAxes.bin(0.5, low: 0, high: 1, bins: 8) == 4)
+        #expect(MapAxes.bin(1, low: 0, high: 1, bins: 8) == 7)
+    }
+
+    @Test func lassoSelectsPointsInsideAndHonoursTheFilter() {
+        // A 10 x 10 lattice of points at integer positions.
+        let xy: [Float] = (0..<100).flatMap { [Float($0 % 10), Float($0 / 10)] }
+        let grid = SpatialGrid(xy: xy)
+        let square: [SIMD2<Float>] = [[2.5, 2.5], [5.5, 2.5], [5.5, 5.5], [2.5, 5.5]]
+        let rows = grid.rows(inPolygon: square)
+        #expect(rows.count == 9)
+        #expect(Set(rows) == Set((3...5).flatMap { y in (3...5).map { y * 10 + $0 } }))
+        let triangle: [SIMD2<Float>] = [[0.5, 0.5], [4.5, 0.5], [0.5, 4.5]]
+        #expect(grid.rows(inPolygon: triangle).count == 6, "points under the diagonal only")
+        #expect(grid.rows(inPolygon: square, isIncluded: { $0 % 2 == 0 }).count == 3)
+        #expect(grid.rows(inPolygon: [[0, 0], [1, 1]]).isEmpty, "not a polygon")
+    }
+}
