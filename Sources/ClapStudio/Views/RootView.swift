@@ -174,11 +174,8 @@ struct StatusBar: View {
                 Label("Basic similarity (no neural model)", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange).help(model.modelNote)
             }
-            HStack(spacing: 4) {
-                Image(systemName: "speaker.fill").imageScale(.small)
-                Slider(value: Binding(get: { Double(model.volume) }, set: { model.volume = Float($0) }), in: 0...1)
-                    .frame(width: 90).controlSize(.small)
-            }
+            // The drum machine's buttons and the volume trade places while the drum machine is open.
+            if model.showDrums { DrumActions() } else { VolumeControl() }
         }
         .font(.callout)
         .padding(.horizontal, 12).padding(.vertical, 6)

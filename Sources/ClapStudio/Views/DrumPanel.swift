@@ -37,26 +37,41 @@ struct DrumPanel: View {
             }
             .disabled(model.drumPattern.tracks.isEmpty)
             .help(model.drumPlaying ? "Stop the pattern" : "Play the pattern in a loop")
-            Text("Drum machine").font(.caption.bold())
+            Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
             HStack(spacing: 4) {
                 TextField("BPM", value: $model.project.bpm, format: .number.precision(.fractionLength(0...1)),
                           prompt: Text(String(format: "%.0f", DrumTiming.defaultBPM)))
                     .textFieldStyle(.roundedBorder).frame(width: 60).monospacedDigit()
-                Text("BPM").foregroundStyle(.secondary)
+                Text("BPM").foregroundStyle(.secondary).lineLimit(1).fixedSize()
             }
             .help("The project tempo")
             HStack(spacing: 4) {
-                Text("Swing").foregroundStyle(.secondary)
+                Text("Swing").foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 Slider(value: Binding(get: { DrumTiming.swingPercent(model.drumPattern.swing) },
                                       set: { model.drumPattern.swing = DrumTiming.swing(percent: $0.rounded()) }),
                        in: 25...75)
-                    .frame(width: 100)
+                    .frame(minWidth: 50, idealWidth: 100, maxWidth: 100)
                 Text("\(Int(DrumTiming.swingPercent(model.drumPattern.swing).rounded()))%")
-                    .monospacedDigit().frame(width: 34, alignment: .trailing)
+                    .monospacedDigit().lineLimit(1).fixedSize().frame(minWidth: 34, alignment: .trailing)
                     .onTapGesture(count: 2) { model.drumPattern.swing = 0 }
             }
             .help("50% is straight. Higher pushes every second step late, lower pulls it early. Double-click the value to reset.")
             Spacer()
+            VolumeControl()      // while the drum machine is open the volume sits here; its buttons are in the status bar
+            Button { model.showDrums = false; model.drumMachine.stop() } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.borderless).help("Close the drum machine")
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+    }
+}
+
+/// The drum machine's buttons. They live in the status bar while the drum machine is open.
+struct DrumActions: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 8) {
             Button("Add Selected") { model.addToDrums(model.actionTargets) }
                 .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
             if model.squidEnabled {
@@ -68,11 +83,22 @@ struct DrumPanel: View {
                 .disabled(model.drumPattern.tracks.isEmpty)
             Button("Remove All") { model.drumMachine.stop(); model.drumPattern = DrumPattern(swing: model.drumPattern.swing) }
                 .disabled(model.drumPattern.tracks.isEmpty)
-            Button { model.showDrums = false; model.drumMachine.stop() } label: { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.borderless).help("Close the drum machine")
         }
         .controlSize(.small)
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .lineLimit(1).fixedSize()
+    }
+}
+
+/// The overall preview volume.
+struct VolumeControl: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "speaker.fill").imageScale(.small)
+            Slider(value: Binding(get: { Double(model.volume) }, set: { model.volume = Float($0) }), in: 0...1)
+                .frame(width: 90).controlSize(.small)
+        }
     }
 }
 
