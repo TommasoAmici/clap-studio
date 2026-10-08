@@ -98,6 +98,8 @@ final class AppModel {
     var trims: [Int64: SampleTrim] = [:]   // non-destructive start/end per sample
     var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
     var showDrums = false
+    /// The groove picked in the drum machine (remembered between launches); nil uses the plain starter rhythms.
+    var drumPresetID: String? { didSet { saveDrumPreset() } }
     var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern(); updateDrumTracks() } } }
     var drumTracks: [Int64: Int] = [:]     // sample id -> its (first) drum track number, 1-based; for highlighting
     var dropZones: [DropZone: CGRect] = [:]     // where dropped files are taken, in window coordinates
@@ -185,6 +187,7 @@ final class AppModel {
     /// Opens the persistent store and shows cached data immediately; no audio or ML work happens here.
     func bootstrap() {
         loadProjectSettings()
+        loadDrumPreset()
         do {
             let store = try LibraryStore(path: try LibraryStore.defaultURL().path)
             self.store = store

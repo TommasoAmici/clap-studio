@@ -48,12 +48,22 @@ public struct DrumPattern: Equatable, Sendable {
         tracks[track].hits[step].toggle()
     }
 
-    /// Adds a track unless the pattern is full. A starter rhythm for its category is filled in when `starter` is set.
+    /// Adds a track unless the pattern is full. A rhythm for its category is filled in when `starter` is set: the
+    /// preset's, or a plain one without a preset.
     @discardableResult
-    public mutating func addTrack(sampleID: Int64, label: String, category: String?, alternatives: [Int64] = [], starter: Bool = true) -> Bool {
+    public mutating func addTrack(sampleID: Int64, label: String, category: String?, alternatives: [Int64] = [],
+                                  starter: Bool = true, preset: DrumPreset? = nil) -> Bool {
         guard !isFull else { return false }
-        tracks.append(DrumTrack(sampleID: sampleID, label: label, hits: starter ? DrumStarter.hits(for: category) : Array(repeating: false, count: Self.stepCount),
-                                alternatives: alternatives))
+        var hits = Array(repeating: false, count: Self.stepCount)
+        if starter {
+            if let preset {
+                let role = DrumPreset.role(for: label)
+                hits = preset.hits(for: label, occurrence: tracks.filter { DrumPreset.role(for: $0.label) == role }.count)
+            } else {
+                hits = DrumStarter.hits(for: category)
+            }
+        }
+        tracks.append(DrumTrack(sampleID: sampleID, label: label, hits: hits, alternatives: alternatives))
         return true
     }
 

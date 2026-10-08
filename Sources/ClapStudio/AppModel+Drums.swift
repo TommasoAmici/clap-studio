@@ -7,6 +7,32 @@ extension AppModel {
     /// Tempo the drum machine plays at: the project's, or a neutral 120 when none is set.
     var drumTempo: Double { project.bpm ?? DrumTiming.defaultBPM }
 
+    var drumPreset: DrumPreset? { DrumPreset.preset(id: drumPresetID) }
+
+    private static let drumPresetKey = "drum.preset"
+
+    func loadDrumPreset() {
+        // Assigned through the setter, which saves it again: harmless, and an id that no longer exists is dropped.
+        let id = UserDefaults.standard.string(forKey: Self.drumPresetKey)
+        drumPresetID = DrumPreset.preset(id: id)?.id
+    }
+
+    func saveDrumPreset() {
+        if let drumPresetID { UserDefaults.standard.set(drumPresetID, forKey: Self.drumPresetKey) }
+        else { UserDefaults.standard.removeObject(forKey: Self.drumPresetKey) }
+    }
+
+    /// Picks a groove: the project takes its tempo (loop matching and previews follow it), the pattern takes its
+    /// swing and a rhythm for each track. nil goes back to the plain starter rhythms, which leaves the tempo as it is.
+    func selectDrumPreset(_ id: String?) {
+        drumPresetID = id
+        guard let preset = drumPreset else { return }
+        project.bpm = preset.bpm
+        var pattern = drumPattern
+        pattern.apply(preset)
+        drumPattern = pattern
+    }
+
     func makeDrumMachine() -> DrumMachine {
         let machine = DrumMachine(cache: player.cache)
         machine.bpm = drumTempo
@@ -52,7 +78,7 @@ extension AppModel {
         var skipped = 0
         for id in ids {
             guard let sample = sampleByID[id], !pattern.tracks.contains(where: { $0.sampleID == id }) else { continue }
-            if !pattern.addTrack(sampleID: id, label: sample.effectiveCategory ?? "Sample", category: sample.effectiveCategory) { skipped += 1 }
+            if !pattern.addTrack(sampleID: id, label: sample.effectiveCategory ?? "Sample", category: sample.effectiveCategory, preset: drumPreset) { skipped += 1 }
         }
         drumPattern = pattern
         showDrums = true
@@ -64,7 +90,7 @@ extension AppModel {
         var pattern = DrumPattern(swing: drumPattern.swing)
         for slot in kitSlots {
             guard let pick = kitPick(slot) else { continue }
-            pattern.addTrack(sampleID: pick.id, label: slot.category, category: slot.category, alternatives: slot.candidates)
+            pattern.addTrack(sampleID: pick.id, label: slot.category, category: slot.category, alternatives: slot.candidates, preset: drumPreset)
         }
         drumPattern = pattern
         showDrums = true

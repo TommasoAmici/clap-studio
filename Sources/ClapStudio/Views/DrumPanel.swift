@@ -38,6 +38,15 @@ struct DrumPanel: View {
             .disabled(model.drumPattern.tracks.isEmpty)
             .help(model.drumPlaying ? "Stop the pattern" : "Play the pattern in a loop")
             Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
+            Picker("Groove", selection: Binding(get: { model.drumPresetID }, set: { model.selectDrumPreset($0) })) {
+                Text("Starter rhythms").tag(String?.none)
+                Divider()
+                ForEach(DrumPreset.all) { preset in
+                    Text("\(preset.name) · \(Int(preset.bpm)) BPM").tag(String?.some(preset.id))
+                }
+            }
+            .labelsHidden().pickerStyle(.menu).fixedSize()
+            .help("A ready-made groove. It sets the project tempo and swing and gives each sound a rhythm that fits its category.")
             HStack(spacing: 4) {
                 TextField("BPM", value: $model.project.bpm, format: .number.precision(.fractionLength(0...1)),
                           prompt: Text(String(format: "%.0f", DrumTiming.defaultBPM)))
