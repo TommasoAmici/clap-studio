@@ -104,11 +104,12 @@ public enum DrumStarter {
         let steps: [Int]
         switch category {
         case "Kick": steps = [0, 4, 8, 12]
-        case "Snare", "Clap": steps = [4, 12]
+        case "Snare", "Rimshot", "Clap": steps = [4, 12]
         case "Hi-hat": steps = [0, 2, 4, 6, 8, 10, 12, 14]
         case "Cymbal": steps = [0]
         case "Tom": steps = [10, 14]
         case "Percussion": steps = [3, 7, 11, 15]
+        case "Cowbell": steps = [2, 6, 10, 14]
         default: steps = []
         }
         return (0..<DrumPattern.stepCount).map { steps.contains($0) }

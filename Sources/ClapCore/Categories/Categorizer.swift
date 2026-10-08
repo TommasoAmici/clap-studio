@@ -5,17 +5,19 @@ import Foundation
 /// near the phrases that describe it, so no training data is needed.
 public enum SoundCategories {
     /// Bumped whenever names or phrases change, so stored categories are recomputed.
-    public static let version = "cat-v3"
+    public static let version = "cat-v4"
 
     /// Musical categories.
     public static let musical: [(name: String, prompts: [String])] = [
         ("Kick", ["a kick drum", "a bass drum hit", "an 808 kick"]),
-        ("Snare", ["a snare drum", "a snare hit", "a rimshot"]),
+        ("Snare", ["a snare drum", "a snare hit", "a tight electronic snare"]),
+        ("Rimshot", ["a rimshot", "a rim click", "a snare rim shot", "a sidestick"]),
         ("Clap", ["a hand clap", "claps", "a clap drum machine sound"]),
         ("Hi-hat", ["a hi-hat", "a closed hi-hat", "an open hi-hat"]),
         ("Cymbal", ["a crash cymbal", "a ride cymbal", "a cymbal"]),
         ("Tom", ["a tom drum", "a floor tom", "tom drum hit"]),
         ("Percussion", ["percussion", "a shaker", "a tambourine", "congas and bongos"]),
+        ("Cowbell", ["a cowbell", "a cowbell hit", "an 808 cowbell"]),
         ("Drum Loop", ["a drum loop", "a drum beat", "a drum break"]),
         ("Bass", ["a bass sound", "a sub bass", "a bass guitar", "a synth bass"]),
         ("Synth", ["a synthesizer", "a synth chord", "an electronic synth sound"]),
@@ -32,7 +34,7 @@ public enum SoundCategories {
     ]
 
     /// Bumped whenever the sounds named in field recordings (vocabulary, phrases, cut-offs) change.
-    public static let soundsVersion = "sounds-v1"
+    public static let soundsVersion = "sounds-v2"
 
     /// Sound names in the canonical (sidebar) order; unknown names go last.
     public static func sortedSounds(_ sounds: [String]) -> [String] {
@@ -159,8 +161,9 @@ extension SoundCategories {
     public static func symbol(for name: String) -> String {
         switch name {
         case "Kick", "Tom": return "circle.circle"
-        case "Snare", "Clap", "Percussion", "Drum Loop": return "scribble.variable"
+        case "Snare", "Rimshot", "Clap", "Percussion", "Drum Loop": return "scribble.variable"
         case "Hi-hat", "Cymbal": return "sparkle"
+        case "Cowbell": return "bell.fill"
         case "Bass": return "waveform.path"
         case "Synth", "Lead", "Pad", "Pluck": return "pianokeys"
         case "Keys": return "pianokeys.inverse"
