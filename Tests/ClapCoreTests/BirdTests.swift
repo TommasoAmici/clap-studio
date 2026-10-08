@@ -134,4 +134,39 @@ private func chirp(_ i: Int) -> Float {
         #expect(robins.count >= 10)
         #expect(found.contains { $0.common == "European Goldfinch" && $0.confidence >= 0.3 })
     }
+
+    /// The whole path on a real recording: listen, store, and let a place rule birds out and back in.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["BIRDNET_SAMPLE"] != nil))
+    func aPlaceChangesWhichBirdsAreReportedForARealRecording() throws {
+        let source = URL(fileURLWithPath: try #require(ProcessInfo.processInfo.environment["BIRDNET_SAMPLE"]))
+        let dir = TestSupport.tempDir()
+        try FileManager.default.copyItem(at: source, to: dir.appendingPathComponent("garden.wav"))
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        let id = store.pendingJobs(limit: 1)[0].id
+        let info = try AudioDecoder.fileInfo(url: dir.appendingPathComponent("garden.wav"))
+        try store.save(results: [.success(id: id, duration: info.duration, sampleRate: info.sampleRate, channels: 1,
+                                          embedding: [1, 0], fingerprint: nil, modelVersion: "m1")])
+        let labels = try #require(BirdLabels.load())
+        let filter = BirdLocationFilter(model: try BirdLocationModel.load().get(), labels: labels)
+        let detector = BirdDetector(classifier: try BirdClassifier.load().get(), labels: labels)
+
+        // Without a place nothing is ruled out, so far-away species can appear.
+        BirdSpeciesIndexer.run(store: store, detector: detector, filter: filter)
+        let unfiltered = Set(store.speciesOccurrences(sampleID: id).map(\.common))
+        #expect(unfiltered.contains("European Robin"))
+
+        try store.setLocation(GeoPoint(latitude: 51.5, longitude: -0.1), sampleIDs: [id])
+        BirdSpeciesIndexer.refilter(store: store, filter: filter)
+        let london = store.speciesOccurrences(sampleID: id)
+        #expect(london.map(\.common).contains("European Robin"))
+        #expect(!london.map(\.common).contains("Crimson-fronted Parakeet"))
+        #expect(london.first?.common == "European Robin" && london.first!.windows >= 10)
+
+        try store.setLocation(GeoPoint(latitude: 9.9, longitude: -84), sampleIDs: [id])
+        BirdSpeciesIndexer.refilter(store: store, filter: filter)
+        #expect(!store.speciesOccurrences(sampleID: id).map(\.common).contains("European Robin"))
+        print("birds: unfiltered \(unfiltered.sorted()), London \(london.map { "\($0.common) x\($0.windows)" })")
+    }
 }

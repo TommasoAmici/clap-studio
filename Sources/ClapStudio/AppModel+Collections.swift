@@ -13,6 +13,7 @@ extension AppModel {
         if let id = collectionSelection { return "col.\(id)" }
         if let tag = tagFilter { return "tag.\(tag)" }
         if let category = descriptorFilter.category { return "cat.\(category)" }
+        if let species = descriptorFilter.species { return "species.\(species)" }
         if descriptorFilter.moods.count == 1, let mood = descriptorFilter.moods.first { return "mood.\(mood)" }
         return "smart.\(smartFilter.rawValue)"
     }
@@ -23,12 +24,14 @@ extension AppModel {
         collectionSelection = nil
         tagFilter = nil
         descriptorFilter.category = nil
+        descriptorFilter.species = nil
         descriptorFilter.moods = []
         smartFilter = .all
         if let usb = UsbSelection(tag: tag) { usbSelection = usb }
         else if tag.hasPrefix("tag.") { tagFilter = String(tag.dropFirst(4)) }
         else if tag.hasPrefix("col.") { collectionSelection = Int64(tag.dropFirst(4)) }
         else if tag.hasPrefix("cat.") { descriptorFilter.category = String(tag.dropFirst(4)) }
+        else if tag.hasPrefix("species.") { descriptorFilter.species = String(tag.dropFirst(8)) }
         else if tag.hasPrefix("mood.") { descriptorFilter.moods = [String(tag.dropFirst(5))] }
         else if tag.hasPrefix("smart.") { smartFilter = SmartFilter(rawValue: String(tag.dropFirst(6))) ?? .all }
         else { folderSelection = tag }

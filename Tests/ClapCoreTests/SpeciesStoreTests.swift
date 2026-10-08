@@ -34,6 +34,14 @@ import Testing
         #expect(GeoPoint(latitude: 91, longitude: 0) == nil && GeoPoint(latitude: 0, longitude: 181) == nil)
     }
 
+    @Test func placesAreParsedFromText() {
+        #expect(GeoPoint(parsing: "51.5, -0.1") == GeoPoint(latitude: 51.5, longitude: -0.1))
+        #expect(GeoPoint(parsing: " 51.5  -0.1 ") == GeoPoint(latitude: 51.5, longitude: -0.1))
+        #expect(GeoPoint(parsing: "-33.9;151.2") == GeoPoint(latitude: -33.9, longitude: 151.2))
+        #expect(GeoPoint(parsing: "51.5") == nil && GeoPoint(parsing: "a, b") == nil && GeoPoint(parsing: "95, 0") == nil)
+        #expect(GeoPoint(parsing: GeoPoint(latitude: 51.5, longitude: -0.1)!.text) == GeoPoint(latitude: 51.5, longitude: -0.1))
+    }
+
     @Test func recordingsAreListenedToOnceUntilTheirAudioIsReadAgain() throws {
         let (store, id) = try recording()
         #expect(store.recordingsNeedingSpecies().map(\.id) == [id])

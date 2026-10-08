@@ -10,6 +10,16 @@ public struct GeoPoint: Sendable, Equatable {
         self.latitude = latitude
         self.longitude = longitude
     }
+
+    /// "51.5, -0.1", "51.5 -0.1" or "51.5;-0.1": latitude then longitude in decimal degrees.
+    public init?(parsing text: String) {
+        let numbers = text.split(whereSeparator: { ", ;\t".contains($0) }).map { Double($0) }
+        guard numbers.count == 2, let lat = numbers[0], let lon = numbers[1] else { return nil }
+        self.init(latitude: lat, longitude: lon)
+    }
+
+    /// The same, for showing: "51.5000, -0.1000".
+    public var text: String { String(format: "%.4f, %.4f", latitude, longitude) }
 }
 
 /// A bird species heard in a recording, and where.

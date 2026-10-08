@@ -26,7 +26,10 @@ struct PropertiesPanel: View {
                 }
                 .font(.caption)
             }
-            if sample.isFieldRecording { FieldSoundsSection(sample: sample).padding(.top, 8) }
+            if sample.isFieldRecording {
+                FieldSoundsSection(sample: sample).padding(.top, 8)
+                FieldBirdsSection(sample: sample).padding(.top, 8)
+            }
             TagEditor(sample: sample).padding(.top, 8)
         }
         .onAppear(perform: syncText)

@@ -57,6 +57,18 @@ struct SidebarView: View {
                     }
                 }
             }
+            if !model.speciesCounts.isEmpty {
+                Section("Birds") {
+                    ForEach(model.speciesCounts, id: \.name) { item in
+                        HStack {
+                            Label(item.name, systemImage: "bird")
+                            Spacer()
+                            Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                        }
+                        .tag("species.\(item.name)")
+                    }
+                }
+            }
             if !model.tagCounts.isEmpty {
                 Section("Tags") {
                     ForEach(model.tagCounts, id: \.name) { item in
