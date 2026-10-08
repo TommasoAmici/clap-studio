@@ -65,7 +65,9 @@ public final class IndexingPipeline: @unchecked Sendable {
                     let analyzer = DescriptorAnalyzer()
                     var local: [IndexResult] = []
                     while !isCancelled(), let job = queue.next() {
-                        local.append(Self.embedOne(job, extractor: extractor, analyzer: analyzer, embedder: embedder))
+                        guard let result = Self.embedOne(job, extractor: extractor, analyzer: analyzer,
+                                                         embedder: embedder, isCancelled: isCancelled) else { break }
+                        local.append(result)
                         onItemDone(job.url.lastPathComponent)
                     }
                     return local
@@ -77,9 +79,15 @@ public final class IndexingPipeline: @unchecked Sendable {
         }
     }
 
+    /// Nil when cancelled part-way through a long file: nothing is saved and the file stays pending.
     static func embedOne(_ job: IndexJob, extractor: LogMelExtractor, analyzer: DescriptorAnalyzer,
-                         embedder: EmbeddingProvider) -> IndexResult {
+                         embedder: EmbeddingProvider, isCancelled: @Sendable () -> Bool = { false }) -> IndexResult? {
         do {
+            let info = try AudioDecoder.fileInfo(url: job.url)
+            if FieldRecording.isFieldRecording(duration: info.duration) {
+                return try embedFieldRecording(job, info: info, extractor: extractor, analyzer: analyzer,
+                                               embedder: embedder, isCancelled: isCancelled)
+            }
             let input = try EmbeddingInput.load(url: job.url, frontEnd: embedder.frontEnd, analyzer: analyzer)
             let vector = try embedder.embed(extractor.extract(signal: input.signal))
             return .success(id: job.id, duration: input.audio.duration, sampleRate: input.audio.sampleRate,
@@ -89,6 +97,35 @@ public final class IndexingPipeline: @unchecked Sendable {
         } catch {
             return .failure(id: job.id, message: String(describing: error))
         }
+    }
+
+    /// Long recordings: split at silences, embed each audible segment on its own, and store the composite.
+    private static func embedFieldRecording(_ job: IndexJob, info: (duration: Double, sampleRate: Double, channels: Int),
+                                            extractor: LogMelExtractor, analyzer: DescriptorAnalyzer,
+                                            embedder: EmbeddingProvider, isCancelled: @Sendable () -> Bool) throws -> IndexResult? {
+        let rate = Double(embedder.frontEnd.sampleRate)
+        let envelope = try AudioDecoder.loudnessEnvelope(url: job.url)
+        var spans = RecordingSegmenter.segments(envelopeDB: envelope.levelsDB, hop: envelope.hop, duration: envelope.duration)
+        // A recording that is silent throughout still gets one segment, so it can be found and played.
+        if spans.isEmpty { spans = [TimeSpan(start: 0, end: min(envelope.duration, RecordingSegmenter.maximumSegmentSeconds))] }
+
+        var segments: [SegmentEmbedding] = []
+        var parts: [(descriptors: SoundDescriptors, seconds: Double)] = []
+        for span in spans {
+            if isCancelled() { return nil }
+            let raw = try AudioDecoder.decode(url: job.url, start: span.start, seconds: span.length, sampleRate: rate)
+            guard !raw.isEmpty else { continue }
+            parts.append((analyzer.analyze(samples: raw, sampleRate: rate, fileDuration: span.length), span.length))
+            let signal = SamplePreprocessor.prepare(raw, sampleRate: rate, trimSilence: true)
+            let vector = try embedder.embed(extractor.extract(signal: signal))
+            segments.append(SegmentEmbedding(start: span.start, end: span.end, embedding: vector))
+        }
+        guard !segments.isEmpty else { throw AudioDecodeError.empty }
+
+        return .success(id: job.id, duration: info.duration, sampleRate: info.sampleRate, channels: info.channels,
+                        embedding: FieldRecording.composite(segments), fingerprint: FileFingerprint.compute(url: job.url),
+                        modelVersion: embedder.version, cues: CueFileReader.read(url: job.url),
+                        descriptors: FieldRecording.aggregate(parts), segments: segments)
     }
 }
 

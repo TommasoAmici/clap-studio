@@ -74,6 +74,7 @@ public final class LibraryStore: @unchecked Sendable {
             try db.run("DELETE FROM sample_tags WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM sample_moods WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM sample_trims WHERE sample_id IN (\(sub))", [.int(id)])
+            try db.run("DELETE FROM sample_segments WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM samples WHERE root_id = ?", [.int(id)])
             try db.run("DELETE FROM roots WHERE id = ?", [.int(id)])
         }
@@ -199,7 +200,7 @@ public final class LibraryStore: @unchecked Sendable {
         try db.transaction {
             for r in results {
                 switch r {
-                case let .success(id, duration, sr, ch, embedding, fingerprint, version, cues, descriptors):
+                case let .success(id, duration, sr, ch, embedding, fingerprint, version, cues, descriptors, segments):
                     try db.run("""
                         UPDATE samples SET duration = ?, sample_rate = ?, channels = ?, embedding = ?,
                             fingerprint = COALESCE(?, fingerprint), model_version = ?, status = 'ok',
@@ -209,6 +210,7 @@ public final class LibraryStore: @unchecked Sendable {
                               fingerprint.map { .text($0) } ?? .null, .text(version), .double(now), .int(id)])
                     try importFileCues(sampleID: id, cues)
                     try writeDescriptors(id, descriptors)
+                    try writeSegments(id, segments)
                 case let .failure(id, message):
                     try db.run("UPDATE samples SET status = 'failed', error = ?, indexed_at = ? WHERE id = ?",
                                [.text(message), .double(now), .int(id)])

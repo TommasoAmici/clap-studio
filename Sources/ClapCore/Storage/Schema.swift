@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 6
+    static let currentVersion = 7
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -12,6 +12,7 @@ enum Schema {
         if version < 4 { try v4(db) }
         if version < 5 { try v5(db) }
         if version < 6 { try v6(db) }
+        if version < 7 { try v7(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -104,6 +105,18 @@ enum Schema {
             sample_id INTEGER NOT NULL, mood TEXT NOT NULL, z REAL NOT NULL,
             PRIMARY KEY(sample_id, mood));
         CREATE INDEX IF NOT EXISTS sample_moods_mood ON sample_moods(mood);
+        """)
+    }
+
+    /// Field recordings: the audible segments of a long file, each with its own embedding. The sample's own
+    /// embedding is the composite of these. `segment_version` records which segmenter produced them.
+    private static func v7(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE samples ADD COLUMN segment_version INTEGER NOT NULL DEFAULT 0")
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS sample_segments(
+            sample_id INTEGER NOT NULL, idx INTEGER NOT NULL,
+            start REAL NOT NULL, end REAL NOT NULL, embedding BLOB NOT NULL,
+            PRIMARY KEY(sample_id, idx));
         """)
     }
 }

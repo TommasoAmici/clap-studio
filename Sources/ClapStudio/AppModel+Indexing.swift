@@ -31,7 +31,10 @@ extension AppModel {
             for root in roots where !token.isCancelled {
                 await Task.detached { Self.syncRoot(root, store: store, token: token) }.value
             }
-            if !keepStored { _ = try? store.markStale(currentModelVersion: version) }
+            if !keepStored {
+                _ = try? store.markStale(currentModelVersion: version)
+                _ = try? store.markFieldRecordingsStale()
+            }
             reloadSamples()
 
             if let embedder, store.pendingCount() > 0, !token.isCancelled {

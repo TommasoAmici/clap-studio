@@ -48,6 +48,9 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var moods: [String] = []
 
     /// The user's BPM correction wins over the detected one.
+    /// Long recordings are analysed in segments (see `FieldRecording`).
+    public var isFieldRecording: Bool { FieldRecording.isFieldRecording(duration: duration) }
+
     public var effectiveBPM: Double? { bpmManual ?? bpm }
     public var effectiveCategory: String? { categoryManual ?? category }
 
@@ -84,10 +87,29 @@ public struct IndexJob: Sendable {
     public let url: URL
 }
 
+/// One audible stretch of a field recording and its embedding.
+public struct SegmentEmbedding: Sendable, Equatable {
+    public var start: Double
+    public var end: Double
+    public var embedding: [Float]
+    public init(start: Double, end: Double, embedding: [Float]) {
+        self.start = start; self.end = end; self.embedding = embedding
+    }
+    public var length: Double { end - start }
+}
+
+/// The part of a field recording that best matches a query.
+public struct SegmentMatch: Sendable, Equatable {
+    public var start: Double
+    public var end: Double
+    public var score: Float
+    public init(start: Double, end: Double, score: Float) { self.start = start; self.end = end; self.score = score }
+}
+
 public enum IndexResult: Sendable {
     case success(id: Int64, duration: Double, sampleRate: Double, channels: Int,
                  embedding: [Float], fingerprint: String?, modelVersion: String, cues: [FileCue] = [],
-                 descriptors: SoundDescriptors? = nil)
+                 descriptors: SoundDescriptors? = nil, segments: [SegmentEmbedding] = [])
     case failure(id: Int64, message: String)
 }
 

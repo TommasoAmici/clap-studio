@@ -18,15 +18,16 @@ extension LibraryStore {
     public func descriptorJobs(limit: Int) -> [IndexJob] {
         (try? db.query("""
             SELECT s.id, r.path, s.rel_path FROM samples s JOIN roots r ON r.id = s.root_id
-            WHERE s.status = 'ok' AND s.desc_version < ? ORDER BY s.id LIMIT ?
-            """, [.int(Int64(SoundDescriptors.version)), .int(Int64(limit))]) {
+            WHERE s.status = 'ok' AND s.desc_version < ? AND COALESCE(s.duration, 0) < ? ORDER BY s.id LIMIT ?
+            """, [.int(Int64(SoundDescriptors.version)), .double(FieldRecording.minimumSeconds), .int(Int64(limit))]) {
             IndexJob(id: $0.int(0), url: URL(fileURLWithPath: $0.text(1)).appendingPathComponent($0.text(2)))
         }) ?? []
     }
 
     public func descriptorBacklog() -> Int {
-        Int((try? db.scalarInt("SELECT COUNT(*) FROM samples WHERE status = 'ok' AND desc_version < ?",
-                               [.int(Int64(SoundDescriptors.version))])) ?? 0)
+        Int((try? db.scalarInt("""
+            SELECT COUNT(*) FROM samples WHERE status = 'ok' AND desc_version < ? AND COALESCE(duration, 0) < ?
+            """, [.int(Int64(SoundDescriptors.version)), .double(FieldRecording.minimumSeconds)])) ?? 0)
     }
 
     /// Saves backfill results. Files that could not be analysed are marked done (with no values)
