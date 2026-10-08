@@ -90,6 +90,7 @@ extension AppModel {
         guard let store else { return }
         do { try store.recordGrab(sampleID: id, at: now) } catch { errorMessage = "Could not record usage: \(error)"; return }
         mutate(id) { $0.useCount += 1; $0.lastUsed = now.timeIntervalSince1970 }
+        if mapColorMode == .usage { refreshMapColoring() }
         if smartFilter != .all { refilter() }
     }
 
@@ -115,6 +116,7 @@ extension AppModel {
         do { try store.setManualCategory(sampleID: id, category) } catch { errorMessage = "Could not save the category: \(error)"; return }
         mutate(id) { $0.categoryManual = category }
         updateCategoryCounts()
+        if mapColorMode == .category { refreshMapColoring() }
         if descriptorFilter.isActive { refilter() }
     }
 

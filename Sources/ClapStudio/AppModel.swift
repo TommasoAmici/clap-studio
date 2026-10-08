@@ -59,6 +59,12 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    var mapColorMode: MapColorMode = .cluster { didSet { refreshMapColoring() } }
+    var mapColoring: MapColoring?
+    var mapColorVersion = 0
+    var mapAxes: (x: MapProperty, y: MapProperty)? { didSet { refreshMapLayout() } }
+    var axisLayout: MapAxes.Layout?
+    var mapSelection: [Int64] = []          // dots picked with the lasso
     var aspectWeights = AspectWeights() { didSet { if let id = selectedID { sweepList = []; updateSimilar(for: id) } } }
     var tagFilter: String? { didSet { refilter() } }
     var tagCounts: [(name: String, count: Int)] = []
@@ -221,6 +227,8 @@ final class AppModel {
         updateCategoryCounts()
         updateHiddenCount()
         updateTagCounts()
+        if mapColorMode != .cluster { refreshMapColoring() }
+        if mapAxes != nil { refreshMapLayout() }
         refilter()
         if let id = selectedID, sampleByID[id] == nil { selectedID = nil }
     }
@@ -278,9 +286,10 @@ final class AppModel {
 
     /// Which map dots pass the sidebar and search filters; nil when nothing is filtered.
     func mapMask(for snapshot: AnalysisSnapshot) -> [Bool]? {
-        guard filtersActive else { return nil }
+        let placed = axisLayout?.valid
+        guard filtersActive || placed != nil else { return nil }
         let allowed = Set(visible.map(\.id))
-        return snapshot.index.ids.map { allowed.contains($0) }
+        return snapshot.index.ids.enumerated().map { (filtersActive ? allowed.contains($1) : true) && (placed?[$0] ?? true) }
     }
 }
 

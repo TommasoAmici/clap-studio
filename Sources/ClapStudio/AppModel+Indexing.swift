@@ -124,6 +124,8 @@ extension AppModel {
     func afterSnapshotChange(layoutChanged: Bool = true) {
         if layoutChanged { mapVersion += 1 }
         clusterVersion += 1
+        refreshMapColoring()
+        if mapAxes != nil { refreshMapLayout() }
         textSearcher?.invalidate()
         exampleSearcher?.invalidate()
         prepareTextSearch()

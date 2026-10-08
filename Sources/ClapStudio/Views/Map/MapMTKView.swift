@@ -11,6 +11,7 @@ final class MapMTKView: MTKView, NSDraggingSource {
     var onClick: (Int) -> Void = { _ in }
     var urlForRow: (Int) -> URL? = { _ in nil }
     var onGrab: (Int) -> Void = { _ in }
+    var onLasso: ([Int]) -> Void = { _ in }
 
     private(set) var renderer: MapRenderer?
     private var grid = SpatialGrid(xy: [])
@@ -25,6 +26,9 @@ final class MapMTKView: MTKView, NSDraggingSource {
     // Highlight state
     private var selectedRow: Int?
     private var similarRows: [Int] = []
+    private var markedRows: [Int] = []
+    private var lassoPoints: [NSPoint] = []
+    private let lassoLayer = CAShapeLayer()
     private(set) var hoverRow: Int?
 
     // Mouse tracking
@@ -40,6 +44,11 @@ final class MapMTKView: MTKView, NSDraggingSource {
         renderer = MapRenderer(view: self)
         renderer?.uniformsProvider = { [unowned self] in self.uniforms() }
         layer?.isOpaque = true
+        lassoLayer.fillColor = NSColor.white.withAlphaComponent(0.08).cgColor
+        lassoLayer.strokeColor = NSColor.white.withAlphaComponent(0.9).cgColor
+        lassoLayer.lineWidth = 1.2
+        lassoLayer.lineDashPattern = [5, 4]
+        layer?.addSublayer(lassoLayer)
     }
 
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -73,15 +82,24 @@ final class MapMTKView: MTKView, NSDraggingSource {
         needsDisplay = true
     }
 
-    func setSelection(selected: Int?, similar: [Int]) {
-        guard selected != selectedRow || similar != similarRows else { return }
+    func setSelection(selected: Int?, similar: [Int], marked: [Int] = []) {
+        guard selected != selectedRow || similar != similarRows || marked != markedRows else { return }
         selectedRow = selected
         similarRows = similar
+        markedRows = marked
         refreshHighlights()
     }
 
+    /// Colours the dots by a property; nil goes back to cluster colours.
+    func setColoring(indices: [Int]?, palette: [NSColor]?) {
+        renderer?.setPalette(palette)
+        if let indices { renderer?.setClusters(indices.map { UInt8(truncatingIfNeeded: $0) }) }
+        needsDisplay = true
+    }
+
     private func refreshHighlights() {
-        var entries = similarRows.filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 1) }
+        var entries = markedRows.prefix(20_000).filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 1) }
+        entries += similarRows.filter(isVisible).map { HighlightEntry(index: UInt32($0), kind: 1) }
         if let h = hoverRow, isVisible(h) { entries.append(HighlightEntry(index: UInt32(h), kind: 3)) }
         if let s = selectedRow, isVisible(s) { entries.append(HighlightEntry(index: UInt32(s), kind: 2)) }
         renderer?.setHighlights(entries)
@@ -162,11 +180,18 @@ final class MapMTKView: MTKView, NSDraggingSource {
         downPoint = p
         downHit = hit(at: p)
         draggedOut = false
+        lassoPoints = []
+        if event.modifierFlags.contains(.shift) { downHit = nil; lassoPoints = [p] }
         if event.clickCount == 2 && downHit == nil { fitToData() }
     }
 
     override func mouseDragged(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if !lassoPoints.isEmpty {
+            lassoPoints.append(p)
+            drawLasso()
+            return
+        }
         if let row = downHit {
             if !draggedOut, hypot(p.x - downPoint.x, p.y - downPoint.y) > 4, let url = urlForRow(row) {
                 draggedOut = true
@@ -182,7 +207,28 @@ final class MapMTKView: MTKView, NSDraggingSource {
         needsDisplay = true
     }
 
+    private func drawLasso() {
+        let path = CGMutablePath()
+        if let first = lassoPoints.first {
+            path.move(to: first)
+            for p in lassoPoints.dropFirst() { path.addLine(to: p) }
+            path.closeSubpath()
+        }
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        lassoLayer.path = path
+        CATransaction.commit()
+    }
+
     override func mouseUp(with event: NSEvent) {
+        if lassoPoints.count > 2 {
+            let outline = lassoPoints.map { world($0) }
+            onLasso(grid.rows(inPolygon: outline, isIncluded: visibleMask.map { mask in { mask[$0] } }))
+        }
+        if !lassoPoints.isEmpty {
+            lassoPoints = []
+            drawLasso()
+            return
+        }
         if let row = downHit, !draggedOut { onClick(row) }
         downHit = nil
     }

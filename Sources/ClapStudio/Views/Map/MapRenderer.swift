@@ -147,6 +147,14 @@ final class MapRenderer: NSObject, MTKViewDelegate {
         visibility = bytes.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: max(1, $0.count), options: .storageModeShared) }
     }
 
+    /// Replaces the 24 dot colours (the default is the cluster palette).
+    func setPalette(_ colors: [NSColor]?) {
+        palette = (0..<Palette.count).map { i in
+            guard let colors, i < colors.count, let c = colors[i].usingColorSpace(.deviceRGB) else { return Palette.simd(i) }
+            return SIMD4(Float(c.redComponent), Float(c.greenComponent), Float(c.blueComponent), 1)
+        }
+    }
+
     func setClusters(_ ids: [UInt8]) {
         clusters = ids.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: max(1, $0.count), options: .storageModeShared) }
     }
