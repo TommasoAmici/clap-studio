@@ -75,8 +75,8 @@ struct InspectorView: View {
                 .font(.caption2).foregroundStyle(fitNote(for: s) == nil ? Color.secondary : Color.accentColor)
                 .lineLimit(1).truncationMode(.tail)
             Spacer()
-            Button("Find Similar") { model.viewMode = .library; model.showSimilar(to: s.id) }
-                .help("Show this sample's neighbours")
+            Button("Find Similar") { model.showSimilar(to: s.id) }
+                .help("Narrow the list or the map to the sounds closest to this one")
             Button("Build Kit") { model.buildKit(around: s.id) }
                 .help("Suggest matching drums around this sample")
         }

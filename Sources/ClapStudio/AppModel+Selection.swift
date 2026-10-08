@@ -36,9 +36,20 @@ extension AppModel {
         }
     }
 
+    /// Narrows whatever view is open (the list, or the map) to the sounds closest to a sample, nearest first.
+    /// The tab is left as it is; the banner above them clears it again.
     func showSimilar(to id: Int64) {
-        smartFilter = .all
-        folderSelection = nil
+        guard let snap = snapshot, let reference = sampleByID[id] else {
+            errorMessage = "Finding similar sounds needs the library to be indexed and analysed."
+            return
+        }
+        selectSidebar("smart.\(SmartFilter.all.rawValue)")
+        searchText = ""
+        let neighbours = AspectSimilarity.rank(reference: reference, index: snap.index, weights: aspectWeights, limit: 100) { [sampleByID] in sampleByID[$0] }
+        var scores = Dictionary(neighbours.map { (snap.index.ids[$0.row], $0.score) }, uniquingKeysWith: max)
+        scores[id] = (scores.values.max() ?? 1) + 1       // the sample itself leads
+        exampleQuery = ExampleQuery(name: reference.name, scores: scores, referenceID: id)
+        refilter()
         select(id)
     }
 

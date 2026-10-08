@@ -56,4 +56,6 @@ extension AppModel {
 struct ExampleQuery {
     let name: String
     let scores: [Int64: Float]
+    /// Set when the query is a library sample (not a dropped file), so it can follow the similarity weights.
+    var referenceID: Int64?
 }

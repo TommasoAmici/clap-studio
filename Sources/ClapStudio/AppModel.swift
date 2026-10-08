@@ -68,7 +68,10 @@ final class AppModel {
     var mapAxes: (x: MapProperty, y: MapProperty)? { didSet { refreshMapLayout() } }
     var axisLayout: MapAxes.Layout?
     var mapSelection: [Int64] = []          // dots picked with the lasso
-    var aspectWeights = AspectWeights() { didSet { if let id = selectedID { sweepList = []; updateSimilar(for: id) } } }
+    var aspectWeights = AspectWeights() { didSet {
+        if let id = selectedID { sweepList = []; updateSimilar(for: id) }
+        if let reference = exampleQuery?.referenceID { showSimilar(to: reference) }
+    } }
     var tagFilter: String? { didSet { refilter() } }
     var tagCounts: [(name: String, count: Int)] = []
     var tagPromptTargets: [Int64]?            // non-nil while the "add tag" prompt is open
