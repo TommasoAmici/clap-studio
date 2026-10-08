@@ -32,33 +32,85 @@ extension View {
     }
 }
 
+/// Reads the file URLs out of dropped item providers and hands them over on the main actor.
+enum DroppedFiles {
+    static func load(from providers: [NSItemProvider], perform: @escaping @MainActor ([URL]) -> Void) -> Bool {
+        let accepting = providers.filter { $0.canLoadObject(ofClass: URL.self) }
+        guard !accepting.isEmpty else { return false }
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var found: [URL] = []
+        for provider in accepting {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url { lock.lock(); found.append(url); lock.unlock() }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            let urls = found
+            MainActor.assumeIsolated { perform(urls) }
+        }
+        return true
+    }
+}
+
 extension View {
     /// Accepts file drags (from the library list, the kit builder, the tray, or Finder) and hands over their URLs.
     /// Highlights through `isTargeted` while a drag is over the view.
     func fileDrop(isTargeted: Binding<Bool>? = nil, perform: @escaping @MainActor ([URL]) -> Void) -> some View {
-        onDrop(of: [.fileURL], isTargeted: isTargeted) { providers in
-            let accepting = providers.filter { $0.canLoadObject(ofClass: URL.self) }
-            guard !accepting.isEmpty else { return false }
-            let group = DispatchGroup()
-            let lock = NSLock()
-            var found: [URL] = []
-            for provider in accepting {
-                group.enter()
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    if let url { lock.lock(); found.append(url); lock.unlock() }
-                    group.leave()
-                }
-            }
-            group.notify(queue: .main) {
-                let urls = found
-                MainActor.assumeIsolated { perform(urls) }
-            }
-            return true
-        }
+        onDrop(of: [.fileURL], isTargeted: isTargeted) { providers in DroppedFiles.load(from: providers, perform: perform) }
     }
 }
 
-/// An AppKit drag source: drag one or several files into a DAW.
+// MARK: one window-wide drop target
+
+/// Places inside the window that take dropped files. Nested drop targets are unreliable on macOS, so the window has
+/// a single one and finds the place under the pointer from these frames.
+enum DropZone: Hashable {
+    case drumTrack(Int)
+    case drums
+}
+
+struct DropZoneFrames: PreferenceKey {
+    static let defaultValue: [DropZone: CGRect] = [:]
+    static func reduce(value: inout [DropZone: CGRect], nextValue: () -> [DropZone: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+let dropCoordinateSpace = "windowDrop"
+
+extension View {
+    func dropZone(_ zone: DropZone) -> some View {
+        background(GeometryReader { proxy in
+            Color.clear.preference(key: DropZoneFrames.self, value: [zone: proxy.frame(in: .named(dropCoordinateSpace))])
+        })
+    }
+}
+
+struct WindowDropDelegate: DropDelegate {
+    let model: AppModel
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.fileURL]) }
+
+    func dropEntered(info: DropInfo) { model.dropHover = model.dropZone(at: info.location) }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        let zone = model.dropZone(at: info.location)
+        if zone != model.dropHover { model.dropHover = zone }
+        return DropProposal(operation: .copy)
+    }
+
+    func dropExited(info: DropInfo) { model.dropHover = nil }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let zone = model.dropZone(at: info.location)
+        model.dropHover = nil
+        return DroppedFiles.load(from: info.itemProviders(for: [.fileURL])) { [model] urls in model.handleDrop(urls, on: zone) }
+    }
+}
+
 struct FileDragHandle: NSViewRepresentable {
     let urls: [URL]
     let label: String

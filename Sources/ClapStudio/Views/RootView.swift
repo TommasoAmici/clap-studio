@@ -57,10 +57,9 @@ struct RootView: View {
                 }
             }
         }
-        .fileDrop { urls in
-            // Dropping an audio file anywhere that does not take drops itself finds similar sounds.
-            if let file = urls.first(where: { FolderScanner.isSupported($0) }) { model.findSimilar(toFileAt: file) }
-        }
+        .coordinateSpace(name: dropCoordinateSpace)
+        .onPreferenceChange(DropZoneFrames.self) { model.dropZones = $0 }
+        .onDrop(of: [.fileURL], delegate: WindowDropDelegate(model: model))
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
         .sheet(isPresented: $model.showKit) { KitSheet() }
         .sheet(isPresented: $model.showExport, onDismiss: { model.exportIDs = nil }) { ExportSheet() }

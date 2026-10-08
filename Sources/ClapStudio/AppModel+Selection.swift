@@ -94,6 +94,9 @@ extension AppModel {
 
     /// Called when the user starts dragging a sample out of the app.
     func registerGrab(_ id: Int64) {
+        recentDrags.removeAll { $0 == id }
+        recentDrags.append(id)
+        if recentDrags.count > 64 { recentDrags.removeFirst(recentDrags.count - 64) }
         let now = Date()
         if let last = lastGrab[id], now.timeIntervalSince(last) < 1 { return }   // one drag, one count
         lastGrab[id] = now

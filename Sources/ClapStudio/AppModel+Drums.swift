@@ -84,13 +84,18 @@ extension AppModel {
         }
     }
 
-    /// Library samples for dragged files (files that are not in the library are ignored).
+    /// Library samples for dropped files, in drop order. Files are matched by path; a drag that started in this
+    /// app may arrive as a copy at another path, so those are matched by file name against what was just dragged.
     func librarySamples(forFiles urls: [URL]) -> [SampleRecord] {
-        let paths = urls.map { $0.standardizedFileURL.path }
-        let wanted = Set(paths)
-        let found = (samples + usbSamples).filter { wanted.contains($0.url.standardizedFileURL.path) }
-        let order = Dictionary(paths.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        return found.sorted { (order[$0.url.standardizedFileURL.path] ?? 0) < (order[$1.url.standardizedFileURL.path] ?? 0) }
+        let byPath = Dictionary((samples + usbSamples).map { ($0.url.standardizedFileURL.path, $0) }, uniquingKeysWith: { first, _ in first })
+        let dragged = recentDrags.reversed().compactMap { sampleByID[$0] }
+        var result: [SampleRecord] = []
+        for url in urls {
+            let match = byPath[url.standardizedFileURL.path]
+                ?? dragged.first { $0.url.lastPathComponent == url.lastPathComponent }
+            if let match, !result.contains(where: { $0.id == match.id }) { result.append(match) }
+        }
+        return result
     }
 
     /// A sample dragged onto a track replaces its sound (and is previewed).
@@ -108,5 +113,23 @@ extension AppModel {
     func drumSampleName(_ track: DrumTrack) -> String {
         guard let sample = sampleByID[track.sampleID] else { return "Missing sample" }
         return activeTrim(for: sample) == nil ? sample.name : sample.name + " · trimmed"
+    }
+
+    // MARK: dropping files on the window
+
+    /// Which drop place is under a point (window coordinates). Tracks win over the drawer around them.
+    func dropZone(at point: CGPoint) -> DropZone? {
+        let tracks = dropZones.filter { if case .drumTrack = $0.key { return true } else { return false } }
+        return tracks.first { $0.value.contains(point) }?.key ?? (dropZones[.drums]?.contains(point) == true ? .drums : nil)
+    }
+
+    func handleDrop(_ urls: [URL], on zone: DropZone?) {
+        switch zone {
+        case .drumTrack(let index): dropOnDrumTrack(index, files: urls)
+        case .drums: dropOnDrums(files: urls)
+        case nil:
+            // Anywhere else, an audio file finds similar sounds.
+            if let file = urls.first(where: { FolderScanner.isSupported($0) }) { findSimilar(toFileAt: file) }
+        }
     }
 }

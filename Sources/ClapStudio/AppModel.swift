@@ -50,6 +50,7 @@ final class AppModel {
     @ObservationIgnored var textSearcher: TextSearcher?
     @ObservationIgnored var soundSearchTask: Task<Void, Never>?
     @ObservationIgnored var lastGrab: [Int64: Date] = [:]
+    @ObservationIgnored var recentDrags: [Int64] = []      // samples the user started dragging, newest last
 
     // MARK: library data
     var roots: [RootRecord] = [] { didSet { if oldValue.map(\.path) != roots.map(\.path) { restartWatcher() } } }
@@ -94,6 +95,8 @@ final class AppModel {
     var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
     var showDrums = false
     var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern() } } }
+    var dropZones: [DropZone: CGRect] = [:]     // where dropped files are taken, in window coordinates
+    var dropHover: DropZone?                    // the place a drag is currently over
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumPlaying = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples

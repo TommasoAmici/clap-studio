@@ -25,7 +25,7 @@ struct DrumPanel: View {
                 }
             }
             .background(.bar)
-            .fileDrop { model.dropOnDrums(files: $0) }
+            .dropZone(.drums)
         }
     }
 
@@ -81,7 +81,7 @@ private struct DrumTrackRow: View {
     let index: Int
     let track: DrumTrack
     let title: String
-    @State private var dropTargeted = false
+    private var dropTargeted: Bool { model.dropHover == .drumTrack(index) }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -117,7 +117,7 @@ private struct DrumTrackRow: View {
         .padding(.vertical, 2).padding(.horizontal, 4)
         .background(dropTargeted ? Color.accentColor.opacity(0.25) : .clear, in: RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: dropTargeted ? 1.5 : 0))
-        .fileDrop(isTargeted: $dropTargeted) { model.dropOnDrumTrack(index, files: $0) }
+        .dropZone(.drumTrack(index))
         .contextMenu {
             if let id = model.selectedID, id != track.sampleID {
                 Button("Use Selected Sample Here") { model.replaceDrumSample(track: index, with: id) }
