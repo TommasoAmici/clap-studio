@@ -121,6 +121,18 @@ extension LibraryStore {
         }
     }
 
+    /// Marks recordings to be listened to again (their place changed), keeping what is stored until then.
+    public func forgetSpecies(sampleIDs: [Int64]) {
+        try? db.transaction {
+            for id in sampleIDs { try db.run("UPDATE samples SET species_version = NULL WHERE id = ?", [.int(id)]) }
+        }
+    }
+
+    /// The same for every recording that relies on the library's place.
+    public func forgetSpeciesWithoutOwnPlace() {
+        try? db.run("UPDATE samples SET species_version = NULL WHERE latitude IS NULL")
+    }
+
     /// Recordings that have stored candidates.
     public func recordingsWithSpecies() -> [Int64] {
         (try? db.query("SELECT DISTINCT sample_id FROM recording_species ORDER BY sample_id") { $0.int(0) }) ?? []

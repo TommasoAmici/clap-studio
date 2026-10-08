@@ -27,6 +27,7 @@ extension AppModel {
     func setLocation(_ point: GeoPoint?, for ids: [Int64]) {
         guard let store else { return }
         try? store.setLocation(point, sampleIDs: ids)
+        store.forgetSpecies(sampleIDs: ids)
         refilterSpecies(ids)
     }
 
@@ -34,6 +35,7 @@ extension AppModel {
     func setDefaultBirdLocation(_ point: GeoPoint?) {
         guard let store else { return }
         store.defaultLocation = point
+        store.forgetSpeciesWithoutOwnPlace()
         refilterSpecies(nil)
     }
 
@@ -47,6 +49,24 @@ extension AppModel {
                 }
                 BirdSpeciesIndexer.refilter(store: store, filter: filter, sampleIDs: ids)
             }.value
+            birdsRevision += 1
+            listenAgainForBirds()
+        }
+    }
+
+    /// Listens again to recordings whose place changed, so the place applies before the per-window limit.
+    /// While indexing, that run reaches them instead.
+    private func listenAgainForBirds() {
+        guard let store, birdsAvailable, !isIndexing, !isListeningForBirds,
+              !store.recordingsNeedingSpecies().isEmpty else { return }
+        isListeningForBirds = true
+        let token = CancelToken()
+        Task {
+            await Task.detached {
+                Self.listenForBirds(store, token: token) { message in Task { @MainActor in self.statusMessage = message } }
+            }.value
+            statusMessage = ""
+            isListeningForBirds = false
             birdsRevision += 1
         }
     }

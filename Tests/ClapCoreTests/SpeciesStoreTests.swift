@@ -85,6 +85,22 @@ import Testing
         #expect(store.recordingsWithSpecies() == [id])
     }
 
+    @Test func aNewPlaceQueuesTheRecordingToBeListenedToAgain() throws {
+        let (store, id) = try recording()
+        try store.saveSpecies(sampleID: id, detections: [bird("Robin", 0, 0.9)], allowed: nil)
+        #expect(store.recordingsNeedingSpecies().isEmpty)
+        store.forgetSpecies(sampleIDs: [id])
+        #expect(store.recordingsNeedingSpecies().map(\.id) == [id])
+
+        try store.saveSpecies(sampleID: id, detections: [], allowed: nil)
+        try store.setLocation(GeoPoint(latitude: 1, longitude: 2), sampleIDs: [id])
+        store.forgetSpeciesWithoutOwnPlace()                   // it has its own place: untouched
+        #expect(store.recordingsNeedingSpecies().isEmpty)
+        try store.setLocation(nil, sampleIDs: [id])
+        store.forgetSpeciesWithoutOwnPlace()
+        #expect(store.recordingsNeedingSpecies().map(\.id) == [id])
+    }
+
     @Test func removingARootForgetsItsSpecies() throws {
         let (store, id) = try recording()
         try store.saveSpecies(sampleID: id, detections: [bird("Robin", 0, 0.9)], allowed: nil)

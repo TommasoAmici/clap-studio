@@ -44,11 +44,12 @@ public enum BirdSpeciesIndexer {
         for job in jobs {
             if isCancelled() { break }
             onProgress(done, jobs.count, job.name)
-            guard let found = try? detector.detect(url: job.url, duration: job.duration, isCancelled: isCancelled) else {
+            let allowed = allowedSet(for: store.effectiveLocation(sampleID: job.id), filter: filter)
+            guard let found = try? detector.detect(url: job.url, duration: job.duration, allowed: allowed,
+                                                   isCancelled: isCancelled) else {
                 if isCancelled() { break }
                 continue            // unreadable file: leave it, it is tried again next time
             }
-            let allowed = allowedSet(for: store.effectiveLocation(sampleID: job.id), filter: filter)
             do { try store.saveSpecies(sampleID: job.id, detections: found, allowed: allowed) } catch { continue }
             done += 1
         }

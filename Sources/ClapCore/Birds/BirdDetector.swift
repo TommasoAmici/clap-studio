@@ -42,11 +42,13 @@ public final class BirdDetector: @unchecked Sendable {
     static func probability(_ logit: Float) -> Float { 1 / (1 + exp(-min(15, max(-15, logit)))) }
 
     /// Detections for one window's logits: best first, at most `perWindowLimit`, none below `candidateFloor`.
-    func candidates(from logits: [Float], start: Double, end: Double) -> [BirdDetection] {
+    /// With `allowed`, species that do not occur at the recording's place are dropped before the limit applies.
+    func candidates(from logits: [Float], start: Double, end: Double, allowed: Set<String>? = nil) -> [BirdDetection] {
         var best: [(index: Int, p: Float)] = []
         for (i, logit) in logits.enumerated() where i < labels.species.count {
             let p = Self.probability(logit)
             guard p >= Self.candidateFloor else { continue }
+            if let allowed, !allowed.contains(labels.species[i].scientific) { continue }
             best.append((i, p))
         }
         best.sort { $0.p > $1.p }
@@ -57,7 +59,8 @@ public final class BirdDetector: @unchecked Sendable {
     }
 
     /// Nil when cancelled part-way: nothing should be stored then.
-    public func detect(url: URL, duration: Double, isCancelled: @Sendable () -> Bool = { false }) throws -> [BirdDetection]? {
+    public func detect(url: URL, duration: Double, allowed: Set<String>? = nil,
+                       isCancelled: @Sendable () -> Bool = { false }) throws -> [BirdDetection]? {
         let rate = BirdClassifier.sampleRate
         let window = BirdClassifier.windowSamples
         var found: [BirdDetection] = []
@@ -75,7 +78,7 @@ public final class BirdDetector: @unchecked Sendable {
                 if slice.allSatisfy({ abs($0) < 1e-6 }) { continue }    // digital silence says nothing
                 let start = blockStart + Double(offset) / rate
                 found += candidates(from: try classifier.logits(slice), start: start,
-                                    end: min(duration, start + Self.windowSeconds))
+                                    end: min(duration, start + Self.windowSeconds), allowed: allowed)
                 if isCancelled() { return nil }
             }
             blockStart += Self.blockSeconds

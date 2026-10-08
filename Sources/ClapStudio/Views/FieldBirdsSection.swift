@@ -13,7 +13,7 @@ struct FieldBirdsSection: View {
     private static let timestampsShown = 4
 
     /// Changes when another recording is selected, or its birds or place are recomputed.
-    private var reloadKey: String { "\(sample.id)|\(model.isIndexing)|\(model.birdsRevision)" }
+    private var reloadKey: String { "\(sample.id)|\(model.isIndexing)|\(model.isListeningForBirds)|\(model.birdsRevision)" }
 
     var body: some View {
         Group { content }
@@ -28,7 +28,7 @@ struct FieldBirdsSection: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Birds in this recording").font(.subheadline.bold())
                 if occurrences.isEmpty {
-                    Text(model.isIndexing ? "Listening…" : "No birds identified with confidence.")
+                    Text((model.isIndexing || model.isListeningForBirds) ? "Listening…" : "No birds identified with confidence.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(occurrences, id: \.scientific) { occurrence in

@@ -180,6 +180,7 @@ final class AppModel {
 
     // MARK: status
     var isIndexing = false
+    var isListeningForBirds = false
     var progress: IndexProgress?
     var statusMessage = ""
     var errorMessage: String?
