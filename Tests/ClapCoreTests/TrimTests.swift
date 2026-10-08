@@ -73,3 +73,17 @@ import Testing
         #expect(peaks[2 * 9 + 1] > 0.7, "second half loud")
     }
 }
+
+@Suite struct TrimStoreTests {
+    @Test func trimsPersistAndClear() throws {
+        let (store, dir) = try TestSupport.makeStore()
+        try store.setTrim(SampleTrim(start: 1.5, end: 4, fadeOut: 0.25), sampleID: 7)
+        try store.setTrim(SampleTrim(start: 2, end: 3), sampleID: 7)       // update in place
+        try store.setTrim(SampleTrim(start: 0, end: 1), sampleID: 8)
+        #expect(store.trims() == [7: SampleTrim(start: 2, end: 3), 8: SampleTrim(start: 0, end: 1)])
+        let reopened = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        #expect(reopened.trims().count == 2, "survives a restart")
+        try store.setTrim(nil, sampleID: 7)
+        #expect(store.trims().keys.sorted() == [8])
+    }
+}

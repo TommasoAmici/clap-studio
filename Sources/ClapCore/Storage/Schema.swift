@@ -2,13 +2,14 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 3
+    static let currentVersion = 4
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
         if version < 1 { try v1(db) }
         if version < 2 { try v2(db) }
         if version < 3 { try v3(db) }
+        if version < 4 { try v4(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -76,6 +77,15 @@ enum Schema {
             sample_id INTEGER NOT NULL, tag TEXT NOT NULL COLLATE NOCASE,
             PRIMARY KEY(sample_id, tag));
         CREATE INDEX IF NOT EXISTS sample_tags_tag ON sample_tags(tag);
+        """)
+    }
+
+    /// Non-destructive trims: the part of a file to use. The audio file is never touched.
+    private static func v4(_ db: SQLiteDB) throws {
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS sample_trims(
+            sample_id INTEGER PRIMARY KEY,
+            start_seconds REAL NOT NULL, end_seconds REAL NOT NULL, fade_out REAL NOT NULL DEFAULT 0);
         """)
     }
 }

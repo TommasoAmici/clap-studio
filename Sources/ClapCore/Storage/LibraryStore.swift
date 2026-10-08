@@ -61,6 +61,7 @@ public final class LibraryStore: @unchecked Sendable {
             try db.run("DELETE FROM usage_events WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM collection_items WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM sample_tags WHERE sample_id IN (\(sub))", [.int(id)])
+            try db.run("DELETE FROM sample_trims WHERE sample_id IN (\(sub))", [.int(id)])
             try db.run("DELETE FROM samples WHERE root_id = ?", [.int(id)])
             try db.run("DELETE FROM roots WHERE id = ?", [.int(id)])
         }
