@@ -19,6 +19,8 @@ struct TrayView: View {
                     }
                     FileDragHandle(urls: samples.map(\.url), label: "Drag all \(samples.count)") { model.registerTrayGrab() }
                         .frame(width: 130, height: 30)
+                    Button("Try in Drums") { model.addToDrums(samples.map(\.id)) }
+                        .help("Load these into the drum machine")
                     Button("Copy To…") { model.showExport = true }
                         .help("Copy these files into a folder")
                     Button("Save as Collection") { model.newCollectionSeed = samples.map(\.id) }

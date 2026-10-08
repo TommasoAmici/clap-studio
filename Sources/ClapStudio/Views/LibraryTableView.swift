@@ -74,6 +74,7 @@ struct LibraryTableView: View {
                     Button("Find Similar Sounds") { model.showSimilar(to: first.id) }
                     Button("Build a Kit From This…") { model.buildKit(around: first.id) }
                 }
+                Button("Add to Drum Machine") { model.addToDrums(list) }
                 Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) }
                 Divider()
                 Button(samples.allSatisfy(\.favorite) ? "Remove from Favorites" : "Add to Favorites") { model.toggleFavorite(list) }

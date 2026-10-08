@@ -18,6 +18,7 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 - **Map colour, axes and lasso**: colour dots by category, loop/one-shot, usage, tempo, loudness or brightness; lay the map out by any two measured properties instead of similarity; shift-drag a lasso to send the picked dots to the tray, a collection, favorites, a tag or Hidden.
 - **Similarity aspects**: the sliders under *What counts as similar* weigh overall sound against brightness, pitch (same note), level/punch and length; the list, map highlight and `←` `→` sweep follow.
 - **Kit builder**: *Build Kit* suggests a snare, clap, hats and more around a chosen kick, by character, level and pack, with alternatives per slot.
+- **Drum machine**: a 16-step, 8-track sequencer (toolbar grid button) for trying sounds together at the project tempo. *Try in Drum Machine* in the kit builder loads each pick with a starter rhythm for its category, and ◀ ▶ swaps in the alternatives. *Add to Drum Machine* is in the library context menu and the tray. Mute, solo, volume and swing per pattern; tempo changes apply live.
 - **Tags and export names**: free-text tags (searchable, in the sidebar); the tray's *Copy To…* names files from a template such as `{category} - {name} - {bpm}`.
 - **Everyday**: multi-select with batch actions, undo for hide/favorite/tag/collection edits (option-command-Z), folders are watched and rescanned automatically, and previews can be level-matched.
 

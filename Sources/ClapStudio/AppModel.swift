@@ -45,6 +45,7 @@ final class AppModel {
     @ObservationIgnored var cueSync: CueFileSync?
     @ObservationIgnored var embedder: EmbeddingProvider?
     @ObservationIgnored let player = SamplePlayer()
+    @ObservationIgnored lazy var drumMachine: DrumMachine = makeDrumMachine()
     @ObservationIgnored var cancelToken = CancelToken()
     @ObservationIgnored var textSearcher: TextSearcher?
     @ObservationIgnored var soundSearchTask: Task<Void, Never>?
@@ -89,6 +90,10 @@ final class AppModel {
     var showKit = false
     var kitSlots: [KitSlot] = []
     var kitChoice: [String: Int] = [:]
+    var showDrums = false
+    var drumPattern = DrumPattern() { didSet { if drumPattern != oldValue { pushDrumPattern() } } }
+    var drumStep: Int?                     // step currently sounding, nil when stopped
+    var drumPlaying = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
 
     // MARK: filters
@@ -116,7 +121,7 @@ final class AppModel {
     var startMarkerFrame: Int64?
     var playback = PlaybackState()
     var autoplay = true
-    var project = ProjectSettings() { didSet { saveProjectSettings() } }
+    var project = ProjectSettings() { didSet { saveProjectSettings(); if project.bpm != oldValue.bpm { drumMachine.bpm = drumTempo } } }
     var hoverPlay = true
     var volume: Float = 0.9 { didSet { player.volume = volume } }
 
