@@ -9,10 +9,7 @@ struct ClapStudioApp: App {
         // Lets `swift run` launch a regular, focusable app without an app bundle.
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
-        // Set the Dock icon explicitly so a stale LaunchServices icon cache cannot hide it.
-        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), let icon = NSImage(contentsOf: url) {
-            NSApplication.shared.applicationIconImage = icon
-        }
+        AppIconSwitcher.start()
     }
 
     var body: some Scene {

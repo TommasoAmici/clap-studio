@@ -1,6 +1,8 @@
 #!/usr/bin/env swift
 // Renders clap.icon (Icon Composer) to an .iconset folder without Xcode.
-//   swift scripts/render-icon.swift clap.icon build/AppIcon.iconset
+//   swift scripts/render-icon.swift clap.icon build/AppIcon.iconset [Default|Dark]
+// The optional rendition picks the appearance (default: Default, the light icon). Dark needs Icon Composer: without
+// it nothing is written and the exit status is 3.
 // With Icon Composer installed (its `ictool`, or ICTOOL=/path/to/ictool) the artwork is rendered by Apple's own
 // renderer, Liquid Glass included. Without it a flat approximation is drawn: gradient background, tinted layers
 // and offsets are honoured, but only for PNG layers with a plain `position`, and no glass lighting.
@@ -8,8 +10,11 @@ import AppKit
 import Foundation
 
 let args = CommandLine.arguments
-guard args.count == 3 else { print("usage: render-icon.swift <name.icon> <out.iconset>"); exit(2) }
+guard args.count == 3 || args.count == 4 else {
+    print("usage: render-icon.swift <name.icon> <out.iconset> [Default|Dark]"); exit(2)
+}
 let iconDir = URL(fileURLWithPath: args[1]), outDir = URL(fileURLWithPath: args[2])
+let rendition = args.count == 4 ? args[3] : "Default"
 let spec = try JSONSerialization.jsonObject(with: Data(contentsOf: iconDir.appendingPathComponent("icon.json"))) as! [String: Any]
 
 func color(_ s: String) -> CGColor {
@@ -50,7 +55,7 @@ func renderWithIconComposer(pixels: Int) -> CGImage? {
     defer { try? FileManager.default.removeItem(at: out) }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: ictool)
-    process.arguments = [iconDir.path, "--export-image", "--output-file", out.path, "--platform", "macOS", "--rendition", "Default",
+    process.arguments = [iconDir.path, "--export-image", "--output-file", out.path, "--platform", "macOS", "--rendition", rendition,
                          "--width", "\(pixels)", "--height", "\(pixels)", "--scale", "1"]
     process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
     guard (try? process.run()) != nil else { return nil }
@@ -132,6 +137,10 @@ func renderApproximation(size: Int) -> Data {
     return rep.representation(using: .png, properties: [:])!
 }
 
+if ictool == nil, rendition != "Default" {
+    FileHandle.standardError.write(Data("Icon Composer (ictool) not found: cannot render the \(rendition) icon.\n".utf8))
+    exit(3)
+}
 if ictool == nil {
     FileHandle.standardError.write(Data("warning: Icon Composer (ictool) not found; drawing a flat approximation that ignores newer icon features (SVG layers, gradients, opacity, glass). Install Icon Composer or set ICTOOL.\n".utf8))
 }

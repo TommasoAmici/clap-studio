@@ -30,6 +30,12 @@ ICONSET="build/AppIcon.iconset"
 rm -rf "$ICONSET"
 swift scripts/render-icon.swift clap.icon "$ICONSET" >/dev/null
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns" && rm -rf "$ICONSET"
+# The dark appearance of the icon, which the app shows in the Dock while macOS is in dark mode (needs Icon Composer).
+if swift scripts/render-icon.swift clap.icon "$ICONSET" Dark >/dev/null 2>&1; then
+  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIconDark.icns"
+  echo "Bundled the dark icon"
+fi
+rm -rf "$ICONSET"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
