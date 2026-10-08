@@ -65,6 +65,7 @@ struct RootView: View {
         .sheet(isPresented: $model.showKit) { KitSheet() }
         .sheet(isPresented: $model.showExport, onDismiss: { model.exportIDs = nil }) { ExportSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
+        .sheet(isPresented: $model.showSquidExport) { SquidExportSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {

@@ -21,6 +21,10 @@ struct TrayView: View {
                         .frame(width: 130, height: 30)
                     Button("Try in Drums") { model.addToDrums(samples.map(\.id)) }
                         .help("Load these into the drum machine")
+                    if model.squidEnabled {
+                        Button("Send to Squid…") { model.openSquidExport(ids: samples.map(\.id)) }
+                            .help("Send these to a Squid Salmple USB stick")
+                    }
                     Button("Copy To…") { model.showExport = true }
                         .help("Copy these files into a folder")
                     Button("Save as Collection") { model.newCollectionSeed = samples.map(\.id) }

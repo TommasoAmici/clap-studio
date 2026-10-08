@@ -68,6 +68,7 @@ struct LibraryTableView: View {
                     Button("Build a Kit From This…") { model.buildKit(around: first.id) }
                 }
                 Button("Add to Drum Machine") { model.addToDrums(list) }
+                if model.squidEnabled { Button("Send to Squid…") { model.openSquidExport(ids: list) } }
                 Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) }
                 Divider()
                 Button(samples.allSatisfy(\.favorite) ? "Remove from Favorites" : "Add to Favorites") { model.toggleFavorite(list) }

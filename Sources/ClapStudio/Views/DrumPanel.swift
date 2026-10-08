@@ -59,6 +59,11 @@ struct DrumPanel: View {
             Spacer()
             Button("Add Selected") { model.addToDrums(model.actionTargets) }
                 .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
+            if model.squidEnabled {
+                Button("Send to Squid…") { model.openSquidExport(ids: model.drumPattern.tracks.map(\.sampleID)) }
+                    .disabled(model.drumPattern.tracks.isEmpty)
+                    .help("Send these sounds to a Squid Salmple USB stick")
+            }
             Button("Clear Steps") { model.drumPattern.clearHits() }
                 .disabled(model.drumPattern.tracks.isEmpty)
             Button("Remove All") { model.drumMachine.stop(); model.drumPattern = DrumPattern(swing: model.drumPattern.swing) }
