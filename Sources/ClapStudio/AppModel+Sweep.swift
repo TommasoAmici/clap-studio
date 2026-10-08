@@ -36,8 +36,10 @@ extension AppModel {
         Task {
             do {
                 let hits = try await Task.detached { try searcher.similar(to: url, limit: 100) }.value
-                exampleQuery = ExampleQuery(name: url.lastPathComponent, scores: Dictionary(hits.map { ($0.sampleID, $0.score) },
-                                                                                          uniquingKeysWith: max))
+                exampleQuery = ExampleQuery(name: url.lastPathComponent,
+                                            scores: Dictionary(hits.map { ($0.sampleID, $0.score) }, uniquingKeysWith: max),
+                                            segments: Dictionary(hits.compactMap { hit in hit.segment.map { (hit.sampleID, $0) } },
+                                                                 uniquingKeysWith: { first, _ in first }))
                 searchText = ""
                 refilter()
             } catch {
@@ -55,7 +57,9 @@ extension AppModel {
 
 struct ExampleQuery {
     let name: String
-    let scores: [Int64: Float]
+    var scores: [Int64: Float]
+    /// Where in each field recording the match is.
+    var segments: [Int64: SegmentMatch] = [:]
     /// Set when the query is a library sample (not a dropped file), so it can follow the similarity weights.
     var referenceID: Int64?
 }

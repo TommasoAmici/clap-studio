@@ -9,6 +9,11 @@ extension AppModel {
         if !keepSweep { sweepList = [] }
         if id != selectedID { startMarkerFrame = nil }
         selectedID = id
+        // A search that found a spot inside a field recording starts there, unless the user picked a spot.
+        let found = id.flatMap { segmentMatches[$0] }
+        if let id, let found, startMarkerFrame == nil, let sample = sampleByID[id] {
+            startMarkerFrame = Int64((found.start * (sample.sampleRate > 0 ? sample.sampleRate : 44_100)).rounded())
+        }
         if tableSelection != (id.map { [$0] } ?? []) { tableSelection = id.map { [$0] } ?? [] }
         selectedCueID = nil
         guard let id, let sample = sampleByID[id] else {
@@ -18,7 +23,7 @@ extension AppModel {
         reloadCues()
         updateSimilar(for: id)
         loadWaveform(sample)
-        if play && autoplay { playSample(sample) }
+        if play && autoplay { playSample(sample, from: found?.start ?? 0) }
     }
 
     /// What a command acts on: every highlighted row, or just the selected sample.
@@ -51,6 +56,38 @@ extension AppModel {
         exampleQuery = ExampleQuery(name: reference.name, scores: scores, referenceID: id)
         refilter()
         select(id)
+        addSegmentMatches(reference: reference)
+    }
+
+    /// Field recordings are found by their best segment, which the map's reduced vectors cannot see. Added once
+    /// the segments are loaded; recordings that would not make the list of neighbours stay out.
+    private func addSegmentMatches(reference: SampleRecord) {
+        guard let store else { return }
+        let id = reference.id, cache = segmentCache
+        Task {
+            let matches = await Task.detached { () -> [Int64: SegmentMatch] in
+                guard let embedding = try? store.embeddings(ids: [id]), embedding.dim > 0,
+                      let index = try? cache.index(store: store, modelVersion: ClapEmbedder.versionTag) else { return [:] }
+                return index.bestMatches(query: embedding.flat, excluding: id)
+            }.value
+            guard !matches.isEmpty, var query = exampleQuery, query.referenceID == id else { return }
+            let cutoff = query.scores.count >= 100 ? (query.scores.values.min() ?? -.infinity) : -.infinity
+            for (other, match) in matches {
+                guard let sample = sampleByID[other] else { continue }
+                let score = AspectSimilarity.score(cosine: match.score, reference: reference, other: sample, weights: aspectWeights)
+                query.segments[other] = match
+                if score >= cutoff { query.scores[other] = max(query.scores[other] ?? -.infinity, score) }
+            }
+            exampleQuery = query
+            refilter()
+        }
+    }
+
+    /// Where the current search matched inside each field recording (empty for ordinary searches).
+    var segmentMatches: [Int64: SegmentMatch] {
+        if let example = exampleQuery { return example.segments }
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        return soundSearchActive && soundScoresQuery == query ? soundSegments : [:]
     }
 
     private func loadWaveform(_ sample: SampleRecord) {

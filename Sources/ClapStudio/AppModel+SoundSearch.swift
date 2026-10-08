@@ -24,7 +24,7 @@ extension AppModel {
         Task {
             let encoder = await Task.detached { try? ClapTextEncoder.load().get() }.value
             if let encoder {
-                textSearcher = TextSearcher(encoder: encoder)
+                textSearcher = TextSearcher(encoder: encoder, segments: segmentCache)
                 textSearchAvailable = true
                 scheduleSoundSearch()
             }
@@ -35,15 +35,16 @@ extension AppModel {
         soundSearchTask?.cancel()
         let query = searchText.trimmingCharacters(in: .whitespaces)
         guard soundSearchActive, let store, let searcher = textSearcher else {
-            if !soundScores.isEmpty { soundScores = [:]; soundScoresQuery = "" }
+            if !soundScores.isEmpty { soundScores = [:]; soundSegments = [:]; soundScoresQuery = "" }
             return
         }
         soundSearchTask = Task {
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            let scores = await Task.detached { (try? searcher.scores(for: query, store: store)) ?? [:] }.value
+            let result = await Task.detached { (try? searcher.results(for: query, store: store)) ?? TextSearchResult(scores: [:], segments: [:]) }.value
             guard !Task.isCancelled else { return }
-            soundScores = scores
+            soundScores = result.scores
+            soundSegments = result.segments
             soundScoresQuery = query
             refilter()
         }

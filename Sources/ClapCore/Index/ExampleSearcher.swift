@@ -20,10 +20,14 @@ public final class ExampleSearcher: @unchecked Sendable {
     private let lock = NSLock()
     private var embedder: EmbeddingProvider?
     private var index: VectorIndex?
+    private let segmentCache: SegmentIndexCache
 
-    public init(store: LibraryStore) { self.store = store }
+    public init(store: LibraryStore, segments: SegmentIndexCache = SegmentIndexCache()) {
+        self.store = store
+        self.segmentCache = segments
+    }
 
-    public func invalidate() { lock.lock(); index = nil; lock.unlock() }
+    public func invalidate() { lock.lock(); index = nil; lock.unlock(); segmentCache.invalidate() }
 
     public func similar(to url: URL, limit: Int = 100) throws -> [TextHit] {
         guard FolderScanner.isSupported(url) else { throw ExampleSearchError.notAudio(url.lastPathComponent) }
@@ -33,7 +37,9 @@ public final class ExampleSearcher: @unchecked Sendable {
         // Same input path as indexing, so a dropped file embeds exactly like its library copy.
         let input = try EmbeddingInput.load(url: url, frontEnd: fe, analyzer: DescriptorAnalyzer())
         let query = try embedder.embed(LogMelExtractor(config: fe).extract(signal: input.signal))
-        return vectors.topK(query: query, limit: limit).map { TextHit(sampleID: vectors.ids[$0.row], score: $0.score) }
+        let hits = vectors.topK(query: query, limit: limit).map { TextHit(sampleID: vectors.ids[$0.row], score: $0.score) }
+        let segments = try segmentCache.index(store: store, modelVersion: embedder.version).bestMatches(query: query)
+        return SegmentMerge.merge(hits, segments: segments, limit: limit)
     }
 
     private func prepare() throws -> (EmbeddingProvider, VectorIndex) {

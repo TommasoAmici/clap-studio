@@ -130,6 +130,7 @@ extension AppModel {
         clusterVersion += 1
         refreshMapColoring()
         if mapAxes != nil { refreshMapLayout() }
+        segmentCache.invalidate()
         textSearcher?.invalidate()
         exampleSearcher?.invalidate()
         prepareTextSearch()

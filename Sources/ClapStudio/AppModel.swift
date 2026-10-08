@@ -84,6 +84,8 @@ final class AppModel {
     var sweepList: [Int64] = []             // the neighbours being stepped through with ← →
     var exampleQuery: ExampleQuery?          // set while the list shows sounds similar to a dropped file
     @ObservationIgnored var exampleSearcher: ExampleSearcher?
+    /// Segments of field recordings, shared by every search that reports where in a recording a sound is.
+    @ObservationIgnored let segmentCache = SegmentIndexCache()
     var collections: [CollectionRecord] = []
     var collectionSelection: Int64? { didSet { reloadCollections(); refilter() } }
     var collectionMembers: Set<Int64> = []
@@ -131,6 +133,7 @@ final class AppModel {
     var textSearchAvailable = false
     var soundScores: [Int64: Float] = [:]       // semantic similarity of every sample to `soundScoresQuery`
     var soundScoresQuery = ""
+    var soundSegments: [Int64: SegmentMatch] = [:]   // where in each field recording `soundScoresQuery` matches best
     var smartFilter: SmartFilter = .all { didSet { refilter() } }
     var descriptorFilter = DescriptorFilter() { didSet { refilter() } }
     var folderSelection: String? { didSet { refilter() } }   // FolderNode.id, nil = everything
@@ -197,7 +200,7 @@ final class AppModel {
             self.store = store
             analyzer = LibraryAnalyzer(store: store)
             cueEditor = CueEditor(store: store)
-            exampleSearcher = ExampleSearcher(store: store)
+            exampleSearcher = ExampleSearcher(store: store, segments: segmentCache)
             let sync = CueFileSync(store: store) { [weak self] outcome in
                 Task { @MainActor in self?.handleCueSync(outcome) }
             }

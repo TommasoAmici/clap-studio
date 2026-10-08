@@ -22,6 +22,11 @@ struct LibraryTableView: View {
                         Image(systemName: "waveform").foregroundStyle(.secondary)
                     }
                     Text(s.name).lineLimit(1)
+                    if let match = model.segmentMatches[s.id] {
+                        Text("at \(Format.timestamp(match.start))").font(.caption2).monospacedDigit()
+                            .padding(.horizontal, 5).background(Color.accentColor.opacity(0.18), in: Capsule())
+                            .help("Best match in this recording")
+                    }
                     if s.favorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
                     if s.status == .pending { ProgressView().controlSize(.mini) }
                 }
@@ -128,6 +133,13 @@ enum Format {
         let h = Int(seconds) / 3600, m = Int(seconds) / 60 % 60, s = Int(seconds) % 60
         if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
         return m > 0 ? String(format: "%d:%02d", m, s) : String(format: "%.1fs", seconds)
+    }
+
+    /// A position in a recording: "2:05", or "1:02:05" past an hour.
+    static func timestamp(_ seconds: Double) -> String {
+        let total = Int(max(0, seconds))
+        let h = total / 3600, m = total / 60 % 60, s = total % 60
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 
     static func clock(_ seconds: Double) -> String {
