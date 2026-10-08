@@ -67,35 +67,42 @@ struct RootView: View {
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {
+            guard !isTypingInTextField else { return .ignored }
             model.togglePlayback()
             return .handled
         }
         .onKeyPress(.rightArrow) {
+            guard !isTypingInTextField else { return .ignored }
             guard model.selectedID != nil else { return .ignored }
             model.sweep(1)
             return .handled
         }
         .onKeyPress(.leftArrow) {
+            guard !isTypingInTextField else { return .ignored }
             guard model.selectedID != nil else { return .ignored }
             model.sweep(-1)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "f")) { _ in
+            guard !isTypingInTextField else { return .ignored }
             guard !model.actionTargets.isEmpty else { return .ignored }
             model.toggleFavorite(model.actionTargets)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "t")) { _ in
+            guard !isTypingInTextField else { return .ignored }
             guard !model.actionTargets.isEmpty else { return .ignored }
             model.addToTray(model.actionTargets)
             return .handled
         }
         .onKeyPress(characters: .init(charactersIn: "m")) { _ in
+            guard !isTypingInTextField else { return .ignored }
             guard model.selectedID != nil else { return .ignored }
             model.addCueAtMarker()
             return .handled
         }
         .onKeyPress(characters: .decimalDigits) { press in
+            guard !isTypingInTextField else { return .ignored }
             guard let n = Int(press.characters) else { return .ignored }
             model.playCue(number: n)
             return .handled
