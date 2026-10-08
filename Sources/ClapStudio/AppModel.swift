@@ -112,7 +112,7 @@ final class AppModel {
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumPlaying = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
-    var speciesCounts: [(name: String, count: Int)] = []    // sidebar; bird species heard in field recordings
+    var birdsRevision = 0                                   // bumped when birds or places change, to reload the section
     var moodCounts: [(name: String, count: Int)] = []       // sidebar; only moods that have samples
 
     // MARK: developer export
@@ -288,7 +288,6 @@ final class AppModel {
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
         updateMoodCounts()
-        updateSpeciesCounts()
         buildClusterInfo()
         updateHiddenCount()
         updateTagCounts()

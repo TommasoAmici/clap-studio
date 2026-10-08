@@ -4,14 +4,16 @@ import SwiftUI
 /// Bird species in field recordings: whether BirdNET is installed, and the place assumed for recordings.
 struct BirdSettingsView: View {
     @Environment(AppModel.self) private var model
-    @State private var placeText = ""
+    @State private var choosing = false
+    @State private var place: GeoPoint?
 
     var body: some View {
         Form {
             Section {
                 if model.birdsAvailable {
-                    Label("BirdNET is installed. Field recordings are listened to for birds after indexing.",
-                          systemImage: "checkmark.circle").foregroundStyle(.secondary)
+                    Label("BirdNET is installed. Field recordings are listened to for birds after indexing; birds heard "
+                          + "with at least 80% confidence are listed.", systemImage: "checkmark.circle")
+                        .foregroundStyle(.secondary)
                 } else {
                     Label("BirdNET is not installed.", systemImage: "exclamationmark.triangle")
                     Text("Run tools/export_birdnet.py (see the README) to create the model files, then index again.")
@@ -22,27 +24,24 @@ struct BirdSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Bird identification") }
             Section {
-                TextField("Latitude, longitude", text: $placeText).monospacedDigit().onSubmit(commit)
                 HStack {
-                    Button("Set Place", action: commit).disabled(GeoPoint(parsing: placeText) == nil)
-                    Button("Clear") { placeText = ""; commit() }.disabled(model.defaultBirdLocation == nil)
+                    Text(place?.text ?? "No place set").monospacedDigit().foregroundStyle(place == nil ? .secondary : .primary)
+                    Spacer()
+                    Button("Choose on Map…") { choosing = true }
+                        .popover(isPresented: $choosing) { LocationPicker(initial: place) { setPlace($0) } }
+                    Button("Clear") { setPlace(nil) }.disabled(place == nil)
                 }
                 Text("Used for recordings without their own place (set it in a recording's properties). Birds that do "
-                     + "not live there are left out. Decimal degrees, for example 51.5, -0.1.")
+                     + "not live there are left out.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Where you record") }
         }
         .formStyle(.grouped)
-        .onAppear { placeText = model.defaultBirdLocation?.text ?? "" }
+        .onAppear { place = model.defaultBirdLocation }
     }
 
-    private func commit() {
-        let trimmed = placeText.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty {
-            model.setDefaultBirdLocation(nil)
-        } else if let point = GeoPoint(parsing: trimmed) {
-            placeText = point.text
-            model.setDefaultBirdLocation(point)
-        }
+    private func setPlace(_ point: GeoPoint?) {
+        place = point
+        model.setDefaultBirdLocation(point)
     }
 }

@@ -11,14 +11,7 @@ public struct GeoPoint: Sendable, Equatable {
         self.longitude = longitude
     }
 
-    /// "51.5, -0.1", "51.5 -0.1" or "51.5;-0.1": latitude then longitude in decimal degrees.
-    public init?(parsing text: String) {
-        let numbers = text.split(whereSeparator: { ", ;\t".contains($0) }).map { Double($0) }
-        guard numbers.count == 2, let lat = numbers[0], let lon = numbers[1] else { return nil }
-        self.init(latitude: lat, longitude: lon)
-    }
-
-    /// The same, for showing: "51.5000, -0.1000".
+    /// For showing: "51.5000, -0.1000".
     public var text: String { String(format: "%.4f, %.4f", latitude, longitude) }
 }
 
@@ -49,8 +42,8 @@ public struct SpeciesJob: Sendable {
 extension LibraryStore {
     /// Identifies what the stored rows were computed from; bump when the model or the candidate rules change.
     public static let speciesVersion = "birdnet-v2.4/1"
-    /// Species heard with at least this confidence are reported (BirdNET's own default is 0.25).
-    public static let reportedConfidence: Float = 0.3
+    /// Species heard with at least this confidence are reported (stricter than BirdNET's default of 0.25).
+    public static let reportedConfidence: Float = 0.8
     /// Two windows of one species closer than this are shown as one stretch.
     static let speciesMergeGap = 0.5
 
@@ -162,15 +155,5 @@ extension LibraryStore {
                                      windows: windows.count)
         }
         return occurrences.sorted { ($0.windows, $0.confidence, $1.common) > ($1.windows, $1.confidence, $0.common) }
-    }
-
-    /// Every species heard in the library's field recordings, with the number of recordings, for the sidebar.
-    public func speciesCounts(minimumConfidence: Float = LibraryStore.reportedConfidence) -> [(common: String, recordings: Int)] {
-        (try? db.query("""
-            SELECT common, COUNT(DISTINCT sample_id) FROM recording_species b
-            JOIN samples s ON s.id = b.sample_id JOIN roots r ON r.id = s.root_id
-            WHERE b.allowed = 1 AND b.confidence >= ? AND r.transient = 0 AND s.status = 'ok'
-            GROUP BY common ORDER BY COUNT(DISTINCT sample_id) DESC, common
-            """, [.double(Double(minimumConfidence))]) { ($0.text(0), Int($0.int(1))) }) ?? []
     }
 }

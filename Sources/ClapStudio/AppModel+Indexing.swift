@@ -67,6 +67,7 @@ extension AppModel {
                 }.value
             }
             failedCount = store.failedCount()
+            birdsRevision += 1
             reloadSamples()
 
             if !token.isCancelled { await runAnalysis(modelVersion: version, force: false, analyzer: analyzer) }

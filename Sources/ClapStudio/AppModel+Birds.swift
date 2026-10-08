@@ -6,10 +6,6 @@ extension AppModel {
     /// The BirdNET model files are installed, so field recordings can be listened to.
     var birdsAvailable: Bool { BirdClassifier.isInstalled && ModelLocator.exists(BirdLocationModel.modelName) }
 
-    func updateSpeciesCounts() {
-        speciesCounts = (store?.speciesCounts() ?? []).map { (name: $0.common, count: $0.recordings) }
-    }
-
     func speciesOccurrences(_ id: Int64) -> [SpeciesOccurrence] { store?.speciesOccurrences(sampleID: id) ?? [] }
 
     func recordingLocation(_ id: Int64) -> GeoPoint? { store?.location(sampleID: id) }
@@ -51,7 +47,7 @@ extension AppModel {
                 }
                 BirdSpeciesIndexer.refilter(store: store, filter: filter, sampleIDs: ids)
             }.value
-            reloadSamples()
+            birdsRevision += 1
         }
     }
 }

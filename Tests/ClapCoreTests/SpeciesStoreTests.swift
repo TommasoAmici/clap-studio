@@ -34,14 +34,6 @@ import Testing
         #expect(GeoPoint(latitude: 91, longitude: 0) == nil && GeoPoint(latitude: 0, longitude: 181) == nil)
     }
 
-    @Test func placesAreParsedFromText() {
-        #expect(GeoPoint(parsing: "51.5, -0.1") == GeoPoint(latitude: 51.5, longitude: -0.1))
-        #expect(GeoPoint(parsing: " 51.5  -0.1 ") == GeoPoint(latitude: 51.5, longitude: -0.1))
-        #expect(GeoPoint(parsing: "-33.9;151.2") == GeoPoint(latitude: -33.9, longitude: 151.2))
-        #expect(GeoPoint(parsing: "51.5") == nil && GeoPoint(parsing: "a, b") == nil && GeoPoint(parsing: "95, 0") == nil)
-        #expect(GeoPoint(parsing: GeoPoint(latitude: 51.5, longitude: -0.1)!.text) == GeoPoint(latitude: 51.5, longitude: -0.1))
-    }
-
     @Test func recordingsAreListenedToOnceUntilTheirAudioIsReadAgain() throws {
         let (store, id) = try recording()
         #expect(store.recordingsNeedingSpecies().map(\.id) == [id])
@@ -64,24 +56,25 @@ import Testing
     @Test func occurrencesMergeNeighbouringWindowsAndRankByHowOftenHeard() throws {
         let (store, id) = try recording()
         try store.saveSpecies(sampleID: id, detections: [
-            bird("Robin", 0, 0.5), bird("Robin", 3, 0.9), bird("Robin", 9, 0.4),    // two stretches
-            bird("Goldfinch", 6, 0.8),
-            bird("Hawfinch", 12, 0.2),                                              // below the reporting cut-off
+            bird("Robin", 0, 0.85), bird("Robin", 3, 0.95), bird("Robin", 9, 0.81),   // two stretches
+            bird("Goldfinch", 6, 0.9),
+            bird("Wren", 12, 0.79),                                                   // below the reporting cut-off
+            bird("Hawfinch", 15, 0.4),
         ], allowed: nil)
         let found = store.speciesOccurrences(sampleID: id)
         #expect(found.map(\.common) == ["Robin", "Goldfinch"])
         let robin = found[0]
-        #expect(robin.windows == 3 && robin.confidence == 0.9 && robin.best.start == 3)
+        #expect(robin.windows == 3 && robin.confidence == 0.95 && robin.best.start == 3)
         #expect(robin.spans == [TimeSpan(start: 0, end: 6), TimeSpan(start: 9, end: 12)])
-        #expect(store.speciesOccurrences(sampleID: id, minimumConfidence: 0.1).map(\.common).contains("Hawfinch"))
+        #expect(LibraryStore.reportedConfidence == 0.8)
+        #expect(Set(store.speciesOccurrences(sampleID: id, minimumConfidence: 0.3).map(\.common)).contains("Hawfinch"))
     }
 
     @Test func aPlaceRulesOutSpeciesWithoutListeningAgain() throws {
         let (store, id) = try recording()
-        let detections = [bird("Robin", 0, 0.9, scientific: robin), bird("Parakeet", 3, 0.8, scientific: parakeet)]
+        let detections = [bird("Robin", 0, 0.9, scientific: robin), bird("Parakeet", 3, 0.85, scientific: parakeet)]
         try store.saveSpecies(sampleID: id, detections: detections, allowed: [robin])
         #expect(store.speciesOccurrences(sampleID: id).map(\.common) == ["Robin"])
-        #expect(store.sample(id: id)?.species == ["Robin"])
 
         try store.refilterSpecies(sampleID: id, allowed: [robin, parakeet])
         #expect(Set(store.speciesOccurrences(sampleID: id).map(\.common)) == ["Robin", "Parakeet"])
@@ -92,30 +85,10 @@ import Testing
         #expect(store.recordingsWithSpecies() == [id])
     }
 
-    @Test func sidebarCountsRecordingsPerSpecies() throws {
-        let (store, id) = try recording()
-        try store.saveSpecies(sampleID: id, detections: [bird("Robin", 0, 0.9), bird("Robin", 3, 0.9), bird("Wren", 6, 0.7)],
-                              allowed: nil)
-        let counts = store.speciesCounts()
-        #expect(counts.map(\.common) == ["Robin", "Wren"] && counts.allSatisfy { $0.recordings == 1 })
-    }
-
     @Test func removingARootForgetsItsSpecies() throws {
         let (store, id) = try recording()
         try store.saveSpecies(sampleID: id, detections: [bird("Robin", 0, 0.9)], allowed: nil)
         try store.removeRoot(id: try #require(store.roots().first?.id))
         #expect(store.recordingsWithSpecies().isEmpty)
-    }
-
-    @Test func theFilterMatchesSpeciesHeardInARecording() {
-        var sample = SampleRecord(id: 1, rootID: 1, rootPath: "/", relPath: "a.wav", name: "a", ext: "wav", duration: 120,
-                                  sampleRate: 48000, channels: 1, size: 1, mtime: 1, status: .ok, useCount: 0,
-                                  lastUsed: nil, cueCount: 0)
-        sample.species = ["European Robin"]
-        var filter = DescriptorFilter()
-        filter.species = "European Robin"
-        #expect(filter.matches(sample))
-        filter.species = "Hawfinch"
-        #expect(!filter.matches(sample))
     }
 }

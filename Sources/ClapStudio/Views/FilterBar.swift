@@ -32,7 +32,6 @@ struct FilterBar: View {
 
             CategoryFilterMenu()
             MoodFilterMenu()
-            SpeciesFilterMenu()
 
             if let example = model.exampleQuery {
                 HStack(spacing: 4) {
@@ -118,25 +117,6 @@ struct CategoryFilterMenu: View {
                 }
             } label: {
                 FilterLabel(model.descriptorFilter.category ?? "Category", systemImage: "tag")
-            }
-            .menuStyle(.button).fixedSize()
-        }
-    }
-}
-
-struct SpeciesFilterMenu: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        if !model.speciesCounts.isEmpty {
-            Menu {
-                Button("Any bird") { model.descriptorFilter.species = nil }
-                Divider()
-                ForEach(model.speciesCounts, id: \.name) { item in
-                    Button("\(item.name) (\(item.count))") { model.descriptorFilter.species = item.name }
-                }
-            } label: {
-                FilterLabel(model.descriptorFilter.species ?? "Birds", systemImage: "bird")
             }
             .menuStyle(.button).fixedSize()
         }

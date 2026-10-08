@@ -48,8 +48,6 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var moods: [String] = []
     /// What the segments of a field recording sound like (birds, water, ...), in the sidebar's order.
     public var sounds: [String] = []
-    /// Bird species heard in a field recording and possible at its place (common names, alphabetical).
-    public var species: [String] = []
 
     /// The user's BPM correction wins over the detected one.
     /// Long recordings are analysed in segments (see `FieldRecording`).

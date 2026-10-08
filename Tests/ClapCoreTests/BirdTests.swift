@@ -162,7 +162,7 @@ private func chirp(_ i: Int) -> Float {
         let london = store.speciesOccurrences(sampleID: id)
         #expect(london.map(\.common).contains("European Robin"))
         #expect(!london.map(\.common).contains("Crimson-fronted Parakeet"))
-        #expect(london.first?.common == "European Robin" && london.first!.windows >= 10)
+        #expect(london.first?.common == "European Robin" && london.first!.windows >= 5)
 
         try store.setLocation(GeoPoint(latitude: 9.9, longitude: -84), sampleIDs: [id])
         BirdSpeciesIndexer.refilter(store: store, filter: filter)
