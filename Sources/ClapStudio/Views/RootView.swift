@@ -56,7 +56,6 @@ struct RootView: View {
                 }
             }
         }
-        .coordinateSpace(name: dropCoordinateSpace)
         .onPreferenceChange(DropZoneFrames.self) { model.dropZones = $0 }
         .onDrop(of: [.fileURL], delegate: WindowDropDelegate(model: model))
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }

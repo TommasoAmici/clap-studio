@@ -87,6 +87,11 @@ extension AppModel {
     /// Library samples for dropped files, in drop order. Files are matched by path; a drag that started in this
     /// app may arrive as a copy at another path, so those are matched by file name against what was just dragged.
     func librarySamples(forFiles urls: [URL]) -> [SampleRecord] {
+        // The drop carried no readable file (it can happen for a drag that began in this window): use what was just dragged.
+        if urls.isEmpty {
+            guard Date().timeIntervalSince(recentDragAt) < 60, let id = recentDrags.last, let sample = sampleByID[id] else { return [] }
+            return [sample]
+        }
         let byPath = Dictionary((samples + usbSamples).map { ($0.url.standardizedFileURL.path, $0) }, uniquingKeysWith: { first, _ in first })
         let dragged = recentDrags.reversed().compactMap { sampleByID[$0] }
         var result: [SampleRecord] = []
