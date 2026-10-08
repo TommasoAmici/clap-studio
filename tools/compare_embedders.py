@@ -18,7 +18,8 @@
         tools/compare_embedders.py --limit 300
 
 Nothing in the app or its database is changed (the library is opened read-only). For a random sample of the
-indexed files it embeds the audio with both models, then writes a Markdown report to build/embedder-comparison.md:
+indexed files it embeds the audio with both models, then writes an HTML report to build/embedder-comparison.html and opens it. Every file in the
+lists has a play button that plays the original file:
 
   * text searches ("punchy kick drum", ...): the ten best matches from each model, side by side
   * find-similar: the five nearest neighbours of some random files, from each model
@@ -35,11 +36,16 @@ import argparse
 import os
 import random
 import sqlite3
+import subprocess
+import sys
 import time
 import warnings
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from compare_report import render  # noqa: E402
 
 warnings.filterwarnings("ignore")
 
@@ -194,10 +200,6 @@ def overlap(a: list[int], b: list[int]) -> float:
     return len(set(a) & set(b)) / max(1, min(len(a), len(b)))
 
 
-def label(sample: dict) -> str:
-    return f"{sample['name']} ({sample['duration']:.1f}s)"
-
-
 def main() -> None:
     args = parse_args()
     samples = pick_samples(args.db, args.limit, args.seed, args.seconds)
@@ -226,30 +228,25 @@ def main() -> None:
     rng = random.Random(args.seed)
     anchors = rng.sample(range(len(samples)), min(args.anchors, len(samples)))
 
-    lines = ["# CLAP and EmbeddingGemma 2 on your library", "",
-             f"{len(samples)} random indexed files, each cut at {args.seconds:g} s. Both models ran on this machine "
-             f"({'CPU' if not _has_gpu() else 'GPU'}).", "",
-             "| | CLAP | EmbeddingGemma 2 |", "|---|---|---|",
-             f"| Numbers per sound | {clap['docs'].shape[1]} | {gemma['docs'].shape[1]} (768, 512, 256 or 128) |",
-             f"| Embedding speed | {len(samples) / clap['seconds']:.1f} files/s | {len(samples) / gemma['seconds']:.1f} files/s |",
-             ""]
+    facts = [("Numbers per sound", f"CLAP {clap['docs'].shape[1]}, EmbeddingGemma 2 {gemma['docs'].shape[1]} "
+                                   f"(768, 512, 256 or 128)"),
+             ("Embedding speed", f"CLAP {len(samples) / clap['seconds']:.1f} files/s, "
+                                 f"EmbeddingGemma 2 {len(samples) / gemma['seconds']:.1f} files/s")]
 
-    query_overlaps = []
-    lines += ["## Text searches", "",
-              "Ten best matches per model. Where both models list the same file it appears in both columns.", ""]
-    for qi, query in enumerate(queries):
-        a = top_k(clap["docs"] @ clap["text"][qi], 10)
-        b = top_k(gemma["docs"] @ gemma["text"][qi], 10)
-        query_overlaps.append(overlap(a, b))
+    def rows_for(a: list[int], b: list[int], scores_a: np.ndarray, scores_b: np.ndarray) -> list:
         shared = set(a) & set(b)
-        lines += [f"### “{query}”  (agree on {len(shared)} of 10)", "", "| # | CLAP | EmbeddingGemma 2 |", "|---|---|---|"]
-        for rank in range(10):
-            mark = lambda i: f"**{label(samples[i])}**" if i in shared else label(samples[i])
-            lines.append(f"| {rank + 1} | {mark(a[rank])} | {mark(b[rank])} |")
-        lines.append("")
+        return [((samples[i], float(scores_a[i]), i in shared), (samples[j], float(scores_b[j]), j in shared))
+                for i, j in zip(a, b)]
 
-    neighbour_overlaps, truncated_overlaps = [], []
-    lines += ["## Find similar", "", "Five nearest sounds to a few random files, per model.", ""]
+    query_overlaps, query_sections = [], []
+    for qi, query in enumerate(queries):
+        scores_a, scores_b = clap["docs"] @ clap["text"][qi], gemma["docs"] @ gemma["text"][qi]
+        a, b = top_k(scores_a, 10), top_k(scores_b, 10)
+        query_overlaps.append(overlap(a, b))
+        query_sections.append({"title": query, "shared": len(set(a) & set(b)), "total": 10,
+                               "rows": rows_for(a, b, scores_a, scores_b)})
+
+    neighbour_overlaps, truncated_overlaps, similar_sections = [], [], []
     sims_clap = clap["docs"] @ clap["docs"].T
     sims_gemma = gemma["docs"] @ gemma["docs"].T
     small = truncate(gemma["docs"], 256)
@@ -260,25 +257,26 @@ def main() -> None:
         neighbour_overlaps.append(overlap(a, b))
         truncated_overlaps.append(overlap(top_k(sims_gemma[anchor], 10, exclude=anchor),
                                           top_k(sims_small[anchor], 10, exclude=anchor)))
-        lines += [f"### Like {label(samples[anchor])}", "", "| # | CLAP | EmbeddingGemma 2 |", "|---|---|---|"]
-        for rank in range(5):
-            lines.append(f"| {rank + 1} | {label(samples[a[rank]])} | {label(samples[b[rank]])} |")
-        lines.append("")
+        similar_sections.append({"anchor": samples[anchor], "rows": rows_for(a, b, sims_clap[anchor], sims_gemma[anchor])})
 
-    summary = [
-        "## How much they agree", "",
-        f"* Text searches: on average {np.mean(query_overlaps) * 10:.1f} of the top 10 are shared.",
-        f"* Find similar: on average {np.mean(neighbour_overlaps) * 5:.1f} of the top 5 are shared.",
-        f"* EmbeddingGemma 2 cut to 256 numbers keeps {np.mean(truncated_overlaps) * 10:.1f} of its own top 10 neighbours "
-        f"(the model card says quality is close to lossless down to 256).",
-        "", "Low agreement is expected and is not a verdict: two good models can rank differently. "
-        "Read the lists below and decide which one you would rather browse.", ""]
-    lines[4:4] = summary  # right after the intro
+    html = render(
+        intro=f"{len(samples)} random indexed files, each cut at {args.seconds:g} s. Both models ran on this machine "
+              f"({'GPU' if _has_gpu() else 'CPU'}).",
+        facts=facts,
+        agreement=[
+            f"Text searches: on average {np.mean(query_overlaps) * 10:.1f} of the top 10 are shared.",
+            f"Find similar: on average {np.mean(neighbour_overlaps) * 5:.1f} of the top 5 are shared.",
+            f"EmbeddingGemma 2 cut to 256 numbers keeps {np.mean(truncated_overlaps) * 10:.1f} of its own top 10 "
+            f"neighbours (the model card says quality is close to lossless down to 256).",
+        ],
+        queries=query_sections, similar=similar_sections)
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("\n".join(lines))
+    out.write_text(html)
     print(f"Wrote {out}")
+    if not args.no_open:
+        subprocess.run(["open", str(out)], check=False)
 
 
 def _has_gpu() -> bool:
@@ -294,7 +292,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--anchors", type=int, default=15, help="how many find-similar examples to list")
     p.add_argument("--queries-file", help="text file with one search per line (default: a built-in list)")
     p.add_argument("--seed", type=int, default=1, help="makes the random sample repeatable")
-    p.add_argument("--out", default="build/embedder-comparison.md")
+    p.add_argument("--out", default="build/embedder-comparison.html")
+    p.add_argument("--no-open", action="store_true", help="do not open the report in the browser when done")
     return p.parse_args()
 
 
