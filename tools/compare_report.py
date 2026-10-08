@@ -91,3 +91,41 @@ def render(*, intro: str, facts: list[tuple[str, str]], agreement: list[str], qu
                   _comparison_table(item["rows"])]
     parts.append(f"<script>{SCRIPT}</script>")
     return "\n".join(parts)
+
+
+def _verdict(result: dict) -> str:
+    """One model's category for a sound, with how sure it was and what came second."""
+    name = result["category"] or "Uncategorised"
+    best = f'{escape(name)} <span class="muted">{result["confidence"]:.0%}</span>'
+    runner_up = f'then {escape(result["runner_up"])} {result["runner_up_confidence"]:.0%}'
+    if result["category"] is None:
+        best = (f'<span class="muted">Uncategorised (closest {escape(result["best"])} '
+                f'{result["confidence"]:.0%})</span>')
+    return f'<div class="name">{best}</div><div class="detail">{runner_up}</div>'
+
+
+def render_categories(*, intro: str, agreement: list[str], distribution: list[tuple[str, int, int]],
+                      changes: list[tuple[str, str, int]], groups: list[dict]) -> str:
+    """groups: {"clap", "gemma", "items": [(sample, clap result, gemma result)]}, biggest group first."""
+    parts = [f"<!doctype html><meta charset=utf-8><title>Categories: CLAP and EmbeddingGemma 2</title>"
+             f"<style>{STYLE}</style>", "<h1>How CLAP and EmbeddingGemma 2 categorise your library</h1>",
+             f"<p>{escape(intro)}</p>", "<p class=muted>Click a name to play it, click again to stop. "
+             "Percentages are each model's confidence in its pick.</p>",
+             "<ul>", *[f"<li>{escape(line)}</li>" for line in agreement], "</ul>",
+             "<h2>Most common differences</h2>", "<table><tr><th>CLAP said</th><th>EmbeddingGemma 2 said</th>"
+             "<th>Sounds</th></tr>",
+             *[f"<tr><td><a href='#g{i}'>{escape(c)}</a></td><td>{escape(g)}</td><td>{n}</td></tr>"
+               for i, (c, g, n) in enumerate(changes)], "</table>",
+             "<h2>How many sounds each model puts in each category</h2>",
+             "<table><tr><th>Category</th><th>CLAP</th><th>EmbeddingGemma 2</th></tr>",
+             *[f"<tr><td>{escape(name)}</td><td>{a}</td><td>{b}</td></tr>" for name, a, b in distribution], "</table>",
+             f"<h2>Every sound categorised differently ({sum(len(g['items']) for g in groups)})</h2>"]
+    for i, group in enumerate(groups):
+        parts += [f'<h3 id="g{i}">CLAP: {escape(group["clap"])} → EmbeddingGemma 2: {escape(group["gemma"])} '
+                  f'<small>{len(group["items"])} sound{"" if len(group["items"]) == 1 else "s"}</small></h3>',
+                  "<table><tr><th>Sound</th><th>CLAP</th><th>EmbeddingGemma 2</th></tr>"]
+        for sample, clap, gemma in group["items"]:
+            parts.append(f"<tr><td>{_player(sample)}</td><td>{_verdict(clap)}</td><td>{_verdict(gemma)}</td></tr>")
+        parts.append("</table>")
+    parts.append(f"<script>{SCRIPT}</script>")
+    return "\n".join(parts)
