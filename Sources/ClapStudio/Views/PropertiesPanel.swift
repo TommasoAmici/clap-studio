@@ -150,23 +150,34 @@ struct FlowLayout: Layout {
 }
 
 /// What a field recording contains (birds, water, speech, ...), each with where it is heard.
-/// A timestamp starts playback there; the name shows every recording with that sound.
+/// A timestamp starts playback there; the name shows every recording with that sound. Birds are left out once the
+/// birds section names the species, which says more.
 struct FieldSoundsSection: View {
     @Environment(AppModel.self) private var model
     let sample: SampleRecord
     @State private var occurrences: [SoundOccurrence] = []
+    @State private var speciesNamed = false
 
-    /// Changes when another recording is selected or its sounds are recomputed.
-    private var reloadKey: String { "\(sample.id)|\(sample.sounds.joined(separator: ","))" }
+    /// Changes when another recording is selected or its sounds or birds are recomputed.
+    private var reloadKey: String { "\(sample.id)|\(sample.sounds.joined(separator: ","))|\(model.birdsRevision)" }
+    private var shown: [SoundOccurrence] { speciesNamed ? occurrences.filter { $0.name != "Birds" } : occurrences }
     private static let timestampsShown = 4
 
     var body: some View {
+        Group { if !(speciesNamed && shown.isEmpty) { content } }
+            .task(id: reloadKey) {
+                occurrences = model.soundOccurrences(sample.id)
+                speciesNamed = !model.speciesOccurrences(sample.id).isEmpty
+            }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Sounds in this recording").font(.subheadline.bold())
-            if occurrences.isEmpty {
+            if shown.isEmpty {
                 Text(model.isIndexing ? "Listening…" : "No sounds identified.").font(.caption).foregroundStyle(.secondary)
             }
-            ForEach(occurrences, id: \.name) { occurrence in
+            ForEach(shown, id: \.name) { occurrence in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Button { model.descriptorFilter.category = occurrence.name } label: {
@@ -190,6 +201,5 @@ struct FieldSoundsSection: View {
             }
         }
         .font(.caption)
-        .task(id: reloadKey) { occurrences = model.soundOccurrences(sample.id) }
     }
 }
