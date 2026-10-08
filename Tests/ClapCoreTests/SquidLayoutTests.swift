@@ -34,3 +34,26 @@ import Testing
         #expect(SquidLayout.infoContents(name: "MiscKit") == "MiscKit\n")
     }
 }
+
+@Suite struct UsbDriveTests {
+    @Test func onlyPluggedInVolumesCount() {
+        func ext(_ path: String, internal i: Bool? = false, removable r: Bool? = true, ejectable e: Bool? = true, local l: Bool? = true) -> Bool {
+            UsbDrive.isExternal(path: path, isInternal: i, isRemovable: r, isEjectable: e, isLocal: l)
+        }
+        #expect(ext("/Volumes/SQUID"))
+        #expect(!ext("/"), "the system volume")
+        #expect(!ext("/System/Volumes/Data"))
+        #expect(!ext("/Volumes/Macintosh HD", internal: true, removable: false, ejectable: false))
+        #expect(!ext("/Volumes/Share", local: false), "network shares")
+        #expect(ext("/Volumes/SD", internal: true, removable: true), "built-in card readers still hold removable media")
+        #expect(ext("/Volumes/SSD", internal: false, removable: false, ejectable: false), "external disk")
+    }
+
+    @Test func fat32Detection() {
+        func drive(_ f: String) -> UsbDrive { UsbDrive(url: URL(fileURLWithPath: "/Volumes/X"), name: "X", formatDescription: f, capacity: nil, available: nil) }
+        #expect(drive("MS-DOS (FAT32)").isFAT32)
+        #expect(!drive("ExFAT").isFAT32)
+        #expect(!drive("Mac OS Extended (Journaled)").isFAT32)
+        #expect(!drive("MS-DOS (FAT16)").isFAT32)
+    }
+}
