@@ -10,8 +10,8 @@ struct LibraryTableView: View {
             if new.count == 1 { model.select(new.first, play: true) } else { model.tableSelection = new }
         })
 
-        // The name and folder cells are drag sources (for dropping into a DAW). A drag source swallows the
-        // click that would normally select the row, so those cells select and preview explicitly.
+        // The name cell is a drag source (for dropping into a DAW). A drag source swallows the
+        // click that would normally select the row, so it selects and previews explicitly.
         Table(model.visible, selection: selection, sortOrder: $model.sortOrder) {
             TableColumn("Name", value: \.name) { s in
                 HStack(spacing: 6) {
@@ -26,13 +26,6 @@ struct LibraryTableView: View {
                 .sampleDrag(s, model: model)
             }
             .width(min: 180, ideal: 260)
-            TableColumn("Folder", value: \.folder) { s in
-                Text(s.folder).foregroundStyle(.secondary).lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                    .onTapGesture { model.select(s.id, play: true) }
-                    .sampleDrag(s, model: model)
-            }
-            .width(min: 100, ideal: 180)
             TableColumn("Length", value: \.duration) { s in
                 Text(Format.duration(s.duration)).monospacedDigit().foregroundStyle(.secondary)
             }
