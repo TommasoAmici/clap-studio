@@ -15,9 +15,10 @@ struct DrumPanel: View {
                         .font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 60)
                 } else {
+                    let labels = model.drumPattern.displayLabels
                     VStack(spacing: 4) {
                         ForEach(Array(model.drumPattern.tracks.enumerated()), id: \.element.id) { index, track in
-                            DrumTrackRow(index: index, track: track)
+                            DrumTrackRow(index: index, track: track, title: labels.indices.contains(index) ? labels[index] : track.label)
                         }
                     }
                     .padding(.horizontal, 12).padding(.bottom, 8)
@@ -74,13 +75,14 @@ private struct DrumTrackRow: View {
     @Environment(AppModel.self) private var model
     let index: Int
     let track: DrumTrack
+    let title: String
     @State private var dropTargeted = false
 
     var body: some View {
         HStack(spacing: 8) {
             Button { model.select(track.sampleID, play: true) } label: {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(track.label).font(.caption.bold()).lineLimit(1)
+                    Text(title).font(.caption.bold()).lineLimit(1)
                     Text(model.drumSampleName(track)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .frame(width: 130, alignment: .leading)

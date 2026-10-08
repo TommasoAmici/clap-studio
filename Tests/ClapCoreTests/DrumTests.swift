@@ -86,6 +86,18 @@ import Testing
     }
 }
 
+@Suite struct DrumLabelTests {
+    @Test func sharedLabelsAreNumberedInOrder() {
+        var p = DrumPattern()
+        for (i, label) in ["Kick", "Snare", "Kick", "Hi-hat", "Kick", "Snare"].enumerated() {
+            p.addTrack(sampleID: Int64(i), label: label, category: label)
+        }
+        #expect(p.displayLabels == ["Kick #1", "Snare #1", "Kick #2", "Hi-hat", "Kick #3", "Snare #2"])
+        p.removeTrack(at: 1)
+        #expect(p.displayLabels == ["Kick #1", "Kick #2", "Hi-hat", "Kick #3", "Snare"], "numbers follow what is left")
+    }
+}
+
 @Suite struct SwingDisplayTests {
     @Test func percentIsCenteredOnStraight() {
         #expect(DrumTiming.swingPercent(0) == 50)

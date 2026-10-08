@@ -44,7 +44,7 @@ extension AppModel {
         var skipped = 0
         for id in ids {
             guard let sample = sampleByID[id], !pattern.tracks.contains(where: { $0.sampleID == id }) else { continue }
-            if !pattern.addTrack(sampleID: id, label: sample.name, category: sample.effectiveCategory) { skipped += 1 }
+            if !pattern.addTrack(sampleID: id, label: sample.effectiveCategory ?? "Sample", category: sample.effectiveCategory) { skipped += 1 }
         }
         drumPattern = pattern
         showDrums = true
@@ -77,9 +77,11 @@ extension AppModel {
     func replaceDrumSample(track index: Int, with id: Int64) {
         guard let sample = sampleByID[id] else { return }
         drumPattern.replaceSample(track: index, with: id)
-        // Keep a kit's slot name, but name tracks that came from the library after their sample.
-        if drumPattern.tracks[index].alternatives.isEmpty { drumPattern.tracks[index].label = sample.name }
-        else if !drumPattern.tracks[index].alternatives.contains(id) { drumPattern.tracks[index].alternatives.append(id) }
+        // The track is named after the new sound's category (when it has one).
+        if let category = sample.effectiveCategory { drumPattern.tracks[index].label = category }
+        if !drumPattern.tracks[index].alternatives.isEmpty, !drumPattern.tracks[index].alternatives.contains(id) {
+            drumPattern.tracks[index].alternatives.append(id)
+        }
     }
 
     /// Library samples for dragged files (files that are not in the library are ignored).

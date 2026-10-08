@@ -30,6 +30,17 @@ public struct DrumPattern: Equatable, Sendable {
 
     public init(tracks: [DrumTrack] = [], swing: Double = 0) { self.tracks = tracks; self.swing = swing }
 
+    /// What each track is called on screen: its label, numbered ("Kick #1", "Kick #2") when several share it.
+    public var displayLabels: [String] {
+        let counts = Dictionary(tracks.map { ($0.label, 1) }, uniquingKeysWith: +)
+        var seen: [String: Int] = [:]
+        return tracks.map { track in
+            guard counts[track.label, default: 0] > 1 else { return track.label }
+            seen[track.label, default: 0] += 1
+            return "\(track.label) #\(seen[track.label]!)"
+        }
+    }
+
     public var isFull: Bool { tracks.count >= Self.maxTracks }
 
     public mutating func toggle(track: Int, step: Int) {
