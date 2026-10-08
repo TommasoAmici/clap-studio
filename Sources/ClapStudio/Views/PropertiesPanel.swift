@@ -25,6 +25,7 @@ struct PropertiesPanel: View {
                 }
                 .font(.caption)
             }
+            TagEditor(sample: sample).padding(.top, 8)
         }
         .onAppear(perform: syncText)
         .onChange(of: sample.id) { syncText() }
@@ -83,5 +84,62 @@ struct PropertiesPanel: View {
         } else {
             syncText()
         }
+    }
+}
+
+/// The sample's tags as removable chips, with a field to add more.
+struct TagEditor: View {
+    @Environment(AppModel.self) private var model
+    let sample: SampleRecord
+    @State private var newTag = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Tags").font(.subheadline.bold())
+            if !sample.tags.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(sample.tags, id: \.self) { tag in
+                        HStack(spacing: 4) {
+                            Text(tag).font(.caption)
+                            Button { model.removeTag(tag, from: [sample.id]) } label: {
+                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(.quaternary, in: Capsule())
+                    }
+                }
+            }
+            TextField("Add a tag", text: $newTag)
+                .textFieldStyle(.roundedBorder).controlSize(.small)
+                .onSubmit { model.addTag(newTag, to: [sample.id]); newTag = "" }
+        }
+    }
+}
+
+/// Lays chips out in rows, wrapping to the next line when the width runs out.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(proposal.width ?? 300, subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (index, origin) in arrange(bounds.width, subviews).origins.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(_ width: CGFloat, _ subviews: Subviews) -> (size: CGSize, origins: [CGPoint]) {
+        var origins: [CGPoint] = [], x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxX: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
+            origins.append(CGPoint(x: x, y: y))
+            x += size.width + spacing; rowHeight = max(rowHeight, size.height); maxX = max(maxX, x - spacing)
+        }
+        return (CGSize(width: maxX, height: y + rowHeight), origins)
     }
 }

@@ -45,6 +45,18 @@ struct SidebarView: View {
                     }
                 }
             }
+            if !model.tagCounts.isEmpty {
+                Section("Tags") {
+                    ForEach(model.tagCounts, id: \.name) { item in
+                        HStack {
+                            Label(item.name, systemImage: "number")
+                            Spacer()
+                            Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                        }
+                        .tag("tag.\(item.name)")
+                    }
+                }
+            }
             Section("Folders") {
                 OutlineGroup(model.folderTree, children: \.children) { node in
                     HStack {

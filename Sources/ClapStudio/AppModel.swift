@@ -59,6 +59,10 @@ final class AppModel {
     var filtersActive = false
     var folderTree: [FolderNode] = []
     var hiddenCount = 0
+    var tagFilter: String? { didSet { refilter() } }
+    var tagCounts: [(name: String, count: Int)] = []
+    var tagPromptTargets: [Int64]?            // non-nil while the "add tag" prompt is open
+    var showExport = false
     @ObservationIgnored var folderWatcher: FolderWatcher?
     @ObservationIgnored var rescanTask: Task<Void, Never>?
     var undoStack: [LibraryEdit] = []
@@ -215,6 +219,7 @@ final class AppModel {
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
         updateHiddenCount()
+        updateTagCounts()
         refilter()
         if let id = selectedID, sampleByID[id] == nil { selectedID = nil }
     }
@@ -236,6 +241,7 @@ final class AppModel {
             list = list.filter { $0.rootID == node.rootID && ($0.relPath.hasPrefix(node.path) || node.path.isEmpty) }
         }
         if descriptorFilter.isActive { list = list.filter(descriptorFilter.matches) }
+        if let tag = tagFilter { list = list.filter { $0.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame } } }
         if let example = exampleQuery {
             let ranked = list.filter { example.scores[$0.id] != nil }.sorted { example.scores[$0.id]! > example.scores[$1.id]! }
             publish(ranked)
@@ -245,6 +251,7 @@ final class AppModel {
         if !query.isEmpty {
             let named = Set(list.filter {
                 $0.name.localizedCaseInsensitiveContains(query) || $0.relPath.localizedCaseInsensitiveContains(query)
+                    || $0.tags.contains { $0.localizedCaseInsensitiveContains(query) }
             }.map(\.id))
             if soundSearchActive && soundScoresQuery == query {
                 // One search box: file-name matches first, then sounds that match the description.
@@ -264,7 +271,7 @@ final class AppModel {
 
     private func publish(_ list: [SampleRecord]) {
         visible = list
-        filtersActive = smartFilter != .all || exampleQuery != nil || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        filtersActive = smartFilter != .all || tagFilter != nil || exampleQuery != nil || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1
     }
 

@@ -56,6 +56,7 @@ struct RootView: View {
             return true
         }
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
+        .sheet(isPresented: $model.showExport) { ExportSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .searchable(text: $model.searchText, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
@@ -94,6 +95,7 @@ struct RootView: View {
             return .handled
         }
         .modifier(NewCollectionPrompt())
+        .modifier(AddTagPrompt())
         .alert("Clap Studio", isPresented: Binding(get: { model.errorMessage != nil },
                                                     set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }

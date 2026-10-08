@@ -10,6 +10,7 @@ extension AppModel {
     var sidebarTag: String {
         if let folder = folderSelection { return folder }
         if let id = collectionSelection { return "col.\(id)" }
+        if let tag = tagFilter { return "tag.\(tag)" }
         if let category = descriptorFilter.category { return "cat.\(category)" }
         return "smart.\(smartFilter.rawValue)"
     }
@@ -17,9 +18,11 @@ extension AppModel {
     func selectSidebar(_ tag: String) {
         folderSelection = nil
         collectionSelection = nil
+        tagFilter = nil
         descriptorFilter.category = nil
         smartFilter = .all
-        if tag.hasPrefix("col.") { collectionSelection = Int64(tag.dropFirst(4)) }
+        if tag.hasPrefix("tag.") { tagFilter = String(tag.dropFirst(4)) }
+        else if tag.hasPrefix("col.") { collectionSelection = Int64(tag.dropFirst(4)) }
         else if tag.hasPrefix("cat.") { descriptorFilter.category = String(tag.dropFirst(4)) }
         else if tag.hasPrefix("smart.") { smartFilter = SmartFilter(rawValue: String(tag.dropFirst(6))) ?? .all }
         else { folderSelection = tag }
@@ -146,7 +149,7 @@ extension AppModel {
     func registerTrayGrab() { for id in tray { registerGrab(id) } }
 
     /// Copies the tray's files into a folder the user picks; the originals stay where they are.
-    func exportTray() {
+    func exportTray(template: String) {
         let samples = traySamples
         guard !samples.isEmpty else { return }
         let panel = NSOpenPanel()
@@ -156,9 +159,11 @@ extension AppModel {
         panel.prompt = "Copy Here"
         panel.message = "Copy \(samples.count) samples to this folder"
         guard panel.runModal() == .OK, let folder = panel.url else { return }
-        let urls = samples.map(\.url)
+        let items = samples.enumerated().map { index, sample in
+            (source: sample.url, fileName: ExportNaming.fileName(template: template, for: sample, position: index + 1, of: samples.count))
+        }
         Task {
-            let report = await Task.detached { SampleExporter.copy(urls, to: folder) }.value
+            let report = await Task.detached { SampleExporter.copy(items, to: folder) }.value
             if let first = report.copied.first { NSWorkspace.shared.activateFileViewerSelecting([first]) }
             if !report.failures.isEmpty {
                 errorMessage = "Copied \(report.copied.count) of \(samples.count). Could not copy: "

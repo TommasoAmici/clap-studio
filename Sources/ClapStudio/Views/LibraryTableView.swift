@@ -84,6 +84,7 @@ struct LibraryTableView: View {
                 if let current = model.collectionSelection {
                     Button("Remove from This Collection") { model.remove(list, fromCollection: current) }
                 }
+                Button("Add Tag…") { model.tagPromptTargets = list }
                 Button("Add to Tray") { model.addToTray(list) }
                 Divider()
                 if samples.allSatisfy(\.hidden) {

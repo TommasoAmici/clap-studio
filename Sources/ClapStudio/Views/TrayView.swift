@@ -19,7 +19,7 @@ struct TrayView: View {
                     }
                     FileDragHandle(urls: samples.map(\.url), label: "Drag all \(samples.count)") { model.registerTrayGrab() }
                         .frame(width: 130, height: 30)
-                    Button("Copy To…") { model.exportTray() }
+                    Button("Copy To…") { model.showExport = true }
                         .help("Copy these files into a folder")
                     Button("Save as Collection") { model.newCollectionSeed = samples.map(\.id) }
                     Button { model.clearTray() } label: { Image(systemName: "xmark.circle.fill") }
@@ -60,6 +60,26 @@ struct NewCollectionPrompt: ViewModifier {
             Button("Cancel", role: .cancel) { name = "" }
         } message: {
             if let seed = model.newCollectionSeed, !seed.isEmpty { Text("Starts with \(seed.count) sample\(seed.count == 1 ? "" : "s").") }
+        }
+    }
+}
+
+/// Asks for a tag name and applies it to the samples that triggered the prompt.
+struct AddTagPrompt: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @State private var text = ""
+
+    func body(content: Content) -> some View {
+        content.alert("Add Tag", isPresented: Binding(get: { model.tagPromptTargets != nil },
+                                                      set: { if !$0 { model.tagPromptTargets = nil } })) {
+            TextField("Tag", text: $text)
+            Button("Add") {
+                model.addTag(text, to: model.tagPromptTargets ?? [])
+                text = ""
+            }
+            Button("Cancel", role: .cancel) { text = "" }
+        } message: {
+            if let targets = model.tagPromptTargets { Text("For \(model.samplesPhrase(targets.count)).") }
         }
     }
 }
