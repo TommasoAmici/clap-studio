@@ -27,7 +27,7 @@ struct ClapStudioApp: App {
                     .keyboardShortcut("z", modifiers: [.command, .option, .shift]).disabled(model.redoName == nil)
             }
             CommandGroup(after: .textEditing) {
-                Button("Find…") { if !SearchFocus.focus() { model.searchPresented = true } }
+                Button("Find…") { model.searchFocusRequests += 1 }
                     .keyboardShortcut("f")
             }
             CommandGroup(replacing: .newItem) {

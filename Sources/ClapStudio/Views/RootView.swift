@@ -26,34 +26,34 @@ struct RootView: View {
                 DrumPanel()
                 StatusBar()
             }
-            .inspector(isPresented: $showInspector) {
-                InspectorView().inspectorColumnWidth(min: 300, ideal: 360, max: 480)
-            }
             .toolbar {
-                ToolbarItem(placement: .principal) {
+                // Attached to the main content, before the inspector, so they stay above it and never slide under
+                // the inspector column.
+                ToolbarItemGroup(placement: .principal) {
                     Picker("View", selection: $model.viewMode) {
                         ForEach(ViewMode.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 180)
-                }
-                ToolbarItem { ProjectButton() }
-                ToolbarItem {
+                    SearchField()
+                    ProjectButton()
                     Toggle(isOn: $model.project.matchLoudness) { Image(systemName: "dial.medium") }
                         .help("Match preview loudness, so quiet and loud samples can be compared")
-                }
-                ToolbarItem {
                     Toggle(isOn: $model.showDrums) { Image(systemName: "square.grid.4x3.fill") }
                         .help("Show the drum machine")
-                }
-                ToolbarItem {
                     Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                         .help("Play a sample when it is selected")
                 }
-                ToolbarItem {
-                    Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
-                        .help("Show or hide the inspector")
-                }
+            }
+            .inspector(isPresented: $showInspector) {
+                InspectorView()
+                    .inspectorColumnWidth(min: 300, ideal: 360, max: 480)
+                    .toolbar {
+                        ToolbarItem {
+                            Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
+                                .help("Show or hide the inspector")
+                        }
+                    }
             }
         }
         .onPreferenceChange(DropZoneFrames.self) { model.dropZones = $0 }
@@ -63,8 +63,6 @@ struct RootView: View {
         .sheet(isPresented: $model.showExport, onDismiss: { model.exportIDs = nil }) { ExportSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .sheet(isPresented: $model.showSquidExport) { SquidExportSheet() }
-        .searchable(text: $model.searchText, isPresented: $model.searchPresented, placement: .toolbar,
-                    prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {
             guard !isTypingInTextField else { return .ignored }
             model.togglePlayback()
