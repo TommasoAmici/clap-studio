@@ -26,6 +26,10 @@ struct ClapStudioApp: App {
                 Button(model.redoName.map { "Redo \($0)" } ?? "Redo Library Change") { model.redoLibraryEdit() }
                     .keyboardShortcut("z", modifiers: [.command, .option, .shift]).disabled(model.redoName == nil)
             }
+            CommandGroup(after: .textEditing) {
+                Button("Find…") { if !SearchFocus.focus() { model.searchPresented = true } }
+                    .keyboardShortcut("f")
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Add Folder…") { model.chooseFolder() }.keyboardShortcut("o")
                 Button("Rescan Library") { model.startIndexing() }.keyboardShortcut("r", modifiers: [.command, .shift])

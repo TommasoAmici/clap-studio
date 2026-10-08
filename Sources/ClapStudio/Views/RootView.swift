@@ -63,7 +63,7 @@ struct RootView: View {
         .sheet(isPresented: $model.showExport, onDismiss: { model.exportIDs = nil }) { ExportSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .sheet(isPresented: $model.showSquidExport) { SquidExportSheet() }
-        .searchable(text: $model.searchText, placement: .toolbar,
+        .searchable(text: $model.searchText, isPresented: $model.searchPresented, placement: .toolbar,
                     prompt: model.textSearchAvailable ? "Search by name or describe a sound" : "Search by name")
         .onKeyPress(.space) {
             guard !isTypingInTextField else { return .ignored }

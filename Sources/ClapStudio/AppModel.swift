@@ -137,6 +137,7 @@ final class AppModel {
     @ObservationIgnored var usbIndexQueued = false
 
     // MARK: filters
+    var searchPresented = false                             // the toolbar search field is showing (Cmd+F opens it)
     var searchText = "" { didSet { if !searchText.isEmpty { exampleQuery = nil }; scheduleSoundSearch(); refilter() } }
     var textSearchAvailable = false
     var soundScores: [Int64: Float] = [:]       // semantic similarity of every sample to `soundScoresQuery`
