@@ -53,7 +53,9 @@ Three embedders sit behind one protocol:
 
 Models are compiled by the app on first launch. Switching model re-embeds the library once. `tools/make_references.py` regenerates the librosa / Hugging Face ground truth the tests compare the Swift front ends, tokenizer and Core ML outputs against.
 
-Pipeline (CLAP: 10 s window at 48 kHz, repeat-padded; CNN14: 4 s at 32 kHz): log-mel (vDSP), model, PCA to 128 dims, cosine search (BLAS), spherical k-means for colours, UMAP-style layout for the map.
+Pipeline (CLAP: 10 s window at 48 kHz, repeat-padded; CNN14: 4 s at 32 kHz): standardise the sample, log-mel (vDSP), model, PCA to 128 dims, cosine search (BLAS), spherical k-means for colours, UMAP-style layout for the map.
+
+Standardising (`SamplePreprocessor`, shared by indexing and query-by-example through `EmbeddingInput`): leading and trailing silence cut (loops keep theirs), onset at a fixed 5 ms pre-roll, one gain to -18 dBFS RMS with peaks at most -1 dBFS, quiet files boosted at most 30 dB. Loudness, length, tempo and pitch are measured on the original file, so the level and length aspects stay real; only the embedding sees the standardised sound. Changing this re-embeds the library.
 
 At 50k samples x 2048 dims (M4 Pro): PCA 2.5 s, layout about 1 s, similarity query under 1 ms.
 

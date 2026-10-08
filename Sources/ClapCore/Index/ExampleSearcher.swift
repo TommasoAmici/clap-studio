@@ -30,8 +30,9 @@ public final class ExampleSearcher: @unchecked Sendable {
         let (embedder, vectors) = try prepare()
         guard vectors.count > 0 else { throw ExampleSearchError.emptyLibrary }
         let fe = embedder.frontEnd
-        let audio = try AudioDecoder.decodeForAnalysis(url: url, maxSeconds: fe.analysisSeconds, sampleRate: Double(fe.sampleRate))
-        let query = try embedder.embed(LogMelExtractor(config: fe).extract(signal: audio.samples))
+        // Same input path as indexing, so a dropped file embeds exactly like its library copy.
+        let input = try EmbeddingInput.load(url: url, frontEnd: fe, analyzer: DescriptorAnalyzer())
+        let query = try embedder.embed(LogMelExtractor(config: fe).extract(signal: input.signal))
         return vectors.topK(query: query, limit: limit).map { TextHit(sampleID: vectors.ids[$0.row], score: $0.score) }
     }
 

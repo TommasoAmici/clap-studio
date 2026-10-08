@@ -6,7 +6,7 @@ import Foundation
 /// so short one-shots are not diluted by padding.
 public final class CoreMLEmbedder: EmbeddingProvider, @unchecked Sendable {
     public static let modelName = "CNN14Trunk"
-    public let version = "panns-cnn14-v1"
+    public let version = "panns-cnn14-v2"
     public let dimension = 2048
     private static let timeStride = 32   // five 2x poolings
 

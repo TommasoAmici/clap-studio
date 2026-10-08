@@ -6,7 +6,7 @@ import Foundation
 public final class ClapEmbedder: EmbeddingProvider, @unchecked Sendable {
     public static let audioModelName = "CLAPAudio"
     public static let textModelName = "CLAPText"
-    public static let versionTag = "laion-clap-htsat-v1"
+    public static let versionTag = "laion-clap-htsat-v2"
 
     public let version = ClapEmbedder.versionTag
     public let dimension = 512

@@ -80,17 +80,12 @@ public final class IndexingPipeline: @unchecked Sendable {
     static func embedOne(_ job: IndexJob, extractor: LogMelExtractor, analyzer: DescriptorAnalyzer,
                          embedder: EmbeddingProvider) -> IndexResult {
         do {
-            let fe = embedder.frontEnd
-            let audio = try AudioDecoder.decodeForAnalysis(url: job.url, maxSeconds: max(fe.analysisSeconds, DescriptorAnalyzer.analysisSeconds),
-                                                           sampleRate: Double(fe.sampleRate))
-            let mel = extractor.extract(signal: audio.samples)
-            let vector = try embedder.embed(mel)
-            let descriptors = analyzer.analyze(samples: audio.samples, sampleRate: Double(fe.sampleRate),
-                                               fileDuration: audio.duration)
-            return .success(id: job.id, duration: audio.duration, sampleRate: audio.sampleRate,
-                            channels: audio.channels, embedding: vector,
+            let input = try EmbeddingInput.load(url: job.url, frontEnd: embedder.frontEnd, analyzer: analyzer)
+            let vector = try embedder.embed(extractor.extract(signal: input.signal))
+            return .success(id: job.id, duration: input.audio.duration, sampleRate: input.audio.sampleRate,
+                            channels: input.audio.channels, embedding: vector,
                             fingerprint: FileFingerprint.compute(url: job.url), modelVersion: embedder.version,
-                            cues: CueFileReader.read(url: job.url), descriptors: descriptors)
+                            cues: CueFileReader.read(url: job.url), descriptors: input.descriptors)
         } catch {
             return .failure(id: job.id, message: String(describing: error))
         }

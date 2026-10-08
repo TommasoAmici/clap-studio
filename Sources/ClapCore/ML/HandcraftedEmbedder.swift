@@ -2,7 +2,7 @@ import Foundation
 
 /// Fallback embedding from classic spectral and envelope statistics. No model needed.
 public struct HandcraftedEmbedder: EmbeddingProvider {
-    public let version = "handcrafted-v1"
+    public let version = "handcrafted-v2"
     public var dimension: Int { MelSpectrogram.nMels * 3 + 8 }
 
     public init() {}
