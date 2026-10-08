@@ -20,6 +20,8 @@ public enum RecordingSegmenter {
     public static let maximumSegments = 400
     /// Context kept around each segment; the per-segment silence trim removes what is not needed.
     static let paddingSeconds = 0.1
+    /// A recording whose loud and quiet parts differ by less than this has no silence to cut at, dB.
+    static let minimumDynamicRangeDB: Float = 20
     /// Floor for the silence threshold, dBFS.
     static let thresholdFloorDB: Float = -70
     /// Margin above the noise floor (10th percentile of the envelope), dB.
@@ -63,6 +65,9 @@ public enum RecordingSegmenter {
     static func silenceThreshold(_ envelopeDB: [Float]) -> Float {
         let sorted = envelopeDB.sorted()
         let p10 = sorted[min(sorted.count - 1, sorted.count / 10)]
+        let p95 = sorted[min(sorted.count - 1, sorted.count * 95 / 100)]
+        // Steady sound (rain, a machine) has no silence to cut at: the noise floor is the sound itself.
+        if p95 - p10 < minimumDynamicRangeDB { return thresholdFloorDB }
         return max(p10 + noiseMarginDB, thresholdFloorDB)
     }
 

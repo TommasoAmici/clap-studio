@@ -45,6 +45,14 @@ import Testing
         for (a, b) in zip(spans, spans.dropFirst()) { #expect(abs(a.end - b.start) < 1e-9) }
     }
 
+    @Test func steadySoundIsNotMistakenForSilence() {
+        // Rain: always between -20 and -14 dB. Nothing is quiet, so it is only cut to the model's window length.
+        let env = (0..<1200).map { Float(-20 + Double($0 % 7)) }
+        let spans = RecordingSegmenter.segments(envelopeDB: env, hop: hop, duration: 60)
+        #expect(spans.count == 6)
+        #expect(abs(spans.first!.start) < 1e-9 && abs(spans.last!.end - 60) < 1e-6)
+    }
+
     @Test func silentRecordingHasNoSegments() {
         let env = [Float](repeating: -90, count: 400)
         #expect(RecordingSegmenter.segments(envelopeDB: env, hop: hop, duration: 20).isEmpty)
