@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import Foundation
 
 /// One of BirdNET's species outputs.
@@ -39,3 +40,4 @@ public struct BirdLabels: Sendable {
 
     public func index(ofScientific name: String) -> Int? { indexByScientific[name] }
 }
+#endif

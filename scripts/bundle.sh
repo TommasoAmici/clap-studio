@@ -1,6 +1,8 @@
 #!/bin/sh
 # Builds a release ClapStudio.app in ./build (ad-hoc signed, not sandboxed).
 #   scripts/bundle.sh            -> build/ClapStudio.app
+#   NON_COMMERCIAL=0 scripts/bundle.sh   -> the same without the features whose licenses forbid commercial use
+#                                           (bird species: BirdNET is CC BY-NC-SA 4.0)
 #   open build/ClapStudio.app
 set -e
 . "$(dirname "$0")/env.sh"
@@ -15,12 +17,13 @@ cp "$(swift build -c release --show-bin-path)/ClapStudio" "$APP/Contents/MacOS/C
 # Bundle whichever Core ML models have been exported (tools/export_clap.py, tools/export_model.py,
 # tools/export_birdnet.py).
 MODELS="$HOME/Library/Application Support/ClapStudio/Models"
-for item in CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.json clap_merges.txt \
-            BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt; do
+ITEMS="CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.json clap_merges.txt"
+[ "$NON_COMMERCIAL" = "0" ] || ITEMS="$ITEMS BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt"
+for item in $ITEMS; do
   [ -e "$MODELS/$item" ] && cp -R "$MODELS/$item" "$APP/Contents/Resources/" && echo "Bundled $item"
 done
 # BirdNET is CC BY-NC-SA 4.0: its notice travels with it.
-[ -e "$APP/Contents/Resources/BirdNET.mlpackage" ] && cp licenses/BirdNET.txt "$APP/Contents/Resources/BirdNET-LICENSE.txt"
+[ "$NON_COMMERCIAL" = "0" ] || ! [ -e "$APP/Contents/Resources/BirdNET.mlpackage" ] || cp licenses/BirdNET.txt "$APP/Contents/Resources/BirdNET-LICENSE.txt"
 
 # App icon: render clap.icon (Icon Composer) to an .icns; no Xcode needed.
 ICONSET="build/AppIcon.iconset"

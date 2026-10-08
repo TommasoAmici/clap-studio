@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import CoreML
 import Foundation
 
@@ -93,3 +94,4 @@ public final class BirdLocationModel: @unchecked Sendable {
         return min(48, max(1, Int((Double(day) / Double(days) * 48).rounded(.up))))
     }
 }
+#endif

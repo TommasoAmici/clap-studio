@@ -61,11 +61,13 @@ extension AppModel {
                 statusMessage = "Sorting sounds into categories and moods"
                 await Task.detached { Self.classifyLibrary(store) }.value
             }
+            #if NON_COMMERCIAL
             if birdsAvailable, !token.isCancelled, !store.recordingsNeedingSpecies().isEmpty {
                 await Task.detached {
                     Self.listenForBirds(store, token: token) { message in Task { @MainActor in self.statusMessage = message } }
                 }.value
             }
+            #endif
             failedCount = store.failedCount()
             birdsRevision += 1
             reloadSamples()

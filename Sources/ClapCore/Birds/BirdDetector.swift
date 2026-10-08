@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import Foundation
 
 /// One species heard in one 3 s stretch of a recording.
@@ -86,3 +87,4 @@ public final class BirdDetector: @unchecked Sendable {
         return found
     }
 }
+#endif

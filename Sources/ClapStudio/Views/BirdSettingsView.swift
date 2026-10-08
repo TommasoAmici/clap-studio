@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import ClapCore
 import SwiftUI
 
@@ -45,3 +46,4 @@ struct BirdSettingsView: View {
         model.setDefaultBirdLocation(point)
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import ClapCore
 import SwiftUI
 
@@ -76,3 +77,4 @@ struct FieldBirdsSection: View {
         }
     }
 }
+#endif

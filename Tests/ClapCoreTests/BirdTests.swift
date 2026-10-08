@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import Foundation
 import Testing
 @testable import ClapCore
@@ -170,3 +171,4 @@ private func chirp(_ i: Int) -> Float {
         print("birds: unfiltered \(unfiltered.sorted()), London \(london.map { "\($0.common) x\($0.windows)" })")
     }
 }
+#endif

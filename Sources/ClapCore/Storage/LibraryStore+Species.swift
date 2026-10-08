@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import Foundation
 
 /// A place on Earth.
@@ -169,3 +170,4 @@ extension LibraryStore {
         return occurrences.sorted { ($0.windows, $0.confidence, $1.common) > ($1.windows, $1.confidence, $0.common) }
     }
 }
+#endif

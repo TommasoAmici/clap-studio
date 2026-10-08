@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import ClapCore
 import Foundation
 
@@ -71,3 +72,4 @@ extension AppModel {
         }
     }
 }
+#endif

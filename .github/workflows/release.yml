@@ -13,6 +13,11 @@ concurrency:
 permissions:
   contents: write # needed to create the tag and the GitHub release
 
+env:
+  # BirdNET (bird species) is CC BY-NC-SA 4.0. To sell the app, set the repository variable NON_COMMERCIAL to 0:
+  # the build then leaves out the feature and its models. Any other value (or none) keeps it.
+  NON_COMMERCIAL: ${{ vars.NON_COMMERCIAL != '0' && '1' || '0' }}
+
 jobs:
   release:
     runs-on: macos-26
@@ -47,15 +52,18 @@ jobs:
           python3 tools/export_clap.py
 
       - name: Set up uv
+        if: env.NON_COMMERCIAL != '0'
         uses: astral-sh/setup-uv@v5
 
       - name: Cache BirdNET download
+        if: env.NON_COMMERCIAL != '0'
         uses: actions/cache@v4
         with:
           path: tools/.cache/birdnet
           key: birdnet-v2.4-download-v1
 
       - name: Export BirdNET model
+        if: env.NON_COMMERCIAL != '0'
         # Converts BirdNET V2.4 (and its location model) to Core ML next to the CLAP model. The script checks the
         # Core ML output against the original and fails if they differ. uv installs its own dependencies.
         run: uv run --python 3.12 tools/export_birdnet.py
@@ -66,11 +74,17 @@ jobs:
       - name: Verify models are bundled
         run: |
           RES="build/ClapStudio.app/Contents/Resources"
-          for item in CLAPAudio.mlpackage CLAPText.mlpackage clap_vocab.json clap_merges.txt \
-                      BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt BirdNET-LICENSE.txt; do
+          for item in CLAPAudio.mlpackage CLAPText.mlpackage clap_vocab.json clap_merges.txt; do
             test -e "$RES/$item" || { echo "Missing $item in app bundle"; exit 1; }
           done
-          du -sh "$RES"/CLAP*.mlpackage "$RES"/BirdNET*.mlpackage
+          if [ "$NON_COMMERCIAL" = "0" ]; then
+            ls "$RES"/BirdNET* >/dev/null 2>&1 && { echo "BirdNET must not be in a commercial build"; exit 1; }
+          else
+            for item in BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt BirdNET-LICENSE.txt; do
+              test -e "$RES/$item" || { echo "Missing $item in app bundle"; exit 1; }
+            done
+          fi
+          du -sh "$RES"/*.mlpackage
 
       - name: Stamp version and re-sign
         id: version
@@ -101,8 +115,12 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           ASSET: ${{ steps.version.outputs.asset }}
         run: |
+          NOTES="The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. This build bundles the LAION-CLAP model (Apache-2.0)."
+          if [ "$NON_COMMERCIAL" != "0" ]; then
+            NOTES="$NOTES It also bundles BirdNET V2.4 (CC BY-NC-SA 4.0): non-commercial use only."
+          fi
           gh release create "$TAG" "$ASSET" "$ASSET.sha256" \
             --target "$GITHUB_SHA" \
             --title "Clap Studio $TAG" \
             --generate-notes \
-            --notes "The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. This build bundles the LAION-CLAP model (Apache-2.0) and BirdNET V2.4 (CC BY-NC-SA 4.0: non-commercial use only)."
+            --notes "$NOTES"

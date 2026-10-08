@@ -28,7 +28,9 @@ struct PropertiesPanel: View {
             }
             if sample.isFieldRecording {
                 FieldSoundsSection(sample: sample).padding(.top, 8)
+                #if NON_COMMERCIAL
                 FieldBirdsSection(sample: sample).padding(.top, 8)
+                #endif
             }
             TagEditor(sample: sample).padding(.top, 8)
         }
@@ -167,7 +169,9 @@ struct FieldSoundsSection: View {
         Group { if !(speciesNamed && shown.isEmpty) { content } }
             .task(id: reloadKey) {
                 occurrences = model.soundOccurrences(sample.id)
+                #if NON_COMMERCIAL
                 speciesNamed = !model.speciesOccurrences(sample.id).isEmpty
+                #endif
             }
     }
 

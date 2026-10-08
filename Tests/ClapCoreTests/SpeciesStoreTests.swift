@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import Foundation
 import Testing
 @testable import ClapCore
@@ -108,3 +109,4 @@ import Testing
         #expect(store.recordingsWithSpecies().isEmpty)
     }
 }
+#endif

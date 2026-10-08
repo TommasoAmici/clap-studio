@@ -1,3 +1,4 @@
+#if NON_COMMERCIAL
 import Foundation
 
 /// Which species occur at a place. Looking up a place takes a few milliseconds; the answers are remembered.
@@ -69,3 +70,4 @@ public enum BirdSpeciesIndexer {
         return try? filter.allowed(at: place)
     }
 }
+#endif
