@@ -3,13 +3,15 @@ import Foundation
 
 /// Format conversion shared by playback decoding and trimming.
 public enum AudioConvert {
-    public static func convert(_ input: AVAudioPCMBuffer, to format: AVAudioFormat) throws -> AVAudioPCMBuffer {
+    /// `highQuality` uses the slowest, cleanest sample-rate converter (for files that are written out).
+    public static func convert(_ input: AVAudioPCMBuffer, to format: AVAudioFormat, highQuality: Bool = false) throws -> AVAudioPCMBuffer {
         let src = input.format
         if src.sampleRate == format.sampleRate && src.channelCount == format.channelCount
             && src.commonFormat == format.commonFormat && src.isInterleaved == format.isInterleaved { return input }
         guard let converter = AVAudioConverter(from: src, to: format) else {
             throw AudioDecodeError.conversion("unsupported format")
         }
+        if highQuality { converter.sampleRateConverterQuality = AVAudioQuality.max.rawValue }
         let capacity = AVAudioFrameCount(Double(input.frameLength) * format.sampleRate / src.sampleRate) + 1024
         guard let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else {
             throw AudioDecodeError.conversion("buffer allocation")

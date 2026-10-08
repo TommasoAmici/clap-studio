@@ -27,11 +27,17 @@ public enum TrimExporter {
     }
 
     /// Writes the trimmed region of `source` to `destination` as a WAV file.
-    public static func write(source: URL, trim: SampleTrim?, format: ExportFormat, to destination: URL) throws {
+    /// `maxSeconds` cuts the result off at that length (before conversion). `declick` adds the short edge fades
+    /// even without a trim (it is on whenever there is one).
+    public static func write(source: URL, trim: SampleTrim?, format: ExportFormat, to destination: URL,
+                             maxSeconds: Double? = nil, declick: Bool? = nil) throws {
         let file = try AVAudioFile(forReading: source)
         let native = file.processingFormat
+        let fades = declick ?? (trim != nil)
         var buffer = try TrimRender.read(url: source, start: trim?.start ?? 0, end: trim?.end,
-                                         fadeIn: trim == nil ? 0 : SampleTrim.declick, fadeOut: trim?.effectiveFadeOut ?? 0)
+                                         fadeIn: fades ? SampleTrim.declick : 0,
+                                         fadeOut: trim?.effectiveFadeOut ?? (fades ? SampleTrim.declick : 0),
+                                         maxSeconds: maxSeconds)
 
         let channels = format.mono ? 1 : native.channelCount
         let rate = format.sampleRate ?? native.sampleRate
@@ -39,7 +45,7 @@ public enum TrimExporter {
             guard let target = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: channels, interleaved: false) else {
                 throw AudioDecodeError.conversion("unsupported output format")
             }
-            buffer = try AudioConvert.convert(buffer, to: target)
+            buffer = try AudioConvert.convert(buffer, to: target, highQuality: true)
         }
 
         let source = file.fileFormat.settings
