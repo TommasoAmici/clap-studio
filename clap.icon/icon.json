@@ -1,28 +1,27 @@
 {
   "fill" : {
-    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+    "linear-gradient" : [
+      "display-p3:1.00000,0.68470,0.00000,1.00000",
+      "extended-srgb:0.38039,0.33333,0.96078,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
     {
       "layers" : [
         {
           "fill" : {
-            "solid" : "extended-gray:1.00000,1.00000"
-          },
-          "image-name" : "Image 10.png",
-          "name" : "Image 10",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              26.909369053067962,
-              0
-            ]
-          }
-        },
-        {
-          "fill" : {
             "linear-gradient" : [
-              "extended-srgb:0.20392,0.78039,0.34902,1.00000",
+              "extended-srgb:1.00000,0.55294,0.15686,1.00000",
               "extended-srgb:0.79608,0.18824,0.87843,1.00000"
             ],
             "orientation" : {
@@ -36,15 +35,41 @@
               }
             }
           },
-          "image-name" : "Image 9.png",
-          "name" : "Image 9",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              -8.6248468930346,
-              0
-            ]
-          }
+          "image-name" : "path1.svg",
+          "name" : "path1",
+          "opacity" : 0.6,
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 3.7,
+                "translation-in-points" : [
+                  -65.62819471777561,
+                  14.23225018938183
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : {
+            "solid" : "display-p3:0.96841,0.96795,0.64900,1.00000"
+          },
+          "image-name" : "path1 2.svg",
+          "name" : "path1 2",
+          "opacity" : 0.8,
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 3.7,
+                "translation-in-points" : [
+                  -31.523050905423588,
+                  14.23225018938183
+                ]
+              }
+            }
+          ]
         }
       ],
       "shadow" : {

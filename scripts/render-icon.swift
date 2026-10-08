@@ -1,8 +1,9 @@
 #!/usr/bin/env swift
 // Renders clap.icon (Icon Composer) to an .iconset folder without Xcode.
 //   swift scripts/render-icon.swift clap.icon build/AppIcon.iconset
-// This is a flat approximation: gradient background, tinted layers and offsets are honoured,
-// but not Liquid Glass lighting. With Xcode installed, `actool` can compile the .icon natively.
+// With Icon Composer installed (its `ictool`, or ICTOOL=/path/to/ictool) the artwork is rendered by Apple's own
+// renderer, Liquid Glass included. Without it a flat approximation is drawn: gradient background, tinted layers
+// and offsets are honoured, but only for PNG layers with a plain `position`, and no glass lighting.
 import AppKit
 import Foundation
 
@@ -34,7 +35,48 @@ func alphaMask(_ image: CGImage) -> CGImage {
     return ctx.makeImage()!
 }
 
+/// Apple's ictool, when Icon Composer (or Xcode) is installed.
+let ictool: String? = {
+    let env = ProcessInfo.processInfo.environment["ICTOOL"]
+    let candidates = [env, "/Applications/Icon Composer.app/Contents/Executables/ictool",
+                      "/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool"].compactMap { $0 }
+    return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+}()
+
+/// The icon artwork (the full-bleed squircle) rendered by ictool at `pixels` square, or nil when that is not possible.
+func renderWithIconComposer(pixels: Int) -> CGImage? {
+    guard let ictool else { return nil }
+    let out = FileManager.default.temporaryDirectory.appendingPathComponent("clap-icon-\(UUID().uuidString).png")
+    defer { try? FileManager.default.removeItem(at: out) }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: ictool)
+    process.arguments = [iconDir.path, "--export-image", "--output-file", out.path, "--platform", "macOS", "--rendition", "Default",
+                         "--width", "\(pixels)", "--height", "\(pixels)", "--scale", "1"]
+    process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+    guard (try? process.run()) != nil else { return nil }
+    process.waitUntilExit()
+    guard process.terminationStatus == 0, let image = NSImage(contentsOf: out),
+          let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil), cg.width == pixels else { return nil }
+    return cg
+}
+
 func render(size: Int) -> Data {
+    // macOS icon grid: the artwork is an 824/1024 squircle centred in the canvas, with a soft shadow below it.
+    let artSize = Int((Double(size) * 824 / 1024).rounded())
+    if let art = renderWithIconComposer(pixels: artSize) {
+        let S = CGFloat(size), cs = CGColorSpace(name: CGColorSpace.sRGB)!
+        let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0, space: cs,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.interpolationQuality = .high
+        ctx.setShadow(offset: CGSize(width: 0, height: -S * 0.009), blur: S * 0.02, color: CGColor(gray: 0, alpha: 0.35))
+        let origin = CGFloat(size - artSize) / 2
+        ctx.draw(art, in: CGRect(x: origin, y: origin, width: CGFloat(artSize), height: CGFloat(artSize)))
+        return NSBitmapImageRep(cgImage: ctx.makeImage()!).representation(using: .png, properties: [:])!
+    }
+    return renderApproximation(size: size)
+}
+
+func renderApproximation(size: Int) -> Data {
     let S = CGFloat(size), cs = CGColorSpace(name: CGColorSpace.sRGB)!
     let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0, space: cs,
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
@@ -90,6 +132,9 @@ func render(size: Int) -> Data {
     return rep.representation(using: .png, properties: [:])!
 }
 
+if ictool == nil {
+    FileHandle.standardError.write(Data("warning: Icon Composer (ictool) not found; drawing a flat approximation that ignores newer icon features (SVG layers, gradients, opacity, glass). Install Icon Composer or set ICTOOL.\n".utf8))
+}
 try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
 for base in [16, 32, 128, 256, 512] {
     try render(size: base).write(to: outDir.appendingPathComponent("icon_\(base)x\(base).png"))
