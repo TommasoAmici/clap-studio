@@ -89,17 +89,23 @@ public enum SampleExporter {
             return report
         }
         for (source, fileName) in items {
-            let named = URL(fileURLWithPath: fileName)
-            let stem = named.deletingPathExtension().lastPathComponent, ext = named.pathExtension
-            var target = folder.appendingPathComponent(fileName)
-            var n = 2
-            while fm.fileExists(atPath: target.path) {
-                target = folder.appendingPathComponent(ext.isEmpty ? "\(stem) \(n)" : "\(stem) \(n).\(ext)")
-                n += 1
-            }
+            let target = uniqueURL(in: folder, fileName: fileName, fileManager: fm)
             do { try fm.copyItem(at: source, to: target); report.copied.append(target) }
             catch { report.failures.append((source, error.localizedDescription)) }
         }
         return report
+    }
+
+    /// `fileName` inside `folder`, or "name 2.wav", "name 3.wav", … when that name is taken.
+    public static func uniqueURL(in folder: URL, fileName: String, fileManager fm: FileManager = .default) -> URL {
+        let named = URL(fileURLWithPath: fileName)
+        let stem = named.deletingPathExtension().lastPathComponent, ext = named.pathExtension
+        var target = folder.appendingPathComponent(fileName)
+        var n = 2
+        while fm.fileExists(atPath: target.path) {
+            target = folder.appendingPathComponent(ext.isEmpty ? "\(stem) \(n)" : "\(stem) \(n).\(ext)")
+            n += 1
+        }
+        return target
     }
 }

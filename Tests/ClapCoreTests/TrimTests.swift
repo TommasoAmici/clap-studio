@@ -87,3 +87,63 @@ import Testing
         #expect(store.trims().keys.sorted() == [8])
     }
 }
+
+@Suite struct TrimExporterTests {
+    private func channelsAndRate(_ url: URL) throws -> (frames: Int64, channels: Int, rate: Double, depth: Int?) {
+        let f = try AVAudioFile(forReading: url)
+        return (f.length, Int(f.fileFormat.channelCount), f.fileFormat.sampleRate, f.fileFormat.settings[AVLinearPCMBitDepthKey] as? Int)
+    }
+
+    @Test func exportsTheTrimmedRegionAndLeavesTheOriginalAlone() throws {
+        let dir = TestSupport.tempDir()
+        let src = dir.appendingPathComponent("rumble.wav")
+        try writeTestWav(src, seconds: 10, sampleRate: 8000) { _ in 0.4 }
+        let before = try Data(contentsOf: src)
+        let out = dir.appendingPathComponent("out/trim.wav")
+        try FileManager.default.createDirectory(at: out.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try TrimExporter.write(source: src, trim: SampleTrim(start: 2, end: 3.5), format: ExportFormat(), to: out)
+        let info = try channelsAndRate(out)
+        #expect(abs(Double(info.frames) - 12000) <= 1)
+        #expect(info.rate == 8000 && info.depth == 16, "keeps the source format")
+        #expect(try Data(contentsOf: src) == before, "the original is untouched")
+        let b = try TrimRender.read(url: out)
+        #expect(b.floatChannelData![0][0] == 0, "starts from silence (declick)")
+        #expect(abs(b.floatChannelData![0][6000] - 0.4) < 0.01)
+    }
+
+    @Test func convertsFormatForASampler() throws {
+        let dir = TestSupport.tempDir()
+        let src = dir.appendingPathComponent("a.wav")
+        try writeTestWav(src, seconds: 2, sampleRate: 44100) { Float(sin(2 * .pi * 100 * $0)) * 0.5 }
+        let out = dir.appendingPathComponent("b.wav")
+        try TrimExporter.write(source: src, trim: SampleTrim(start: 0.5, end: 1.5),
+                               format: ExportFormat(bitDepth: .int24, mono: true, sampleRate: 48000), to: out)
+        let info = try channelsAndRate(out)
+        #expect(info.rate == 48000 && info.channels == 1 && info.depth == 24)
+        #expect(abs(Double(info.frames) - 48000) < 200, "one second at the new rate, got \(info.frames)")
+    }
+
+    @Test func exportCopiesPlainFilesRendersTrimmedOnesAndNeverOverwrites() throws {
+        let dir = TestSupport.tempDir()
+        let a = dir.appendingPathComponent("a.wav"), b = dir.appendingPathComponent("b.wav")
+        try writeTestWav(a, seconds: 1, sampleRate: 8000) { _ in 0.2 }
+        try writeTestWav(b, seconds: 4, sampleRate: 8000) { _ in 0.2 }
+        let dest = dir.appendingPathComponent("dest")
+        let items = [TrimExporter.Item(source: a, trim: nil, fileName: "a.wav"),
+                     TrimExporter.Item(source: b, trim: SampleTrim(start: 1, end: 2), fileName: "b.aiff")]
+        let first = TrimExporter.export(items, format: ExportFormat(), to: dest)
+        let second = TrimExporter.export(items, format: ExportFormat(), to: dest)
+        #expect(first.failures.isEmpty && second.failures.isEmpty)
+        #expect(Set(first.copied.map(\.lastPathComponent)) == ["a.wav", "b.wav"], "trimmed files are written as .wav")
+        #expect(Set(second.copied.map(\.lastPathComponent)) == ["a 2.wav", "b 2.wav"])
+        #expect(try channelsAndRate(dest.appendingPathComponent("b.wav")).frames == 8000)
+        #expect(try channelsAndRate(dest.appendingPathComponent("a.wav")).frames == 8000, "untrimmed copy is byte for byte")
+    }
+
+    @Test func unreadableSourcesAreReportedNotThrown() {
+        let dir = TestSupport.tempDir()
+        let r = TrimExporter.export([.init(source: dir.appendingPathComponent("missing.wav"), trim: SampleTrim(start: 0, end: 1), fileName: "x.wav")],
+                                    format: ExportFormat(), to: dir.appendingPathComponent("o"))
+        #expect(r.copied.isEmpty && r.failures.count == 1)
+    }
+}
