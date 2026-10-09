@@ -160,12 +160,19 @@ private struct DrumTrackRow: View {
             Button { model.select(track.sampleID, play: true) } label: {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title).font(.caption.bold()).lineLimit(1)
-                    Text(model.drumSampleName(track)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    if model.sampleByID[track.sampleID] == nil {
+                        Label(model.drumSampleName(track), systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption2).foregroundStyle(.orange).lineLimit(1)
+                    } else {
+                        Text(model.drumSampleName(track)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
                 .frame(width: 130, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .help("Preview this sound")
+            .help(model.sampleByID[track.sampleID] == nil
+                  ? "This sample is no longer in the library. Drop another sample here to replace it."
+                  : "Preview this sound")
             HStack(spacing: 2) {
                 Button { model.cycleDrumSample(track: index, by: -1) } label: { Image(systemName: "chevron.left") }
                 Button { model.cycleDrumSample(track: index, by: 1) } label: { Image(systemName: "chevron.right") }
