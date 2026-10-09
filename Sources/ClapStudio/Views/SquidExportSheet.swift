@@ -129,7 +129,12 @@ struct SquidExportSheet: View {
                     let overflow = !toPool && index >= SquidLayout.slotsPerBank
                     HStack {
                         Text(toPool ? "" : (overflow ? "–" : "\(index + 1)")).frame(width: 18).foregroundStyle(.secondary).monospacedDigit()
-                        Text(model.sampleByID[id]?.name ?? "Missing sample").lineLimit(1)
+                        if let sample = model.sampleByID[id] {
+                            Text(sample.name).lineLimit(1)
+                        } else {
+                            Label("Missing sample", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange).lineLimit(1)
+                        }
                         if let sample = model.sampleByID[id], sample.duration > SquidLayout.maxSeconds, model.activeTrim(for: sample) == nil {
                             Text("cut at \(Int(SquidLayout.maxSeconds)) s").font(.caption2).foregroundStyle(.orange)
                         }
