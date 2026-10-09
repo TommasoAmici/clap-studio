@@ -5,6 +5,8 @@ public struct SquidBank: Identifiable, Equatable, Sendable {
     public let number: Int
     public let name: String        // from info.txt, may be empty
     public let filledSlots: Int    // channel folders that hold a file
+    /// How many more samples the bank can hold: 8 minus the ones it has.
+    public var freeSlots: Int { max(0, SquidLayout.slotsPerBank - filledSlots) }
     public var id: String { "\(set ?? "")|\(number)" }
     public var folder: String { SquidLayout.bankPath(set: set, number: number) ?? SquidLayout.bankFolder(number: number) }
 }

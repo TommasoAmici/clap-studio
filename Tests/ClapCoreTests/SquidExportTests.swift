@@ -48,6 +48,8 @@ import Testing
         #expect(contents.sets.map(\.title) == ["Default", "Loops"])
         #expect(contents.set(named: nil)?.banks.map(\.name) == ["One"])
         #expect(contents.set(named: "Loops")?.banks.first?.filledSlots == 2)
+        #expect(contents.set(named: "Loops")?.banks.first?.freeSlots == 6, "8 slots minus the 2 that are filled")
+        #expect(SquidBank(set: nil, number: 1, name: "", filledSlots: 8).freeSlots == 0)
         #expect(contents.freeBankNumbers(inSet: nil).first == 2)
         #expect(contents.freeBankNumbers(inSet: "Loops").first == 1)
         #expect(SquidStick.read(volume: TestSupport.tempDir()).hasSquidFolder == false)
