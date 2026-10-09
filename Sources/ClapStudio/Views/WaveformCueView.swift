@@ -10,9 +10,13 @@ struct WaveformCueView: View {
         let duration = max(model.selectedDuration, 0.001)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
+                // Dragging the waveform itself takes the file into a DAW; the markers and handles above it keep
+                // their own drags, and a plain click still auditions from that point.
+                dragSource
                 WaveformShape(peaks: model.waveform)
                     .fill(Color.accentColor.opacity(0.85))
                     .padding(.vertical, 6)
+                    .allowsHitTesting(false)
 
                 TimelineView(.animation(minimumInterval: 1 / 60, paused: model.playback.sampleID != model.selectedID)) { _ in
                     if model.playback.sampleID == model.selectedID, let t = model.playback.playhead() {
@@ -45,11 +49,19 @@ struct WaveformCueView: View {
             })
         }
         .frame(height: 110)
+        .help("Click to play from there. Drag into Ableton or any DAW to use the file.")
         .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 8))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
             if model.waveform.isEmpty && model.selectedID != nil { ProgressView().controlSize(.small) }
         }
+    }
+}
+
+extension WaveformCueView {
+    @ViewBuilder fileprivate var dragSource: some View {
+        let surface = Rectangle().fill(Color.clear).contentShape(Rectangle())
+        if let sample = model.selectedSample { surface.sampleDrag(sample, model: model) } else { surface }
     }
 }
 

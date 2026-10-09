@@ -14,8 +14,6 @@ struct InspectorView: View {
                     header(sample)
                     WaveformCueView()
                     transport(sample)
-                    FileDragHandle(url: sample.url) { model.registerGrab(sample.id) }
-                        .frame(height: 44)
                     TrimPanel(sample: sample)
                     PropertiesPanel(sample: sample)
                     CuePanel()
