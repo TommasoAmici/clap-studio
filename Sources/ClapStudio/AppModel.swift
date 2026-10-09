@@ -130,6 +130,7 @@ final class AppModel {
     var usbContents: [String: SquidStickContents] = [:]      // by drive id
     var usbSamples: [SampleRecord] = []                      // analysed, but not part of the library
     var usbSelection: UsbSelection? { didSet { if usbSelection != oldValue { refilter() } } }
+    var renamingUsb: UsbRename?                               // the set or bank whose name is being edited in place
     var showSquidExport = false
     var squidItems: [Int64] = []                              // what the export sheet will send, in order
     var squidTarget = SquidTarget()

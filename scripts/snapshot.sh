@@ -4,6 +4,7 @@
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
+#     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
 set -e
@@ -16,6 +17,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
+    --usb) shift; export CLAP_SNAPSHOT_USB="$1" ;;
+    --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
     --delay) shift; DELAY="$1" ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac

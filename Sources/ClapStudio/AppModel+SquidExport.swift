@@ -4,16 +4,17 @@ import Foundation
 /// What the export sheet asks for.
 enum SquidPlan {
     case bank(set: String?, number: Int, name: String, replace: Bool)
+    case addToBank(set: String?, number: Int)
     case pool(subfolder: String)
 }
 
 /// Sending samples to a stick.
 extension AppModel {
     /// Opens the export sheet. `ids` fill the bank (or the Pool); the drive and place come from where the user is looking.
-    func openSquidExport(ids: [Int64], drive: String? = nil, set: String? = nil, pool: Bool = false) {
+    func openSquidExport(ids: [Int64], drive: String? = nil, set: String? = nil, pool: Bool = false, bank: Int? = nil) {
         guard squidEnabled else { return }
         squidItems = ids
-        var target = SquidTarget(drive: drive ?? usbSelection?.drive ?? usbDrives.first?.id, set: set, pool: pool)
+        var target = SquidTarget(drive: drive ?? usbSelection?.drive ?? usbDrives.first?.id, set: set, pool: pool, bank: bank)
         if drive == nil, let selection = usbSelection {
             switch selection.area {
             case .pool: target.pool = true
@@ -42,6 +43,8 @@ extension AppModel {
                     try SquidExporter.export(SquidBankRequest(set: set, number: number, name: name,
                                                               slots: sources.prefix(SquidLayout.slotsPerBank).map { Optional($0) },
                                                               replaceExisting: replace), toVolume: volume)
+                case .addToBank(let set, let number):
+                    try SquidExporter.add(sources, set: set, number: number, toVolume: volume)
                 case .pool(let subfolder):
                     try SquidExporter.exportToPool(sources, subfolder: subfolder, toVolume: volume)
                 }

@@ -16,6 +16,7 @@ struct SquidExportSheet: View {
     @State private var busy = false
     @State private var problem: String?
     @State private var dropTargeted = false
+    @State private var pinnedBank: Int?                       // a bank the sheet was opened for ("Add Samples…" on a bank)
 
     private static let defaultSet = ""
     private static let newSet = "\u{1}new"
@@ -53,13 +54,23 @@ struct SquidExportSheet: View {
 
     private var drive: UsbDrive? { driveID.flatMap { model.drive(id: $0) } }
     private var contents: SquidStickContents { driveID.flatMap { model.usbContents[$0] } ?? SquidStickContents() }
-    private var chosenSet: String? { setChoice == Self.defaultSet ? nil : (setChoice == Self.newSet ? SquidLayout.cleanSetName(newSetName) : setChoice) }
+    /// The set as typed or as it is on the stick: names are never changed for the user.
+    private var chosenSet: String? { setChoice == Self.defaultSet ? nil : (setChoice == Self.newSet ? newSetName : setChoice) }
+    private var setReport: SquidNameReport { SquidLayout.check(setName: newSetName, existing: contents.sets.compactMap(\.name)) }
+    /// Adding to the free channels of a bank that is already there, rather than writing a new bank or replacing one.
+    private var adding: Bool { !toPool && existingBank != nil && !replace }
+    private var capacity: Int { toPool ? .max : (adding ? (existingBank?.freeSlots ?? 0) : SquidLayout.slotsPerBank) }
+    /// The channel the sample at `index` goes to, nil when it does not fit.
+    private func channel(at index: Int) -> Int? {
+        guard index < capacity else { return nil }
+        return adding ? existingBank?.freeSlotNumbers[index] : index + 1
+    }
     private var existingBank: SquidBank? { contents.set(named: chosenSet)?.banks.first { $0.number == bankNumber } }
     private var tooManySets: Bool { setChoice == Self.newSet && contents.namedSetCount >= SquidLayout.maxSets }
 
     private var destination: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Drive", selection: $driveID) {
+            Picker("Drive", selection: Binding(get: { driveID }, set: { driveID = $0; pinnedBank = nil })) {
                 ForEach(model.usbDrives) { Text($0.name).tag(Optional($0.id)) }
             }
             if let drive, !drive.isFAT32 {
@@ -83,13 +94,16 @@ struct SquidExportSheet: View {
 
     private var bankFields: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("Set", selection: $setChoice) {
+            Picker("Set", selection: Binding(get: { setChoice }, set: { setChoice = $0; pinnedBank = nil })) {
                 Text("Default").tag(Self.defaultSet)
                 ForEach(contents.sets.compactMap(\.name), id: \.self) { Text($0).tag($0) }
                 Text("New set…").tag(Self.newSet)
             }
             if setChoice == Self.newSet {
-                TextField("Set name (up to \(SquidLayout.maxSetNameLength) letters)", text: $newSetName).textFieldStyle(.roundedBorder)
+                HStack {
+                    TextField("Set name", text: $newSetName).textFieldStyle(.roundedBorder)
+                    if !newSetName.isEmpty { NameIssueIcon(report: setReport) }
+                }
                 if tooManySets {
                     Text("The module reads at most \(SquidLayout.maxSets) sets.").font(.caption).foregroundStyle(.red)
                 }
@@ -98,15 +112,28 @@ struct SquidExportSheet: View {
                 Picker("Bank", selection: $bankNumber) {
                     ForEach(1...SquidLayout.maxBanksPerSet, id: \.self) { n in
                         let used = contents.set(named: chosenSet)?.banks.first { $0.number == n }
-                        Text(used == nil ? "Bank \(n)" : "Bank \(n) (\(used?.name.isEmpty == false ? used!.name : "in use"))").tag(n)
+                        Text(used.map { "Bank \(n) (\($0.name.isEmpty ? "unnamed" : $0.name), \($0.freeSlots) free)" } ?? "Bank \(n)").tag(n)
                     }
                 }
-                TextField("Name (up to \(SquidLayout.maxNameLength) letters)", text: $bankName).textFieldStyle(.roundedBorder)
+                if adding {
+                    Text(existingBank?.name.isEmpty == false ? existingBank!.name : "Unnamed bank").foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    TextField("Bank name", text: $bankName).textFieldStyle(.roundedBorder)
+                    NameIssueIcon(report: SquidLayout.check(bankName: bankName))
+                }
             }
-            let shown = SquidLayout.cleanBankName(bankName)
-            if !shown.isEmpty { Text("Shown on the module as \"\(shown)\"").font(.caption).foregroundStyle(.secondary) }
-            if existingBank != nil {
-                Toggle("Replace the existing bank (it is moved to the Trash)", isOn: $replace).font(.caption)
+            if let existing = existingBank {
+                if existing.freeSlots > 0 {
+                    Picker("This bank exists", selection: $replace) {
+                        Text("Add to its \(existing.freeSlots) free channel\(existing.freeSlots == 1 ? "" : "s")").tag(false)
+                        Text("Replace it").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                if replace || existing.freeSlots == 0 {
+                    Toggle("Replace the existing bank (it is moved to the Trash)", isOn: $replace).font(.caption)
+                }
             }
         }
     }
@@ -126,9 +153,9 @@ struct SquidExportSheet: View {
             }
             List {
                 ForEach(Array(model.squidItems.enumerated()), id: \.element) { index, id in
-                    let overflow = !toPool && index >= SquidLayout.slotsPerBank
+                    let overflow = channel(at: index) == nil
                     HStack {
-                        Text(toPool ? "" : (overflow ? "–" : "\(index + 1)")).frame(width: 18).foregroundStyle(.secondary).monospacedDigit()
+                        Text(toPool ? "" : (channel(at: index).map(String.init) ?? "–")).frame(width: 18).foregroundStyle(.secondary).monospacedDigit()
                         if let sample = model.sampleByID[id] {
                             Text(sample.name).lineLimit(1)
                         } else {
@@ -154,8 +181,9 @@ struct SquidExportSheet: View {
                 let new = model.librarySamples(forFiles: urls).map(\.id).filter { !model.squidItems.contains($0) }
                 model.squidItems += new
             }
-            if !toPool, model.squidItems.count > SquidLayout.slotsPerBank {
-                Text("A bank holds \(SquidLayout.slotsPerBank) samples. Only the first \(SquidLayout.slotsPerBank) are sent.")
+            if !toPool, model.squidItems.count > capacity {
+                Text(adding ? "This bank has \(capacity) free channel\(capacity == 1 ? "" : "s"). Only the first \(capacity) are sent."
+                            : "A bank holds \(SquidLayout.slotsPerBank) samples. Only the first \(SquidLayout.slotsPerBank) are sent.")
                     .font(.caption).foregroundStyle(.orange)
             }
         }
@@ -166,8 +194,9 @@ struct SquidExportSheet: View {
     private var canSend: Bool {
         guard !busy, drive != nil, !model.squidItems.isEmpty else { return false }
         if toPool { return true }
-        if setChoice == Self.newSet && (SquidLayout.cleanSetName(newSetName).isEmpty || tooManySets) { return false }
-        return existingBank == nil || replace
+        if setChoice == Self.newSet && (setReport.isBlocked || tooManySets) { return false }
+        guard let existing = existingBank else { return true }
+        return replace || existing.freeSlots > 0
     }
 
     private func configure() {
@@ -175,11 +204,15 @@ struct SquidExportSheet: View {
         driveID = target.drive ?? model.usbDrives.first?.id
         toPool = target.pool
         setChoice = target.set ?? Self.defaultSet
+        pinnedBank = target.bank
         pickFreeBank()
     }
 
+    private func existingBank(number: Int) -> SquidBank? { contents.set(named: chosenSet)?.banks.first { $0.number == number } }
+
     private func pickFreeBank() {
         replace = false
+        if let pinned = pinnedBank, existingBank(number: pinned) != nil { bankNumber = pinned; return }
         guard existingBank != nil, let free = contents.freeBankNumbers(inSet: chosenSet).first else { return }
         bankNumber = free      // start from an empty bank, so nothing is replaced by accident
     }
@@ -187,15 +220,18 @@ struct SquidExportSheet: View {
     private func send() {
         guard let driveID else { return }
         let plan: SquidPlan = toPool ? .pool(subfolder: poolFolder)
-            : .bank(set: chosenSet, number: bankNumber, name: bankName, replace: replace)
+            : (adding ? .addToBank(set: chosenSet, number: bankNumber)
+                      : .bank(set: chosenSet, number: bankNumber, name: bankName, replace: replace))
         busy = true
         problem = nil
         Task {
             let error = await model.sendToSquid(plan, driveID: driveID)
             busy = false
             if let error { problem = error; return }
-            if case .bank(let set, _, _, _) = plan { model.selectSidebar(UsbSelection(drive: driveID, area: .set(set)).tag) }
-            else { model.selectSidebar(UsbSelection(drive: driveID, area: .pool).tag) }
+            switch plan {
+            case .bank(let set, _, _, _), .addToBank(let set, _): model.selectSidebar(UsbSelection(drive: driveID, area: .set(set)).tag)
+            case .pool: model.selectSidebar(UsbSelection(drive: driveID, area: .pool).tag)
+            }
             dismiss()
         }
     }

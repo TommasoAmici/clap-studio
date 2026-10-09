@@ -31,11 +31,18 @@ struct UsbSelection: Hashable {
     }
 }
 
-/// Where the export sheet starts: which drive, which set, and whether the Pool is meant.
+/// Where the export sheet starts: which drive, which set, which bank (to add to), and whether the Pool is meant.
 struct SquidTarget {
     var drive: String?
     var set: String?
     var pool = false
+    var bank: Int?
+}
+
+/// A name being edited in place, Finder style.
+enum UsbRename: Equatable {
+    case set(drive: String, name: String)
+    case bank(drive: String, set: String?, number: Int)
 }
 
 /// Squid Salmple support: USB sticks in the sidebar, their banks and Pool browsable and analysed, and export to them.
@@ -110,6 +117,12 @@ extension AppModel {
 
     func drive(id: String) -> UsbDrive? { usbDrives.first { $0.id == id } }
 
+    /// Looks at the sticks again and waits for it.
+    func reloadUsb() async {
+        refreshUsbDrives(settle: false)
+        await usbRefreshTask?.value
+    }
+
     // MARK: samples
 
     /// The stick's samples that belong to a sidebar selection (one set or the Pool).
@@ -119,7 +132,7 @@ extension AppModel {
         return usbSamples.filter { sample in
             guard sample.rootPath == root else { return false }
             switch (SquidLayout.location(ofRelativePath: sample.relPath), selection.area) {
-            case (.bank(let set, _, _), .set(let wanted)): return set == wanted
+            case (.bank(let set, _, _), .set(let wanted)): return SquidLayout.sameSet(set, wanted)
             case (.pool, .pool): return true
             default: return false
             }

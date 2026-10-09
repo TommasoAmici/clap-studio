@@ -27,6 +27,8 @@ public enum SquidExportError: Error, LocalizedError, Equatable {
     case tooManySets
     case folderFull(String)
     case notEnoughSpace(needed: Int64, available: Int64)
+    case exists(String)
+    case missing(String)
     case failed(String)
 
     public var errorDescription: String? {
@@ -37,6 +39,8 @@ public enum SquidExportError: Error, LocalizedError, Equatable {
         case .folderFull(let folder): return "\(folder) would hold more than \(SquidLayout.maxEntriesPerFolder) entries, which the module cannot browse."
         case .notEnoughSpace(let needed, let available):
             return "Not enough space on the stick (\(needed / 1024) KB needed, \(available / 1024) KB free)."
+        case .exists(let what): return "\(what) already exists on the stick."
+        case .missing(let what): return "\(what) is no longer on the stick."
         case .failed(let m): return m
         }
     }
@@ -48,8 +52,9 @@ public enum SquidExporter {
     /// Writes one bank. Everything is converted in a temporary folder first, so a failing file leaves the stick untouched.
     @discardableResult
     public static func export(_ request: SquidBankRequest, toVolume volume: URL, fileManager fm: FileManager = .default) throws -> URL {
+        if let set = request.set, let problem = SquidLayout.check(setName: set).blockers.first { throw SquidExportError.invalid(problem) }
         guard let bankPath = SquidLayout.bankPath(set: request.set, number: request.number) else {
-            throw SquidExportError.invalid("Choose a bank from 1 to \(SquidLayout.maxBanksPerSet) and a valid set name.")
+            throw SquidExportError.invalid("Choose a bank from 1 to \(SquidLayout.maxBanksPerSet).")
         }
         guard request.slots.count <= SquidLayout.slotsPerBank else {
             throw SquidExportError.invalid("A bank holds \(SquidLayout.slotsPerBank) samples.")
@@ -77,13 +82,15 @@ public enum SquidExporter {
         try requireSpace(bytes, volume: volume)
 
         let alm = SquidStick.rootURL(volume: volume)
-        if let set = request.set, let setFolder = SquidLayout.setFolder(name: set) {
-            let setURL = alm.appendingPathComponent(setFolder, isDirectory: true)
-            if !fm.fileExists(atPath: setURL.path), SquidStick.read(volume: volume, fileManager: fm).namedSetCount >= SquidLayout.maxSets {
-                throw SquidExportError.tooManySets
-            }
+        if let set = request.set, SquidStick.setURL(named: set, volume: volume, fileManager: fm) == nil,
+           SquidStick.read(volume: volume, fileManager: fm).namedSetCount >= SquidLayout.maxSets {
+            throw SquidExportError.tooManySets
         }
-        let bankURL = alm.appendingPathComponent(bankPath, isDirectory: true)
+        // An existing set or bank is written where it already is, whatever the case of its folder name.
+        let existingBank = SquidStick.bankURL(set: request.set, number: request.number, volume: volume, fileManager: fm)
+        let setURL = request.set.flatMap { SquidStick.setURL(named: $0, volume: volume, fileManager: fm) }
+        let container = setURL ?? alm.appendingPathComponent(request.set.flatMap(SquidLayout.setFolder(name:)) ?? "", isDirectory: true)
+        let bankURL = existingBank ?? (request.set == nil ? alm : container).appendingPathComponent(SquidLayout.bankFolder(number: request.number), isDirectory: true)
         if fm.fileExists(atPath: bankURL.path) {
             guard request.replaceExisting else { throw SquidExportError.bankExists(bankPath) }
             do { try fm.trashItem(at: bankURL, resultingItemURL: nil) }
@@ -100,6 +107,53 @@ public enum SquidExporter {
             throw SquidExportError.failed(error.localizedDescription)
         }
         return bankURL
+    }
+
+    /// Puts samples into the empty channels of a bank that is already on the stick, lowest channel first. Samples already in the
+    /// bank are not touched. Returns the channels that were filled; samples beyond the free channels are left out.
+    @discardableResult
+    public static func add(_ sources: [SquidSource], set: String?, number: Int, toVolume volume: URL,
+                           fileManager fm: FileManager = .default) throws -> [Int] {
+        guard !sources.isEmpty else { throw SquidExportError.invalid("Add at least one sample.") }
+        try requireVolume(volume, fileManager: fm)
+        guard let bankURL = SquidStick.bankURL(set: set, number: number, volume: volume, fileManager: fm) else {
+            throw SquidExportError.missing(SquidLayout.bankPath(set: set, number: number) ?? "That bank")
+        }
+        let free = (1...SquidLayout.slotsPerBank).filter { !SquidStick.filledSlotNumbers(in: bankURL, fileManager: fm).contains($0) }
+        guard !free.isEmpty else { throw SquidExportError.invalid("This bank has no free channel.") }
+        let chosen = Array(zip(free, sources))
+
+        let staging = fm.temporaryDirectory.appendingPathComponent("clap-squid-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: staging) }
+        var staged: [(slot: Int, file: URL)] = []
+        var bytes: Int64 = 0
+        for (slot, source) in chosen {
+            let folder = staging.appendingPathComponent(String(slot), isDirectory: true)
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+            let target = folder.appendingPathComponent(SquidLayout.cleanFileStem(source.name) + ".wav")
+            do {
+                try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
+                                       maxSeconds: SquidLayout.maxSeconds, declick: true)
+            } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
+            bytes += fileSize(target) + 4096
+            staged.append((slot, target))
+        }
+        try requireSpace(bytes, volume: volume)
+
+        var written: [URL] = []
+        do {
+            for (slot, file) in staged {
+                let folder = bankURL.appendingPathComponent(String(slot), isDirectory: true)
+                try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+                let target = folder.appendingPathComponent(file.lastPathComponent)
+                try fm.copyItem(at: file, to: target)
+                written.append(target)
+            }
+        } catch {
+            written.forEach { try? fm.removeItem(at: $0) }
+            throw SquidExportError.failed(error.localizedDescription)
+        }
+        return chosen.map(\.0)
     }
 
     /// Writes loose samples into `Pool/` (or a sub-folder of it, e.g. "Breaks/707"). Never overwrites: a clash gets a number.

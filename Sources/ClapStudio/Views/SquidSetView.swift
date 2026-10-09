@@ -16,6 +16,9 @@ struct SquidSetView: View {
                 Label(set?.title ?? "Set", systemImage: "square.stack.3d.up").font(.headline)
                 Text("on \(drive?.name ?? "USB drive")").foregroundStyle(.secondary)
                 Spacer()
+                Button("New Bank") { model.newBank(drive: selection.drive, set: setName) }
+                    .disabled(model.usbContents[selection.drive]?.freeBankNumbers(inSet: setName).isEmpty ?? true)
+                    .help("Make an empty bank in this set")
                 Button("Send Samples…") { model.openSquidExport(ids: model.actionTargets, drive: selection.drive, set: setName) }
                     .help("Add a bank to this set")
             }
@@ -24,13 +27,21 @@ struct SquidSetView: View {
             if let set, !set.banks.isEmpty {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
-                        ForEach(set.banks) { bank in BankCard(bank: bank, samples: slots[bank.number] ?? [:], drive: drive) }
+                        ForEach(set.banks) { bank in
+                            BankCard(bank: bank, samples: slots[bank.number] ?? [:], drive: drive,
+                                     otherSets: (model.usbContents[selection.drive]?.sets ?? []).filter { !SquidLayout.sameSet($0.name, bank.set) }.map(\.name))
+                        }
                     }
                     .padding(14)
                 }
             } else {
-                ContentUnavailableView("No banks yet", systemImage: "square.stack.3d.up",
-                                       description: Text("Send samples from the library or the drum machine to make the first bank."))
+                ContentUnavailableView {
+                    Label("No banks yet", systemImage: "square.stack.3d.up")
+                } description: {
+                    Text("Send samples from the library or the drum machine to make the first bank, or make an empty one.")
+                } actions: {
+                    Button("New Bank") { model.newBank(drive: selection.drive, set: setName) }
+                }
             }
         }
     }
@@ -52,12 +63,25 @@ private struct BankCard: View {
     let bank: SquidBank
     let samples: [Int: SampleRecord]
     let drive: UsbDrive?
+    let otherSets: [String?]        // where "Move to" can send the bank
+
+    private var renameState: UsbRename? { drive.map { .bank(drive: $0.id, set: bank.set, number: bank.number) } }
+    private var nameReport: SquidNameReport { SquidLayout.check(bankName: bank.name) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Bank \(bank.number)").font(.subheadline.bold())
-                if !bank.name.isEmpty { Text(bank.name).font(.subheadline.monospaced()).foregroundStyle(.secondary) }
+                    .onTapGesture(count: 2) { model.renamingUsb = renameState }
+                if let drive, model.renamingUsb == renameState {
+                    SquidRenameField(initial: bank.name, placeholder: "Bank name", report: { SquidLayout.check(bankName: $0) },
+                                     commit: { model.renameBank(drive: drive.id, set: bank.set, number: bank.number, to: $0) },
+                                     cancel: { model.renamingUsb = nil })
+                        .frame(maxWidth: 240)
+                } else if !bank.name.isEmpty {
+                    Text(bank.name).font(.subheadline.monospaced()).foregroundStyle(nameReport.isClean ? Color.secondary : Color.orange)
+                    NameIssueIcon(report: nameReport)
+                }
                 if bank.freeSlots > 0 {
                     Text("\(bank.freeSlots)").font(.caption2.bold()).monospacedDigit().foregroundStyle(.white)
                         .padding(.horizontal, 6).padding(.vertical, 1)
@@ -77,6 +101,33 @@ private struct BankCard: View {
         }
         .padding(10)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+        .contextMenu { bankMenu }
+    }
+
+    @ViewBuilder
+    private var bankMenu: some View {
+        if let drive {
+            Button("Rename") { model.renamingUsb = renameState }
+            if bank.freeSlots > 0 {
+                Button("Add Samples…") {
+                    model.openSquidExport(ids: model.actionTargets, drive: drive.id, set: bank.set, bank: bank.number)
+                }
+            }
+            Button("Duplicate") { model.duplicateBank(drive: drive.id, set: bank.set, number: bank.number) }
+            if !otherSets.isEmpty {
+                Menu("Move to") {
+                    ForEach(otherSets, id: \.self) { target in
+                        Button(target.map { "Set \($0)" } ?? "Default set") {
+                            model.moveBank(drive: drive.id, set: bank.set, number: bank.number, to: target)
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Reveal in Finder") { reveal() }
+            Divider()
+            Button("Move to Trash", role: .destructive) { model.trashBank(drive: drive.id, set: bank.set, number: bank.number) }
+        }
     }
 
     @ViewBuilder
@@ -95,11 +146,19 @@ private struct BankCard: View {
         .contentShape(Rectangle())
         .onTapGesture { if let sample { model.select(sample.id, play: true) } }
         .modifier(OptionalSampleDrag(sample: sample))
+        .contextMenu {
+            if sample != nil, let drive {
+                Button("Move Sample to Trash", role: .destructive) {
+                    model.trashUsbSample(drive: drive.id, set: bank.set, number: bank.number, slot: slot)
+                }
+            }
+        }
     }
 
     private func reveal() {
         guard let drive else { return }
-        let folder = SquidStick.rootURL(volume: drive.url).appendingPathComponent(bank.folder, isDirectory: true)
+        let folder = SquidStick.bankURL(set: bank.set, number: bank.number, volume: drive.url)
+            ?? SquidStick.rootURL(volume: drive.url).appendingPathComponent(bank.folder, isDirectory: true)
         NSWorkspace.shared.open(folder)
     }
 }

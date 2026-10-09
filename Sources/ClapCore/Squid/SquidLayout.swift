@@ -56,19 +56,34 @@ public enum SquidLayout {
         return .bank(set: set, number: number, slot: nil)
     }
 
+    /// Folder names are matched without regard to case: the stick is FAT32, which does not tell "Bank 1" and "bank 1" apart.
+    private static func hasPrefix(_ name: String, _ prefix: String) -> Bool {
+        name.count >= prefix.count && name.prefix(prefix.count).caseInsensitiveCompare(prefix) == .orderedSame
+    }
+
     public static func bankNumber(fromFolder name: String) -> Int? {
-        guard name.hasPrefix(bankPrefix), let n = Int(name.dropFirst(bankPrefix.count).trimmingCharacters(in: .whitespaces)),
+        guard hasPrefix(name, bankPrefix), let n = Int(name.dropFirst(bankPrefix.count).trimmingCharacters(in: .whitespaces)),
               (1...maxBanksPerSet).contains(n) else { return nil }
         return n
     }
 
+    /// The set a folder holds, with its name exactly as it is on the stick.
     public static func setName(fromFolder name: String) -> String? {
-        guard name.hasPrefix(setPrefix) else { return nil }
+        guard hasPrefix(name, setPrefix) else { return nil }
         let rest = String(name.dropFirst(setPrefix.count))
         return rest.isEmpty ? nil : rest
     }
 
-    private static func legacySlot(fromFileName name: String) -> Int? {
+    /// Whether two set names (nil is the default set) are the same folder.
+    public static func sameSet(_ a: String?, _ b: String?) -> Bool {
+        switch (a, b) {
+        case (nil, nil): return true
+        case (let a?, let b?): return a.caseInsensitiveCompare(b) == .orderedSame
+        default: return false
+        }
+    }
+
+    static func legacySlot(fromFileName name: String) -> Int? {
         let lower = name.lowercased()
         guard lower.hasPrefix("chan-"), lower.hasSuffix(".wav"),
               let n = Int(lower.dropFirst(5).dropLast(4)), (1...slotsPerBank).contains(n) else { return nil }
@@ -79,10 +94,9 @@ public enum SquidLayout {
 
     public static func bankFolder(number: Int) -> String { "\(bankPrefix)\(number)" }
 
-    /// "Set NAME" for a valid set name, nil when the name cannot be used.
+    /// "Set NAME", with the name exactly as given. nil when a folder cannot have that name (see `check(setName:)`).
     public static func setFolder(name: String) -> String? {
-        let clean = cleanSetName(name)
-        return clean.isEmpty ? nil : setPrefix + clean
+        check(setName: name).isBlocked ? nil : setPrefix + name
     }
 
     /// Path of a bank folder below the `ALM022` folder: "Bank 3" or "Set Loops/Bank 3".
@@ -97,23 +111,13 @@ public enum SquidLayout {
 
     // MARK: names
 
-    private static let plain = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_")
+    static let plain = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_")
 
-    private static func reduce(_ text: String, to allowed: CharacterSet) -> String {
+    static func reduce(_ text: String, to allowed: CharacterSet) -> String {
         // Fold accents to plain letters first ("Café" becomes "Cafe"), then keep safe characters only.
         let folded = text.folding(options: [.diacriticInsensitive], locale: nil)
         let kept = folded.unicodeScalars.filter { allowed.contains($0) }
         return String(String.UnicodeScalarView(kept)).trimmingCharacters(in: .whitespaces)
-    }
-
-    /// A bank name the module can show: plain ASCII, at most 8 characters.
-    public static func cleanBankName(_ raw: String) -> String {
-        String(reduce(raw, to: plain).prefix(maxNameLength)).trimmingCharacters(in: .whitespaces)
-    }
-
-    /// A set name: plain ASCII, at most 8 characters, and safe as a folder name.
-    public static func cleanSetName(_ raw: String) -> String {
-        String(reduce(raw, to: plain).prefix(maxSetNameLength)).trimmingCharacters(in: .whitespaces)
     }
 
     /// A file name (without extension) that is safe on a FAT32 stick. The module shows the first 8 characters.
@@ -122,6 +126,6 @@ public enum SquidLayout {
         return stem.isEmpty ? fallback : stem
     }
 
-    /// Contents of a bank's info.txt.
-    public static func infoContents(name: String) -> String { cleanBankName(name) + "\n" }
+    /// Contents of a bank's info.txt: the name as typed.
+    public static func infoContents(name: String) -> String { name + "\n" }
 }

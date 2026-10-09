@@ -4,9 +4,16 @@ public struct SquidBank: Identifiable, Equatable, Sendable {
     public let set: String?        // nil for the default set
     public let number: Int
     public let name: String        // from info.txt, may be empty
-    public let filledSlots: Int    // channel folders that hold a file
+    public let filled: Set<Int>    // channels (1...8) that hold a file
+    public var filledSlots: Int { filled.count }
     /// How many more samples the bank can hold: 8 minus the ones it has.
     public var freeSlots: Int { max(0, SquidLayout.slotsPerBank - filledSlots) }
+    /// The empty channels, lowest first.
+    public var freeSlotNumbers: [Int] { (1...SquidLayout.slotsPerBank).filter { !filled.contains($0) } }
+
+    public init(set: String?, number: Int, name: String, filled: Set<Int>) {
+        self.set = set; self.number = number; self.name = name; self.filled = filled
+    }
     public var id: String { "\(set ?? "")|\(number)" }
     public var folder: String { SquidLayout.bankPath(set: set, number: number) ?? SquidLayout.bankFolder(number: number) }
 }
@@ -30,7 +37,7 @@ public struct SquidStickContents: Equatable, Sendable {
 
     public var namedSetCount: Int { sets.filter { $0.name != nil }.count }
 
-    public func set(named name: String?) -> SquidSet? { sets.first { $0.name == name } }
+    public func set(named name: String?) -> SquidSet? { sets.first { SquidLayout.sameSet($0.name, name) } }
 
     /// Banks 1...99 of a set that do not exist yet, lowest first.
     public func freeBankNumbers(inSet name: String?) -> [Int] {
@@ -70,26 +77,44 @@ public enum SquidStick {
         let entries = (try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
         return entries.compactMap { url -> SquidBank? in
             guard let number = SquidLayout.bankNumber(fromFolder: url.lastPathComponent) else { return nil }
-            return SquidBank(set: set, number: number, name: bankName(at: url), filledSlots: filledSlots(in: url, fileManager: fm))
+            return SquidBank(set: set, number: number, name: bankName(at: url), filled: filledSlotNumbers(in: url, fileManager: fm))
         }
         .sorted { $0.number < $1.number }
     }
 
-    /// The first line of info.txt, as the module would show it.
-    static func bankName(at bank: URL) -> String {
-        guard let data = try? Data(contentsOf: bank.appendingPathComponent(SquidLayout.infoFile)),
-              let text = String(data: data.prefix(64), encoding: .utf8) ?? String(data: data.prefix(64), encoding: .isoLatin1)
-        else { return "" }
-        let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
-        return String(line.unicodeScalars.filter { $0.isASCII && !CharacterSet.controlCharacters.contains($0) }.prefix(SquidLayout.maxNameLength).map(Character.init))
-            .trimmingCharacters(in: .whitespaces)
+    /// Where a set's folder is on the stick, whatever the case of its name.
+    public static func setURL(named name: String, volume: URL, fileManager fm: FileManager = .default) -> URL? {
+        let entries = (try? fm.contentsOfDirectory(at: rootURL(volume: volume), includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        return entries.first { SquidLayout.setName(fromFolder: $0.lastPathComponent).map { SquidLayout.sameSet($0, name) } ?? false }
     }
 
-    private static func filledSlots(in bank: URL, fileManager fm: FileManager) -> Int {
-        (1...SquidLayout.slotsPerBank).filter { slot in
-            let dir = bank.appendingPathComponent(String(slot), isDirectory: true)
-            let files = (try? fm.contentsOfDirectory(atPath: dir.path)) ?? []
-            return files.contains { !$0.hasPrefix(".") && $0.lowercased().hasSuffix(".wav") }
-        }.count
+    /// Where a bank's folder is, if it exists ("Bank 5" and "bank 05" are the same bank).
+    public static func bankURL(set: String?, number: Int, volume: URL, fileManager fm: FileManager = .default) -> URL? {
+        let container: URL
+        if let set { guard let url = setURL(named: set, volume: volume, fileManager: fm) else { return nil }; container = url }
+        else { container = rootURL(volume: volume) }
+        let entries = (try? fm.contentsOfDirectory(at: container, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        return entries.first { SquidLayout.bankNumber(fromFolder: $0.lastPathComponent) == number }
+    }
+
+    /// The name in a bank's info.txt: its first line, as stored.
+    static func bankName(at bank: URL) -> String {
+        guard let data = try? Data(contentsOf: bank.appendingPathComponent(SquidLayout.infoFile)) else { return "" }
+        let head = data.prefix(512)
+        let text = String(data: head, encoding: .utf8) ?? String(data: head, encoding: .isoLatin1) ?? ""
+        return String(text.prefix { !$0.isNewline })
+    }
+
+    /// Channels that hold a sample: a numbered folder with a .wav in it, or (older firmware) a loose `Chan-00x.wav`.
+    static func filledSlotNumbers(in bank: URL, fileManager fm: FileManager) -> Set<Int> {
+        var filled = Set<Int>()
+        for slot in 1...SquidLayout.slotsPerBank {
+            let files = (try? fm.contentsOfDirectory(atPath: bank.appendingPathComponent(String(slot), isDirectory: true).path)) ?? []
+            if files.contains(where: { !$0.hasPrefix(".") && $0.lowercased().hasSuffix(".wav") }) { filled.insert(slot) }
+        }
+        for name in (try? fm.contentsOfDirectory(atPath: bank.path)) ?? [] {
+            if let slot = SquidLayout.legacySlot(fromFileName: name) { filled.insert(slot) }
+        }
+        return filled
     }
 }

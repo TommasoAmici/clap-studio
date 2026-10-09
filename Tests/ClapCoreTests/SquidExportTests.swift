@@ -25,7 +25,7 @@ import Testing
         let bank = try SquidExporter.export(request, toVolume: stick)
 
         #expect(bank.path == stick.appendingPathComponent("ALM022/Bank 3").path)
-        #expect(try String(contentsOf: bank.appendingPathComponent("info.txt"), encoding: .utf8) == "Rumble K\n", "8 characters, newline")
+        #expect(try String(contentsOf: bank.appendingPathComponent("info.txt"), encoding: .utf8) == "Rumble Kit Long\n", "kept as typed, even past 8 characters")
         let k = try info(bank.appendingPathComponent("1/Kick 808.wav"))
         #expect(k.rate == 44_100 && k.channels == 1 && k.depth == 16, "the module's native format")
         #expect(abs(Double(k.frames) - 22_050) < 100)
@@ -59,7 +59,7 @@ import Testing
         #expect(contents.set(named: nil)?.banks.map(\.name) == ["One"])
         #expect(contents.set(named: "Loops")?.banks.first?.filledSlots == 2)
         #expect(contents.set(named: "Loops")?.banks.first?.freeSlots == 6, "8 slots minus the 2 that are filled")
-        #expect(SquidBank(set: nil, number: 1, name: "", filledSlots: 8).freeSlots == 0)
+        #expect(SquidBank(set: nil, number: 1, name: "", filled: Set(1...8)).freeSlots == 0)
         #expect(contents.freeBankNumbers(inSet: nil).first == 2)
         #expect(contents.freeBankNumbers(inSet: "Loops").first == 1)
         #expect(SquidStick.read(volume: TestSupport.tempDir()).hasSquidFolder == false)
