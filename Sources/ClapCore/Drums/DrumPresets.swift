@@ -18,11 +18,32 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
 
     /// The steps for the nth track (0 for the first) of a category. Empty when the preset has no part for it.
     public func hits(for category: String?, occurrence: Int = 0) -> [Bool] {
-        guard let category, let lines = rhythms[Self.role(for: category)], !lines.isEmpty else {
-            return Array(repeating: false, count: DrumPattern.stepCount)
-        }
-        return Self.parse(lines[max(0, occurrence) % lines.count])
+        let silence = Array(repeating: false, count: DrumPattern.stepCount)
+        guard let category else { return silence }
+        let role = Self.role(for: category)
+        if let lines = rhythms[role], !lines.isEmpty { return Self.parse(lines[max(0, occurrence) % lines.count]) }
+        // The shipped grooves play every other kind of sound too (a bass, a vocal, an ambience); a groove the user
+        // saved keeps to the parts it was saved with.
+        if !isUser, let line = Self.accompaniment(for: role) { return Self.parse(line) }
+        return silence
     }
+
+    /// A simple part for sounds that are not drum-kit pieces, so any sample dropped into the drum machine plays
+    /// something with a built-in groove: bass and chord-like sounds get a few hits, everything else (pads, effects,
+    /// vocals, field sounds, loops) is triggered once per bar. nil for the categories the grooves write themselves.
+    static func accompaniment(for role: String) -> String? {
+        if drumRoles.contains(role) { return nil }
+        switch role {
+        case "Bass": return "x..x..x...x..x.."
+        case "Pluck": return "x..x..x...x.x..."
+        case "Synth", "Keys", "Guitar": return "x.....x.....x..."
+        case "Lead", "Brass & Winds", "Bells": return "x.......x......."
+        default: return "x..............."
+        }
+    }
+
+    /// The categories each groove writes a rhythm for itself.
+    static let drumRoles: Set<String> = ["Kick", "Snare", "Rimshot", "Hi-hat", "Cymbal", "Tom", "Percussion", "Cowbell"]
 
     /// Clap and snare share a part: both are the backbeat.
     static func role(for category: String) -> String { category == "Clap" ? "Snare" : category }
@@ -40,6 +61,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": [".x..x..x..x..x..", "...x.......x...x"],
             "Tom": ["..............x."],
+            "Rimshot": ["..x.......x....."],
+            "Cowbell": ["x..x..x...x..x.."],
         ]),
         DrumPreset(id: "techno", name: "Techno", bpm: 132, swingPercent: 50, rhythms: [
             "Kick": ["x...x...x...x...", "..x...x...x...x."],
@@ -48,6 +71,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["..............x."],
             "Percussion": ["..x..x..x..x..x.", ".x..x..x..x..x.."],
             "Tom": ["...........x...x"],
+            "Rimshot": ["...x......x....x"],
+            "Cowbell": ["..x...x...x...x."],
         ]),
         DrumPreset(id: "dnb", name: "Drum & Bass", bpm: 174, swingPercent: 50, rhythms: [
             "Kick": ["x.........x.....", "..........x....."],
@@ -56,6 +81,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": ["...x..x....x..x.", "..x......x......"],
             "Tom": ["..........x...xx"],
+            "Rimshot": ["...x.......x...."],
+            "Cowbell": ["x..x..x.x......."],
         ]),
         DrumPreset(id: "hiphop", name: "Hip-Hop", bpm: 90, swingPercent: 58, rhythms: [
             "Kick": ["x.....x..x......", "..........x....."],
@@ -64,6 +91,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": ["...x......x....x"],
             "Tom": ["..............x."],
+            "Rimshot": ["..x......x......"],
+            "Cowbell": ["x..x......x.x..."],
         ]),
         DrumPreset(id: "trap", name: "Trap", bpm: 140, swingPercent: 50, rhythms: [
             "Kick": ["x.........x.....", "..x......x......"],
@@ -72,6 +101,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": ["...x......x...x."],
             "Tom": ["..............xx"],
+            "Rimshot": ["...x......x....x"],
+            "Cowbell": ["x..x..x.x..x..x."],
         ]),
         DrumPreset(id: "breakbeat", name: "Breakbeat", bpm: 135, swingPercent: 52, rhythms: [
             "Kick": ["x.....x..x......", "x..x..x........."],
@@ -80,6 +111,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": ["..x..x....x..x.."],
             "Tom": ["...........x.x.."],
+            "Rimshot": ["..x.......x..x.."],
+            "Cowbell": ["x..x..x...x....."],
         ]),
         DrumPreset(id: "reggaeton", name: "Reggaeton", bpm: 96, swingPercent: 50, rhythms: [
             "Kick": ["x...x...x...x..."],
@@ -88,6 +121,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": ["..x...x...x...x."],
             "Tom": ["..............x."],
+            "Rimshot": [".x..x..x.x..x..."],
+            "Cowbell": ["x..x..x.x..x..x."],
         ]),
         DrumPreset(id: "electro", name: "Electro", bpm: 128, swingPercent: 50, rhythms: [
             "Kick": ["x.....x...x.....", "x.......x......."],
@@ -96,6 +131,8 @@ public struct DrumPreset: Identifiable, Equatable, Sendable, Codable {
             "Cymbal": ["x..............."],
             "Percussion": [".x..x..x..x..x..", "...x..x...x..x.."],
             "Tom": ["..........x.x..."],
+            "Rimshot": ["..x..x....x....."],
+            "Cowbell": ["x..x..x...x..x.."],
         ]),
     ]
 

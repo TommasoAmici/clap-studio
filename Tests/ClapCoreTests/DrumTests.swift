@@ -17,7 +17,7 @@ import Testing
         let kick = DrumStarter.hits(for: "Kick"), snare = DrumStarter.hits(for: "Snare")
         #expect(kick.count == 16 && kick.indices.filter { kick[$0] } == [0, 4, 8, 12])
         #expect(snare.indices.filter { snare[$0] } == [4, 12])
-        #expect(!DrumStarter.hits(for: "Bass").contains(true) && !DrumStarter.hits(for: nil).contains(true))
+        #expect(DrumStarter.hits(for: "Bass").contains(true) && !DrumStarter.hits(for: nil).contains(true), "a bass plays; no category, no part")
     }
 
     @Test func editingAPattern() {

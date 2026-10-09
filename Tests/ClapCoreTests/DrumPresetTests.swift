@@ -17,12 +17,36 @@ import Testing
         }
     }
 
+    @Test func everyCategoryASampleCanHaveGetsAPartInEveryBuiltInGroove() {
+        let categories = SoundCategories.names + [SoundCategories.fieldRecording]
+        for preset in DrumPreset.all {
+            for category in categories {
+                #expect(preset.hits(for: category).contains(true), "\(preset.name) has no part for \(category)")
+            }
+        }
+        for category in categories {
+            #expect(DrumStarter.hits(for: category).contains(true), "the plain starter has no part for \(category)")
+        }
+        // The drum pieces are written out by each groove, not taken from the simple fallback.
+        for preset in DrumPreset.all {
+            for role in DrumPreset.drumRoles { #expect(preset.rhythms[role]?.isEmpty == false, "\(preset.name) \(role)") }
+        }
+    }
+
+    @Test func aGrooveTheUserSavedKeepsToItsOwnParts() throws {
+        var pattern = DrumPattern()
+        pattern.addTrack(sampleID: 1, label: "Kick", category: "Kick")
+        let groove = try #require(pattern.makePreset(name: "Mine", bpm: 100))
+        #expect(groove.hits(for: "Kick").contains(true))
+        #expect(!groove.hits(for: "Bass").contains(true) && !groove.hits(for: "Cowbell").contains(true))
+    }
+
     @Test func rhythmsFollowTheCategory() throws {
         let dnb = try #require(DrumPreset.preset(id: "dnb"))
         #expect(dnb.bpm == 174)
         #expect(dnb.hits(for: "Snare").indices.filter { dnb.hits(for: "Snare")[$0] } == [4, 12])
         #expect(dnb.hits(for: "Clap") == dnb.hits(for: "Snare"), "a clap is the backbeat too")
-        #expect(!dnb.hits(for: "Bass").contains(true) && !dnb.hits(for: nil).contains(true), "no part for other sounds")
+        #expect(dnb.hits(for: "Bass").contains(true) && !dnb.hits(for: nil).contains(true), "a bass plays; no category, no part")
         #expect(dnb.hits(for: "Hi-hat", occurrence: 0) != dnb.hits(for: "Hi-hat", occurrence: 1), "a second hat plays another line")
         #expect(dnb.hits(for: "Hi-hat", occurrence: 2) == dnb.hits(for: "Hi-hat", occurrence: 0), "lines wrap around")
         #expect(DrumPreset.preset(id: "nope") == nil && DrumPreset.preset(id: nil) == nil)
@@ -43,7 +67,7 @@ import Testing
         #expect(pattern.tracks[0].hits == techno.hits(for: "Kick"))
         #expect(pattern.tracks[1].hits == techno.hits(for: "Hi-hat", occurrence: 0))
         #expect(pattern.tracks[2].hits == techno.hits(for: "Hi-hat", occurrence: 1))
-        #expect(!pattern.tracks[3].hits.contains(true))
+        #expect(pattern.tracks[3].hits == techno.hits(for: "Bass"), "a bass has its own simple part")
         #expect(pattern.swing == techno.swing)
     }
 

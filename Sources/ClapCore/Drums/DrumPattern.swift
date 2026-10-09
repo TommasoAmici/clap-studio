@@ -110,7 +110,9 @@ public enum DrumStarter {
         case "Tom": steps = [10, 14]
         case "Percussion": steps = [3, 7, 11, 15]
         case "Cowbell": steps = [2, 6, 10, 14]
-        default: steps = []
+        default:
+            // Anything else a sample can be (bass, pad, vocal, field recording, ...) gets the simple part.
+            return category.flatMap { DrumPreset.accompaniment(for: DrumPreset.role(for: $0)) }.map(DrumPreset.parse) ?? Array(repeating: false, count: DrumPattern.stepCount)
         }
         return (0..<DrumPattern.stepCount).map { steps.contains($0) }
     }
