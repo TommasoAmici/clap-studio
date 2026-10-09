@@ -1,1 +1,1 @@
-public enum ClapCoreInfo { public static let version = "0.4" }
+public enum ClapCoreInfo { public static let version = "0.5" }
