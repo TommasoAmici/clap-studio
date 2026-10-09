@@ -249,11 +249,12 @@ public final class LibraryStore: @unchecked Sendable {
                    s.category, s.category_manual, s.favorite, s.hidden,
                    (SELECT group_concat(tag, char(31)) FROM sample_tags t WHERE t.sample_id = s.id),
                    (SELECT group_concat(mood, char(31)) FROM sample_moods m WHERE m.sample_id = s.id),
-                   (SELECT group_concat(sound, char(31)) FROM (SELECT DISTINCT sound FROM segment_sounds n WHERE n.sample_id = s.id))
+                   (SELECT group_concat(sound, char(31)) FROM (SELECT DISTINCT sound FROM segment_sounds n WHERE n.sample_id = s.id)),
+                   s.moods_manual
             FROM samples s JOIN roots r ON r.id = s.root_id
             WHERE s.status IN ('ok', 'pending') \(extraFilter)
             """, params) {
-            SampleRecord(
+            var record = SampleRecord(
                 id: $0.int(0), rootID: $0.int(1), rootPath: $0.text(2), relPath: $0.text(3),
                 name: $0.text(4), ext: $0.text(5), duration: $0.double(6), sampleRate: $0.double(7),
                 channels: Int($0.int(8)), size: $0.int(9), mtime: $0.double(10),
@@ -268,8 +269,11 @@ public final class LibraryStore: @unchecked Sendable {
                 favorite: $0.int(26) != 0, hidden: $0.int(27) != 0,
                 tags: $0.isNull(28) ? [] : $0.text(28).split(separator: "\u{1F}").map(String.init).sorted {
                     $0.localizedCaseInsensitiveCompare($1) == .orderedAscending },
-                moods: $0.isNull(29) ? [] : SoundMoods.sorted($0.text(29).split(separator: "\u{1F}").map(String.init)),
                 sounds: $0.isNull(30) ? [] : SoundCategories.sortedSounds($0.text(30).split(separator: "\u{1F}").map(String.init)))
+            record.moodsAuto = $0.isNull(29) ? [] : SoundMoods.sorted($0.text(29).split(separator: "\u{1F}").map(String.init))
+            record.moodsManual = $0.isNull(31) ? nil : SoundMoods.sorted($0.text(31).split(separator: "\u{1F}").map(String.init))
+            record.moods = record.moodsManual ?? record.moodsAuto
+            return record
         }) ?? []
     }
 

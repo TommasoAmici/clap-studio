@@ -39,6 +39,22 @@ extension AppModel {
             categoryItems.append(.action("Use Automatic") { [unowned self] in setCategory(ids, nil) })
         }
         menu.append(.submenu("Set Category", categoryItems))
+        var moodItems: [SampleMenuEntry] = []
+        let present = SoundMoods.names.filter { name in samples.contains { $0.moods.contains(name) } }
+        moodItems.append(.submenu("Add", SoundMoods.names.map { name in
+            .action(name) { [unowned self] in changeMoods(ids, named: "Add Mood \(name)") { $0.contains(name) ? $0 : $0 + [name] } }
+        }))
+        if !present.isEmpty {
+            moodItems.append(.submenu("Remove", present.map { name in
+                .action(name) { [unowned self] in changeMoods(ids, named: "Remove Mood \(name)") { $0.filter { $0 != name } } }
+            }))
+        }
+        moodItems.append(.action("Clear") { [unowned self] in changeMoods(ids, named: "Clear Moods") { _ in [] } })
+        if samples.contains(where: { $0.moodsManual != nil }) {
+            moodItems.append(.divider)
+            moodItems.append(.action("Use Automatic") { [unowned self] in changeMoods(ids, named: "Use Automatic Moods") { _ in nil } })
+        }
+        menu.append(.submenu("Set Mood", moodItems))
         menu.append(.action("Add Tag…") { [unowned self] in tagPromptTargets = ids })
         menu.append(.action("Copy To…") { [unowned self] in openExport(ids: ids) })
         menu.append(.divider)

@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 9
+    static let currentVersion = 10
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -15,6 +15,7 @@ enum Schema {
         if version < 7 { try v7(db) }
         if version < 8 { try v8(db) }
         if version < 9 { try v9(db) }
+        if version < 10 { try v10(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -130,6 +131,12 @@ enum Schema {
             PRIMARY KEY(sample_id, idx, sound));
         CREATE INDEX IF NOT EXISTS segment_sounds_sound ON segment_sounds(sound);
         """)
+    }
+
+    /// The user's own moods for a sample: NULL means "automatic", an empty string "none", otherwise the moods
+    /// joined with the unit separator. The automatic moods in `sample_moods` are recomputed freely and never touched.
+    private static func v10(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE samples ADD COLUMN moods_manual TEXT")
     }
 
     /// Bird species heard in field recordings. `latitude`/`longitude` are where a recording was made (optional);

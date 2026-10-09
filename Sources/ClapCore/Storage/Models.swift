@@ -44,8 +44,12 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var hidden: Bool = false
     /// The user's own labels, sorted.
     public var tags: [String] = []
-    /// Automatic moods, in the sidebar's order.
+    /// The moods that count, in the sidebar's order: the user's own when they set any, else the automatic ones.
     public var moods: [String] = []
+    /// What the library's analysis found, kept so the user can go back to it.
+    public var moodsAuto: [String] = []
+    /// The user's own moods (empty: they chose none); nil while the automatic ones are used.
+    public var moodsManual: [String]? = nil
     /// What the segments of a field recording sound like (birds, water, ...), in the sidebar's order.
     public var sounds: [String] = []
 

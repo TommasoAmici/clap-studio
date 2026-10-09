@@ -16,7 +16,7 @@ struct PropertiesPanel: View {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
                     row("Type", sample.typeText + (sample.isFieldRecording ? ", \(model.segmentCount(sample.id)) segments" : ""))
                     categoryRow
-                    if !sample.moods.isEmpty { row("Mood", sample.moodText) }
+                    moodRow
                     if sample.isLoop == true { tempoRow }
                     row(sample.isLoop == true ? "Key" : "Note", sample.keyName ?? "–")
                     row("Level", sample.levelText)
@@ -69,6 +69,33 @@ struct PropertiesPanel: View {
                 }
             } label: {
                 Text((sample.effectiveCategory ?? "None") + (sample.categoryManual != nil ? " ✎" : ""))
+            }
+            .menuStyle(.borderlessButton).fixedSize()
+        }
+    }
+
+    /// Moods are several per sample: each is ticked on or off, and the choice replaces the automatic moods.
+    private var moodRow: some View {
+        GridRow {
+            Text("Mood").foregroundStyle(.secondary)
+            Menu {
+                ForEach(SoundMoods.names, id: \.self) { name in
+                    Toggle(name, isOn: Binding(
+                        get: { sample.moods.contains(name) },
+                        set: { on in
+                            model.changeMoods([sample.id], named: on ? "Add Mood \(name)" : "Remove Mood \(name)") { moods in
+                                on ? (moods.contains(name) ? moods : moods + [name]) : moods.filter { $0 != name }
+                            }
+                        }))
+                }
+                if sample.moodsManual != nil {
+                    Divider()
+                    Button("Use automatic" + (sample.moodsAuto.isEmpty ? "" : " (\(sample.moodsAuto.joined(separator: ", ")))")) {
+                        model.changeMoods([sample.id], named: "Use Automatic Moods") { _ in nil }
+                    }
+                }
+            } label: {
+                Text((sample.moods.isEmpty ? "None" : sample.moodText) + (sample.moodsManual != nil ? " ✎" : ""))
             }
             .menuStyle(.borderlessButton).fixedSize()
         }

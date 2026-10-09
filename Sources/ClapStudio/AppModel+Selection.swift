@@ -207,6 +207,33 @@ extension AppModel {
         if descriptorFilter.isActive { refilter() }
     }
 
+    /// Changes the moods of several samples at once as one undoable change. `change` maps a sample's current moods
+    /// to its new ones (nil: back to the automatic moods).
+    func changeMoods(_ ids: [Int64], named name: String, _ change: ([String]) -> [String]?) {
+        let before = ids.compactMap { id in sampleByID[id].map { (id: id, moods: $0.moodsManual) } }
+        let after = ids.compactMap { id -> (id: Int64, moods: [String]?)? in
+            guard let s = sampleByID[id] else { return nil }
+            return (id, change(s.moods).map { SoundMoods.sorted($0) })
+        }
+        let changed = zip(before, after).filter { $0.moods != $1.moods }
+        guard !changed.isEmpty else { return }
+        let oldValues = changed.map(\.0), newValues = changed.map(\.1)
+        record(LibraryEdit(name: "\(name) for \(samplesPhrase(changed.count))",
+                           undo: { [unowned self] in applyMoods(oldValues) },
+                           redo: { [unowned self] in applyMoods(newValues) }))
+        applyMoods(newValues)
+    }
+
+    private func applyMoods(_ values: [(id: Int64, moods: [String]?)]) {
+        guard let store, !values.isEmpty else { return }
+        do { try store.setManualMoods(values) } catch { errorMessage = "Could not save the moods: \(error)"; return }
+        for value in values {
+            mutate(value.id) { $0.moodsManual = value.moods; $0.moods = value.moods ?? $0.moodsAuto }
+        }
+        updateMoodCounts()
+        if descriptorFilter.isActive { refilter() }
+    }
+
     // MARK: cues
 
     private var nativeRate: Double { (selectedSample?.sampleRate ?? 0) > 0 ? selectedSample!.sampleRate : 44_100 }

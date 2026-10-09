@@ -58,4 +58,15 @@ extension LibraryStore {
             moods.sorted { $0.key < $1.key }.map { (id: id, mood: $0.key, z: $0.value) }
         }
     }
+
+    /// The user's own moods for several samples at once (nil goes back to the automatic ones, an empty list means
+    /// none). The automatic moods are kept, since they are recomputed on their own.
+    public func setManualMoods(_ values: [(id: Int64, moods: [String]?)]) throws {
+        try db.transaction {
+            for value in values {
+                let text: SQLValue = value.moods.map { .text(SoundMoods.sorted($0).joined(separator: "\u{1F}")) } ?? .null
+                try db.run("UPDATE samples SET moods_manual = ? WHERE id = ?", [text, .int(value.id)])
+            }
+        }
+    }
 }

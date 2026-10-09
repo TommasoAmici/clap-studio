@@ -88,6 +88,20 @@ import Testing
         try store.assignMoods(with: scorer)        // recomputing replaces, never duplicates
         #expect(store.loadSamples().first { $0.relPath == "s0.wav" }?.moods == ["Dark"])
 
+        // The user's own moods win, are kept when moods are recomputed, and can be undone.
+        let id = try #require(dark?.id)
+        try store.setManualMoods([(id, ["Happy", "Dark"])])
+        var edited = try #require(store.sample(id: id))
+        #expect(edited.moods == ["Dark", "Happy"] && edited.moodsManual == ["Dark", "Happy"] && edited.moodsAuto == ["Dark"])
+        try store.assignMoods(with: scorer)
+        #expect(store.sample(id: id)?.moods == ["Dark", "Happy"])
+        try store.setManualMoods([(id, [])])
+        edited = try #require(store.sample(id: id))
+        #expect(edited.moods == [] && edited.moodsManual == [], "none is a choice too")
+        try store.setManualMoods([(id, nil)])
+        edited = try #require(store.sample(id: id))
+        #expect(edited.moods == ["Dark"] && edited.moodsManual == nil)
+
         _ = try store.sync(rootID: root.id, scanned: files + [ScannedFile(relPath: "new.wav", size: 1, mtime: 1)]) { $0 }
         let job = store.pendingJobs(limit: 1)[0]
         try store.save(results: [.success(id: job.id, duration: 1, sampleRate: 44100, channels: 1,
