@@ -21,7 +21,7 @@ struct SearchField: View {
             }
         }
         .padding(.horizontal, 8)
-        .frame(minWidth: 140, idealWidth: 180, maxWidth: 240)
+        .frame(minWidth: 120, idealWidth: 160, maxWidth: 240)
         .frame(height: Self.height)        // as tall as the other toolbar controls
         .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
         .onChange(of: model.searchFocusRequests) { focused = true }

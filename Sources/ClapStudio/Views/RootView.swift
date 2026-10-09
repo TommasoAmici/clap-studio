@@ -34,7 +34,7 @@ struct RootView: View {
                         ForEach(ViewMode.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 180)
+                    .frame(width: 160)
                     SearchField()
                     ProjectButton()
                     Toggle(isOn: $model.project.matchLoudness) { Image(systemName: "dial.medium") }
@@ -44,6 +44,7 @@ struct RootView: View {
                     Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                         .help("Play a sample when it is selected")
                 }
+                // While the inspector is open its toggle is in its own toolbar section (see InspectorView).
                 if !showInspector {
                     ToolbarItem(placement: .primaryAction) {
                         Button { showInspector = true } label: { Image(systemName: "sidebar.trailing") }
@@ -52,14 +53,8 @@ struct RootView: View {
                 }
             }
             .inspector(isPresented: $showInspector) {
-                InspectorView()
+                InspectorView(hide: { showInspector = false })
                     .inspectorColumnWidth(min: 300, ideal: 360, max: 480)
-                    .ignoresSafeArea(.container, edges: .top)    // use the strip beside the toolbar too
-                    .overlay(alignment: .topTrailing) {
-                        Button { showInspector = false } label: { Image(systemName: "sidebar.trailing") }
-                            .buttonStyle(.borderless).padding(8)
-                            .help("Hide the inspector")
-                    }
             }
         }
         .onPreferenceChange(DropZoneFrames.self) { model.dropZones = $0 }

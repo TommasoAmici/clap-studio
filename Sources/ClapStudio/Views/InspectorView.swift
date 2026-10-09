@@ -3,8 +3,29 @@ import SwiftUI
 
 struct InspectorView: View {
     @Environment(AppModel.self) private var model
+    /// Closes the inspector; its button is the last one in the toolbar section over the inspector.
+    let hide: () -> Void
 
     var body: some View {
+        content
+            .toolbar {
+                // What applies to the sample being inspected sits in the toolbar over the inspector, then the toggle.
+                ToolbarItemGroup {
+                    if let sample = model.selectedSample {
+                        Button { model.toggleFavorite([sample.id]) } label: { Image(systemName: sample.favorite ? "star.fill" : "star") }
+                            .help(sample.favorite ? "Remove from favorites (F)" : "Add to favorites (F)")
+                        Button { NSWorkspace.shared.activateFileViewerSelecting([sample.url]) } label: {
+                            Image(systemName: "magnifyingglass.circle")
+                        }
+                        .help("Reveal in Finder")
+                    }
+                    Button(action: hide) { Image(systemName: "sidebar.trailing") }
+                        .help("Hide the inspector")
+                }
+            }
+    }
+
+    @ViewBuilder private var content: some View {
         if let sample = model.selectedSample {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -19,7 +40,6 @@ struct InspectorView: View {
                     SimilarList()
                 }
                 .padding(14)
-                .padding(.top, 20)      // clear of the hide button in the corner
             }
         } else {
             ContentUnavailableView("No sample selected", systemImage: "waveform",
@@ -42,14 +62,6 @@ struct InspectorView: View {
                 UsageBadge(count: s.useCount)
                 Text(s.useCount == 0 ? "never used" : "last used \(Format.date(s.lastUsed))")
                     .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button { model.toggleFavorite([s.id]) } label: { Image(systemName: s.favorite ? "star.fill" : "star") }
-                    .buttonStyle(.borderless).foregroundStyle(s.favorite ? .yellow : .secondary)
-                    .help(s.favorite ? "Remove from favorites (F)" : "Add to favorites (F)")
-                Button { NSWorkspace.shared.activateFileViewerSelecting([s.url]) } label: {
-                    Image(systemName: "magnifyingglass.circle")
-                }
-                .buttonStyle(.borderless).help("Reveal in Finder")
             }
         }
     }
