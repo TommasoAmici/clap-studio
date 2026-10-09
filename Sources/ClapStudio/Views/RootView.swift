@@ -44,16 +44,14 @@ struct RootView: View {
                     Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                         .help("Play a sample when it is selected")
                 }
-                // While the inspector is open its toggle is in its own toolbar section (see InspectorView).
-                if !showInspector {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { showInspector = true } label: { Image(systemName: "sidebar.trailing") }
-                            .help("Show the inspector")
-                    }
+                // One toggle that is always there, at the trailing end of the toolbar (over the inspector when open).
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
+                        .help(showInspector ? "Hide the inspector" : "Show the inspector")
                 }
             }
             .inspector(isPresented: $showInspector) {
-                InspectorView(hide: { showInspector = false })
+                InspectorView()
                     .inspectorColumnWidth(min: 300, ideal: 360, max: 480)
             }
         }
