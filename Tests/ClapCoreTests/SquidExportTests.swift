@@ -36,6 +36,16 @@ import Testing
         #expect(try info(long).frames == 30 * 48_000)
     }
 
+    @Test func aDriveIsForTheModuleWhenItHoldsAnALM022Folder() throws {
+        let fm = FileManager.default
+        let plain = TestSupport.tempDir(), module = TestSupport.tempDir(), fileOnly = TestSupport.tempDir()
+        try fm.createDirectory(at: module.appendingPathComponent("ALM022"), withIntermediateDirectories: true)
+        try Data().write(to: fileOnly.appendingPathComponent("ALM022"))
+        #expect(!SquidStick.isForModule(volume: plain))
+        #expect(SquidStick.isForModule(volume: module))
+        #expect(!SquidStick.isForModule(volume: fileOnly), "a file with that name is not the folder")
+    }
+
     @Test func readingBackWhatWasWritten() throws {
         let dir = TestSupport.tempDir(), stick = TestSupport.tempDir()
         let a = try makeSource(dir, "a.wav", seconds: 0.2)

@@ -123,8 +123,10 @@ final class AppModel {
     var trainingExportResult: TrainingExportResult?
 
     // MARK: Squid Salmple (USB sticks)
-    var squidEnabled = UserDefaults.standard.bool(forKey: SquidSettings.enabledKey) { didSet { if squidEnabled != oldValue { squidEnabledChanged() } } }
+    /// Connected drives that hold an `ALM022` folder, so are meant for the module.
     var usbDrives: [UsbDrive] = []
+    /// Squid features appear whenever such a drive is connected, and disappear with the last one.
+    var squidEnabled: Bool { !usbDrives.isEmpty }
     var usbContents: [String: SquidStickContents] = [:]      // by drive id
     var usbSamples: [SampleRecord] = []                      // analysed, but not part of the library
     var usbSelection: UsbSelection? { didSet { if usbSelection != oldValue { refilter() } } }

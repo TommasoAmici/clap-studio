@@ -42,6 +42,12 @@ public struct SquidStickContents: Equatable, Sendable {
 public enum SquidStick {
     public static func rootURL(volume: URL) -> URL { volume.appendingPathComponent(SquidLayout.rootFolder, isDirectory: true) }
 
+    /// A drive is for the module when it holds a folder named `ALM022` at its top level.
+    public static func isForModule(volume: URL, fileManager fm: FileManager = .default) -> Bool {
+        var isDir: ObjCBool = false
+        return fm.fileExists(atPath: rootURL(volume: volume).path, isDirectory: &isDir) && isDir.boolValue
+    }
+
     /// Reads the sets and banks of the stick mounted at `volume`.
     public static func read(volume: URL, fileManager fm: FileManager = .default) -> SquidStickContents {
         let root = rootURL(volume: volume)

@@ -24,7 +24,7 @@ struct SquidExportSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Send to Squid Salmple").font(.title3.bold())
             if model.usbDrives.isEmpty {
-                Text("Connect the USB stick and it will show up here.").foregroundStyle(.secondary)
+                Text("Connect a USB stick with an ALM022 folder and it will show up here.").foregroundStyle(.secondary)
             } else {
                 destination
                 Divider()
