@@ -57,6 +57,9 @@ struct RootView: View {
                     .inspectorColumnWidth(min: 300, ideal: 360, max: 480)
             }
         }
+        #if DEBUG
+        .task { await DebugSnapshot.runIfRequested(model: model) }
+        #endif
         .onPreferenceChange(DropZoneFrames.self) { model.dropZones = $0 }
         .onDrop(of: [.fileURL], delegate: WindowDropDelegate(model: model))
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }

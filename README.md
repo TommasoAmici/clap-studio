@@ -50,6 +50,8 @@ scripts/test.sh            # unit + end-to-end tests
 swift run -c release ClapBench 50000 2048   # scale benchmark
 ```
 
+`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG without screen capture permission or the window being on the current Space (debug builds only; see `DebugSnapshot.swift`). Handy for checking layout changes.
+
 `scripts/env.sh` builds against the macOS 26 SDK when Xcode is absent, because the default macOS 27 SDK needs a SwiftUI macro plugin that only ships with Xcode. For a quick demo library, run `build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`.
 
 ## Similarity model
