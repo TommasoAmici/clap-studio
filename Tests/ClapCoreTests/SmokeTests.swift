@@ -1,4 +1,4 @@
 import Testing
 @testable import ClapCore
 
-@Test func versionIsSet() { #expect(ClapCoreInfo.version == "0.13") }
+@Test func versionIsSet() { #expect(ClapCoreInfo.version == "0.14") }
