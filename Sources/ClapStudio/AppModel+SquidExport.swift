@@ -66,7 +66,10 @@ extension AppModel {
 
     /// Samples for a sheet that was opened from the library or the drum machine.
     func squidSources() -> [SquidSource] {
-        squidItems.compactMap { sampleByID[$0] }.map { SquidSource(file: $0.url, trim: activeTrim(for: $0), name: $0.name, category: $0.effectiveCategory) }
+        let match = squidMatchLevels
+        return squidItems.compactMap { sampleByID[$0] }.map {
+            SquidSource(file: $0.url, trim: activeTrim(for: $0), name: $0.name, category: $0.effectiveCategory, matchLevel: match)
+        }
     }
 
     /// Writes the plan to the drive, then refreshes what the app shows of it. Returns an error message, or nil on success.

@@ -124,6 +124,10 @@ final class AppModel {
     var trainingExportResult: TrainingExportResult?
 
     // MARK: Squid Salmple (USB sticks)
+    /// Samples sent to a stick are brought to a common loudness, so they play at similar volumes without checking each one.
+    var squidMatchLevels = UserDefaults.standard.object(forKey: "squid.matchLevels") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(squidMatchLevels, forKey: "squid.matchLevels") }
+    }
     /// Connected drives that hold an `ALM022` folder, so are meant for the module.
     var usbDrives: [UsbDrive] = []
     /// Squid features appear whenever such a drive is connected, and disappear with the last one.

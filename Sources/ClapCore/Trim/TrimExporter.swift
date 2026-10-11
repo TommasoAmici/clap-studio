@@ -28,9 +28,10 @@ public enum TrimExporter {
 
     /// Writes the trimmed region of `source` to `destination` as a WAV file.
     /// `maxSeconds` cuts the result off at that length (before conversion). `declick` adds the short edge fades
-    /// even without a trim (it is on whenever there is one).
+    /// even without a trim (it is on whenever there is one). `matchLevel` brings the result to the app's common
+    /// loudness (see `LoudnessMatch`) so exported samples play at similar volumes.
     public static func write(source: URL, trim: SampleTrim?, format: ExportFormat, to destination: URL,
-                             maxSeconds: Double? = nil, declick: Bool? = nil) throws {
+                             maxSeconds: Double? = nil, declick: Bool? = nil, matchLevel: Bool = false) throws {
         let file = try AVAudioFile(forReading: source)
         let native = file.processingFormat
         let fades = declick ?? (trim != nil)
@@ -47,6 +48,7 @@ public enum TrimExporter {
             }
             buffer = try AudioConvert.convert(buffer, to: target, highQuality: true)
         }
+        if matchLevel { LoudnessMatch.apply(to: buffer) }
 
         let source = file.fileFormat.settings
         let sourceDepth = source[AVLinearPCMBitDepthKey] as? Int

@@ -8,8 +8,10 @@ public struct SquidSource: Sendable {
     public var name: String
     /// Written into the file, so the stick keeps showing the sample under this category.
     public var category: String?
-    public init(file: URL, trim: SampleTrim? = nil, name: String, category: String? = nil) {
-        self.file = file; self.trim = trim; self.name = name; self.category = category
+    /// Bring the sample to the app's common loudness, so every sample on the stick plays at a similar volume.
+    public var matchLevel: Bool
+    public init(file: URL, trim: SampleTrim? = nil, name: String, category: String? = nil, matchLevel: Bool = false) {
+        self.file = file; self.trim = trim; self.name = name; self.category = category; self.matchLevel = matchLevel
     }
 }
 
@@ -78,7 +80,7 @@ public enum SquidExporter {
             let target = folder.appendingPathComponent(SquidLayout.cleanFileStem(source.name) + ".wav")
             do {
                 try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
-                                       maxSeconds: SquidLayout.maxSeconds, declick: true)
+                                       maxSeconds: SquidLayout.maxSeconds, declick: true, matchLevel: source.matchLevel)
             } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
             tag(target, with: source.category)
             bytes += fileSize(target) + 4096
@@ -138,7 +140,7 @@ public enum SquidExporter {
             let target = folder.appendingPathComponent(SquidLayout.cleanFileStem(source.name) + ".wav")
             do {
                 try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
-                                       maxSeconds: SquidLayout.maxSeconds, declick: true)
+                                       maxSeconds: SquidLayout.maxSeconds, declick: true, matchLevel: source.matchLevel)
             } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
             tag(target, with: source.category)
             bytes += fileSize(target) + 4096
@@ -186,7 +188,7 @@ public enum SquidExporter {
             let target = staging.appendingPathComponent("\(index)-" + SquidLayout.cleanFileStem(source.name) + ".wav")
             do {
                 try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
-                                       maxSeconds: SquidLayout.maxSeconds, declick: true)
+                                       maxSeconds: SquidLayout.maxSeconds, declick: true, matchLevel: source.matchLevel)
             } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
             tag(target, with: source.category)
             bytes += fileSize(target) + 4096

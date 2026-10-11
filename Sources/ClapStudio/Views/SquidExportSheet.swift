@@ -32,8 +32,10 @@ struct SquidExportSheet: View {
                 items
             }
             if let problem { Text(problem).font(.caption).foregroundStyle(.red) }
+            Toggle("Match levels", isOn: Bindable(model).squidMatchLevels)
+                .help("Brings every sample to the same loudness as the app's level matching, with peaks kept below -1 dB, so they play at similar volumes.")
             Text("Samples are converted to 16-bit, 44.1 kHz mono (what the module plays) and cut at \(Int(SquidLayout.maxSeconds)) seconds. "
-                 + "Trims are applied. Your library files are not changed.")
+                 + "Trims are applied" + (model.squidMatchLevels ? " and levels matched" : "") + ". Your library files are not changed.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 if busy { ProgressView().controlSize(.small) }
