@@ -24,8 +24,14 @@ struct FieldBirdsSection: View {
             }
     }
 
+    /// Nothing to show for a recording without birds. The exceptions: the search is still running, and a place set
+    /// on this recording, which may be what ruled every bird out and so has to stay reachable to be changed.
+    private var isShown: Bool {
+        !occurrences.isEmpty || (model.birdsAvailable && (model.isIndexing || model.isListeningForBirds || place != nil))
+    }
+
     @ViewBuilder private var content: some View {
-        if model.birdsAvailable || !occurrences.isEmpty {
+        if isShown {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Birds in this recording").font(.subheadline.bold())
                 if occurrences.isEmpty {
