@@ -8,9 +8,29 @@ enum SquidPlan {
     case pool(subfolder: String)
 }
 
+/// Where samples were last sent, so the sheet starts there the next time.
+struct SquidLastDestination: Codable, Equatable {
+    var drive: String
+    var pool: Bool
+    var set: String?
+    var bank: Int?
+    var poolFolder: String
+
+    private static let key = "squid.lastDestination"
+
+    static func load() -> SquidLastDestination? {
+        UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(SquidLastDestination.self, from: $0) }
+    }
+
+    func save() {
+        if let data = try? JSONEncoder().encode(self) { UserDefaults.standard.set(data, forKey: Self.key) }
+    }
+}
+
 /// Sending samples to a stick.
 extension AppModel {
-    /// Opens the export sheet. `ids` fill the bank (or the Pool); the drive and place come from where the user is looking.
+    /// Opens the export sheet. `ids` fill the bank (or the Pool). The drive and place come from where the user is
+    /// looking; failing that, from where samples were last sent.
     func openSquidExport(ids: [Int64], drive: String? = nil, set: String? = nil, pool: Bool = false, bank: Int? = nil) {
         guard squidEnabled else { return }
         squidItems = ids
@@ -21,8 +41,26 @@ extension AppModel {
             case .set(let name): target.set = name
             }
         }
+        let chosenByContext = drive != nil || set != nil || pool || bank != nil || usbSelection != nil
+        if !chosenByContext, let last = SquidLastDestination.load(), let contents = usbContents[last.drive],
+           usbDrives.contains(where: { $0.id == last.drive }) {
+            // A set that has since been renamed or removed is not offered; the bank goes with it.
+            let setStillThere = last.set == nil || contents.set(named: last.set) != nil
+            target = SquidTarget(drive: last.drive, set: setStillThere ? last.set : nil, pool: last.pool,
+                                 bank: setStillThere ? last.bank : nil, poolFolder: last.poolFolder)
+        }
         squidTarget = target
         showSquidExport = true
+    }
+
+    /// Remembers where samples went, for the next time the sheet opens.
+    func rememberSquidDestination(_ plan: SquidPlan, driveID: String) {
+        switch plan {
+        case .bank(let set, let number, _, _), .addToBank(let set, let number):
+            SquidLastDestination(drive: driveID, pool: false, set: set, bank: number, poolFolder: "").save()
+        case .pool(let subfolder):
+            SquidLastDestination(drive: driveID, pool: true, set: nil, bank: nil, poolFolder: subfolder).save()
+        }
     }
 
     /// Samples for a sheet that was opened from the library or the drum machine.

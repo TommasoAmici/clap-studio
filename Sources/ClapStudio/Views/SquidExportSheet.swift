@@ -203,6 +203,7 @@ struct SquidExportSheet: View {
         let target = model.squidTarget
         driveID = target.drive ?? model.usbDrives.first?.id
         toPool = target.pool
+        poolFolder = target.poolFolder
         setChoice = target.set ?? Self.defaultSet
         pinnedBank = target.bank
         pickFreeBank()
@@ -212,7 +213,8 @@ struct SquidExportSheet: View {
 
     private func pickFreeBank() {
         replace = false
-        if let pinned = pinnedBank, existingBank(number: pinned) != nil { bankNumber = pinned; return }
+        // A bank the sheet was opened for, or the one used last, if it can take more samples.
+        if let pinned = pinnedBank, (existingBank(number: pinned)?.freeSlots ?? 0) > 0 { bankNumber = pinned; return }
         guard existingBank != nil, let free = contents.freeBankNumbers(inSet: chosenSet).first else { return }
         bankNumber = free      // start from an empty bank, so nothing is replaced by accident
     }
@@ -228,6 +230,7 @@ struct SquidExportSheet: View {
             let error = await model.sendToSquid(plan, driveID: driveID)
             busy = false
             if let error { problem = error; return }
+            model.rememberSquidDestination(plan, driveID: driveID)
             switch plan {
             case .bank(let set, _, _, _), .addToBank(let set, _): model.selectSidebar(UsbSelection(drive: driveID, area: .set(set)).tag)
             case .pool: model.selectSidebar(UsbSelection(drive: driveID, area: .pool).tag)

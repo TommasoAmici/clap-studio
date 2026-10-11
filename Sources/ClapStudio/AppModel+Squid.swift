@@ -37,6 +37,7 @@ struct SquidTarget {
     var set: String?
     var pool = false
     var bank: Int?
+    var poolFolder = ""
 }
 
 /// A name being edited in place, Finder style.
