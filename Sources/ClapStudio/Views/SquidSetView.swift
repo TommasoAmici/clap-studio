@@ -42,8 +42,10 @@ struct SquidSetView: View {
                 } actions: {
                     Button("New Bank") { model.newBank(drive: selection.drive, set: setName) }
                 }
+                .frame(maxHeight: .infinity)        // fills the rest, so the header stays at the top
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     /// Bank number to channel to sample.
