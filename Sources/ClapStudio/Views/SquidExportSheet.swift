@@ -231,10 +231,6 @@ struct SquidExportSheet: View {
             busy = false
             if let error { problem = error; return }
             model.rememberSquidDestination(plan, driveID: driveID)
-            switch plan {
-            case .bank(let set, _, _, _), .addToBank(let set, _): model.selectSidebar(UsbSelection(drive: driveID, area: .set(set)).tag)
-            case .pool: model.selectSidebar(UsbSelection(drive: driveID, area: .pool).tag)
-            }
             dismiss()
         }
     }
