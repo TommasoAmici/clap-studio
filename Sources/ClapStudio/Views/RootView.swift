@@ -12,7 +12,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 340)
         } detail: {
             VStack(spacing: 0) {
-                if let usb = model.usbSelection, model.squidEnabled {
+                if let usb = model.usbSelection, model.showingUsb {
                     UsbBrowser(selection: usb)
                 } else if model.roots.isEmpty {
                     OnboardingView()
@@ -30,8 +30,10 @@ struct RootView: View {
                 // Attached to the main content, before the inspector, so they stay above it and never slide under
                 // the inspector column.
                 ToolbarItemGroup(placement: .principal) {
-                    Picker("View", selection: $model.viewMode) {
-                        ForEach(ViewMode.allCases) { Text($0.rawValue).tag($0) }
+                    // Nothing is highlighted while a stick is showing; either choice leaves it.
+                    Picker("View", selection: Binding<ViewMode?>(get: { model.showingUsb ? nil : model.viewMode },
+                                                                 set: { if let mode = $0 { model.show(mode) } })) {
+                        ForEach(ViewMode.allCases) { Text($0.rawValue).tag(Optional($0)) }
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 160)

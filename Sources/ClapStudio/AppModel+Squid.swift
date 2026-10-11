@@ -74,6 +74,15 @@ extension AppModel {
         refreshUsbDrives(settle: false)
     }
 
+    /// A place on a stick is showing, in place of the library list or the map.
+    var showingUsb: Bool { usbSelection != nil && squidEnabled }
+
+    /// Chooses the library list or the map. From a stick's banks it leaves the stick, for all samples.
+    func show(_ mode: ViewMode) {
+        viewMode = mode
+        if showingUsb { selectSidebar("smart.\(SmartFilter.all.rawValue)") }
+    }
+
     /// Looks at the connected drives again (after a short pause, so a stick that just mounted can finish).
     func refreshUsbDrives(settle: Bool = true) {
         usbRefreshTask?.cancel()
