@@ -18,6 +18,10 @@ extension AppModel {
     }
 
     func selectSidebar(_ tag: String) {
+        batchFilterChanges { applySidebarSelection(tag) }
+    }
+
+    private func applySidebarSelection(_ tag: String) {
         usbSelection = nil
         folderSelection = nil
         collectionSelection = nil

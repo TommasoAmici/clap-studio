@@ -9,12 +9,16 @@ import AppKit
 ///   CLAP_SNAPSHOT_DELAY=9          seconds to wait for the library to load (default 9)
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
+///   CLAP_PERF=cat.Kick,cat.Snare   switch the sidebar through these tags and log how long the main thread is busy each time
+///                                  (to CLAP_PERF_OUT, default /tmp/clap-perf.txt); CLAP_PERF_DELAY waits for loading
+///   CLAP_NO_INDEX=1                do not scan or index at launch (for a synthetic library)
 ///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
     static func runIfRequested(model: AppModel) async {
         let env = ProcessInfo.processInfo.environment
+        if let tags = env["CLAP_PERF"] { await perf(model: model, tags: tags.split(separator: ",").map(String.init), env: env); return }
         guard let path = env["CLAP_SNAPSHOT"] else { return }
         let delay = Double(env["CLAP_SNAPSHOT_DELAY"] ?? "") ?? 9
         try? await Task.sleep(for: .seconds(delay - 3))
@@ -29,6 +33,34 @@ enum DebugSnapshot {
         }
         try? await Task.sleep(for: .seconds(3))
         if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
+        NSApp.terminate(nil)
+    }
+
+    /// Sidebar switching, timed: the work done in the click itself, then how long the main thread stays too busy to
+    /// answer a 20 ms timer (a beach ball is that, for long enough).
+    private static func perf(model: AppModel, tags: [String], env: [String: String]) async {
+        let out = env["CLAP_PERF_OUT"] ?? "/tmp/clap-perf.txt"
+        var log = "samples: \(model.samples.count)\n"
+        try? await Task.sleep(for: .seconds(Double(env["CLAP_PERF_DELAY"] ?? "") ?? 30))
+        log += "after wait: samples \(model.samples.count), visible \(model.visible.count)\n"
+        for round in 0..<2 {
+            for tag in tags {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                model.selectSidebar(tag)
+                let click = CFAbsoluteTimeGetCurrent() - t0
+                var busy = 0.0, worst = 0.0
+                let start = CFAbsoluteTimeGetCurrent()
+                while CFAbsoluteTimeGetCurrent() - start < 4 {
+                    let t = CFAbsoluteTimeGetCurrent()
+                    try? await Task.sleep(for: .milliseconds(20))
+                    let late = max(0, CFAbsoluteTimeGetCurrent() - t - 0.02)
+                    busy += late; worst = max(worst, late)
+                }
+                log += String(format: "round %d %@: click %.0f ms, then busy %.0f ms (worst stall %.0f ms), visible %d\n",
+                              round, tag, click * 1000, busy * 1000, worst * 1000, model.visible.count)
+                try? log.write(toFile: out, atomically: true, encoding: .utf8)
+            }
+        }
         NSApp.terminate(nil)
     }
 

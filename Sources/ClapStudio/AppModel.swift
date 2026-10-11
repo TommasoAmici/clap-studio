@@ -58,7 +58,8 @@ final class AppModel {
     var roots: [RootRecord] = [] { didSet { if oldValue.map(\.path) != roots.map(\.path) { restartWatcher() } } }
     var samples: [SampleRecord] = []
     var sampleByID: [Int64: SampleRecord] = [:]
-    var visible: [SampleRecord] = []
+    var visible: [SampleRecord] = [] { didSet { visibleRevision &+= 1 } }
+    private(set) var visibleRevision = 0      // changes whenever `visible` does, for views that cannot diff 35k rows
     var filterVersion = 0       // bumps whenever `visible` is recomputed (the map follows it)
     var filtersActive = false
     var folderTree: [FolderNode] = []
@@ -87,7 +88,7 @@ final class AppModel {
     /// Segments of field recordings, shared by every search that reports where in a recording a sound is.
     @ObservationIgnored let segmentCache = SegmentIndexCache()
     var collections: [CollectionRecord] = []
-    var collectionSelection: Int64? { didSet { reloadCollections(); refilter() } }
+    var collectionSelection: Int64? { didSet { if collectionSelection != oldValue { reloadCollections() }; refilter() } }
     var collectionMembers: Set<Int64> = []
     var newCollectionSeed: [Int64]?       // non-nil while the "new collection" prompt is open
     var duplicateGroups: [DuplicateGroup]?
@@ -138,6 +139,8 @@ final class AppModel {
     @ObservationIgnored var usbObservers: [NSObjectProtocol] = []
     @ObservationIgnored var usbRefreshTask: Task<Void, Never>?
     @ObservationIgnored var usbIndexQueued = false
+    @ObservationIgnored private var filterBatchDepth = 0
+    @ObservationIgnored private var filterChangedInBatch = false
 
     // MARK: filters
     var searchFocusRequests = 0                             // Cmd+F bumps this; the search field takes focus
@@ -240,7 +243,12 @@ final class AppModel {
                 let url = URL(fileURLWithPath: args[flag + 1])
                 if let root = try? store.addRoot(path: url.resolvingSymlinksInPath().path) { roots = store.roots(); _ = root }
             }
-            if !roots.isEmpty { startIndexing() }
+            #if DEBUG
+            let skipIndexing = ProcessInfo.processInfo.environment["CLAP_NO_INDEX"] == "1"
+            #else
+            let skipIndexing = false
+            #endif
+            if !roots.isEmpty, !skipIndexing { startIndexing() }
             watchUsbDrives()
         } catch {
             errorMessage = "Could not open the library database: \(error)"
@@ -303,7 +311,20 @@ final class AppModel {
         restoreDrumSounds()
     }
 
+    /// Runs several changes to the filters (a click in the sidebar changes up to eight of them) and filters the list once
+    /// at the end, instead of once per change.
+    func batchFilterChanges(_ changes: () -> Void) {
+        filterBatchDepth += 1
+        changes()
+        filterBatchDepth -= 1
+        if filterBatchDepth == 0, filterChangedInBatch {
+            filterChangedInBatch = false
+            refilter()
+        }
+    }
+
     func refilter() {
+        if filterBatchDepth > 0 { filterChangedInBatch = true; return }
         // While a semantic search is running, keep showing the previous results (list and map)
         // instead of flashing a partial or empty set; the finished search calls refilter() again.
         if searchPending { return }
@@ -346,7 +367,7 @@ final class AppModel {
         case .recentlyGrabbed: list.sort { ($0.lastUsed ?? 0) > ($1.lastUsed ?? 0) }
         default:
             if let seed = shuffleSeed { list = SeededShuffle.order(list, seed: seed) { $0.id } }
-            else { list.sort(using: sortOrder) }
+            else { list = LibrarySort.sorted(list, by: sortOrder) }
         }
         publish(list)
     }
