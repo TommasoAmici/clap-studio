@@ -175,6 +175,9 @@ struct StatusBar: View {
                 Text("\(model.samples.count) samples").monospacedDigit()
                 if model.failedCount > 0 { Text("· \(model.failedCount) unreadable").foregroundStyle(.secondary) }
             }
+            if model.tableSelection.count > 1 {
+                Text("· \(model.tableSelection.count) selected").monospacedDigit().foregroundStyle(.secondary)
+            }
             Spacer()
             if let name = model.undoName {
                 Button("Undo \(name)") { model.undoLibraryEdit() }
