@@ -6,7 +6,11 @@ public struct SquidSource: Sendable {
     public var trim: SampleTrim?
     /// The name to give the file (a safe version is used on the stick).
     public var name: String
-    public init(file: URL, trim: SampleTrim? = nil, name: String) { self.file = file; self.trim = trim; self.name = name }
+    /// Written into the file, so the stick keeps showing the sample under this category.
+    public var category: String?
+    public init(file: URL, trim: SampleTrim? = nil, name: String, category: String? = nil) {
+        self.file = file; self.trim = trim; self.name = name; self.category = category
+    }
 }
 
 public struct SquidBankRequest: Sendable {
@@ -76,6 +80,7 @@ public enum SquidExporter {
                 try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
                                        maxSeconds: SquidLayout.maxSeconds, declick: true)
             } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
+            tag(target, with: source.category)
             bytes += fileSize(target) + 4096
             staged.append((slot, folder))
         }
@@ -135,6 +140,7 @@ public enum SquidExporter {
                 try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
                                        maxSeconds: SquidLayout.maxSeconds, declick: true)
             } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
+            tag(target, with: source.category)
             bytes += fileSize(target) + 4096
             staged.append((slot, target))
         }
@@ -182,6 +188,7 @@ public enum SquidExporter {
                 try TrimExporter.write(source: source.file, trim: source.trim, format: SquidLayout.exportFormat, to: target,
                                        maxSeconds: SquidLayout.maxSeconds, declick: true)
             } catch { throw SquidExportError.failed("\(source.file.lastPathComponent): \(error.localizedDescription)") }
+            tag(target, with: source.category)
             bytes += fileSize(target) + 4096
             staged.append(target)
         }
@@ -201,6 +208,12 @@ public enum SquidExporter {
             throw SquidExportError.failed(error.localizedDescription)
         }
         return written
+    }
+
+    /// Keeps the category in the file. A sample that cannot take the tag is still a good sample, so this never fails the export.
+    private static func tag(_ file: URL, with category: String?) {
+        guard let category, !category.isEmpty else { return }
+        try? WavInfo.appendGenre(category, to: file)
     }
 
     // MARK: checks

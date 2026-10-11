@@ -94,6 +94,8 @@ public struct IndexJob: Sendable {
     public let url: URL
     /// The user put this file in the Field recording category, so it is segmented whatever its length.
     public var isFieldRecording = false
+    /// The file is on a temporary root (a USB stick), where a category stored in the file is the sample's category.
+    public var readsCategoryTag = false
 }
 
 /// One audible stretch of a field recording and its embedding.

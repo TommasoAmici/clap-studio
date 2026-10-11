@@ -44,6 +44,7 @@ public final class IndexingPipeline: @unchecked Sendable {
                                          failed: base.failed, currentName: name))
             }
             do { try store.save(results: results) } catch { break }
+            applyCategoryTags(jobs)
             for r in results {
                 progress.done += 1
                 if case .failure = r { progress.failed += 1 } else { succeeded += 1 }
@@ -52,6 +53,14 @@ public final class IndexingPipeline: @unchecked Sendable {
             if results.count < jobs.count { break }   // cancelled mid-batch
         }
         return succeeded
+    }
+
+    /// A file on a stick carries the category it was sent with; that beats the automatic guess.
+    private func applyCategoryTags(_ jobs: [IndexJob]) {
+        let tagged = jobs.filter(\.readsCategoryTag).compactMap { job in
+            WavInfo.category(of: job.url).map { (id: job.id, category: Optional($0)) }
+        }
+        if !tagged.isEmpty { try? store.setManualCategories(tagged) }
     }
 
     private func process(_ jobs: [IndexJob], isCancelled: @escaping @Sendable () -> Bool,
