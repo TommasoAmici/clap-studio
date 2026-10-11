@@ -19,6 +19,8 @@ struct SquidSidebarSection: View {
                             Button("New Set") { model.newSet(on: drive.id) }
                                 .disabled((model.usbContents[drive.id]?.namedSetCount ?? 0) >= SquidLayout.maxSets)
                             Button("Send Samples Here…") { model.openSquidExport(ids: model.actionTargets, drive: drive.id) }
+                            Button("Normalize All Samples…") { model.normalizeRequest = drive }
+                                .disabled(model.normalizingUsb.contains(drive.id))
                             Divider()
                             Button("Reveal in Finder") { NSWorkspace.shared.open(drive.url) }
                             Button("Eject") { model.ejectUsb(drive) }

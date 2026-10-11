@@ -133,6 +133,8 @@ final class AppModel {
     /// Squid features appear whenever such a drive is connected, and disappear with the last one.
     var squidEnabled: Bool { !usbDrives.isEmpty }
     var usbContents: [String: SquidStickContents] = [:]      // by drive id
+    var normalizeRequest: UsbDrive?                          // a drive to ask about before its samples are changed
+    var normalizingUsb: Set<String> = []                     // drives being worked on
     var usbSamples: [SampleRecord] = []                      // analysed, but not part of the library
     var usbSelection: UsbSelection? { didSet { if usbSelection != oldValue { refilter() } } }
     var renamingUsb: UsbRename?                               // the set or bank whose name is being edited in place

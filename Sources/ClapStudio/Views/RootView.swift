@@ -102,6 +102,14 @@ struct RootView: View {
         }
         .modifier(NewCollectionPrompt())
         .modifier(AddTagPrompt())
+        .alert("Normalize all samples on \(model.normalizeRequest?.name ?? "the drive")?",
+               isPresented: Binding(get: { model.normalizeRequest != nil }, set: { if !$0 { model.normalizeRequest = nil } })) {
+            Button("Normalize") { if let drive = model.normalizeRequest { model.normalizeUsb(drive) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every WAV in the ALM022 folder (banks and Pool) is brought to the same loudness, with peaks kept below -1 dB. "
+                 + "The files on the drive are changed in place and this cannot be undone; the audio is not otherwise altered.")
+        }
         .alert("Clap Studio", isPresented: Binding(get: { model.errorMessage != nil },
                                                     set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }

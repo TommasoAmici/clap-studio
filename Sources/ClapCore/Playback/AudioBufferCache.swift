@@ -33,6 +33,17 @@ public final class AudioBufferCache: @unchecked Sendable {
         return decoded
     }
 
+    /// Forgets decoded audio for files that have changed on disk (everything under `prefix`).
+    public func forget(pathPrefix prefix: String) {
+        lock.lock(); defer { lock.unlock() }
+        for path in buffers.keys where path.hasPrefix(prefix) {
+            if let b = buffers.removeValue(forKey: path) {
+                bytes -= Int(b.frameLength) * Int(format.channelCount) * MemoryLayout<Float>.size
+            }
+            order.removeAll { $0 == path }
+        }
+    }
+
     private func store(_ buffer: AVAudioPCMBuffer, for url: URL) {
         let size = Int(buffer.frameLength) * Int(format.channelCount) * MemoryLayout<Float>.size
         lock.lock(); defer { lock.unlock() }

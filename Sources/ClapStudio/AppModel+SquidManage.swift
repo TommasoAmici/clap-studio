@@ -85,4 +85,29 @@ extension AppModel {
     func trashUsbSample(drive driveID: String, set: String?, number: Int, slot: Int) {
         Task { await changeUsb(driveID) { try SquidManager.trashSample(set: set, number: number, slot: slot, volume: $0) } }
     }
+
+    // MARK: levels
+
+    /// Brings every sample on the stick to the common loudness, in place (the one place the app changes files on a
+    /// stick, so it is asked about first). Tells the result when it is done.
+    func normalizeUsb(_ drive: UsbDrive) {
+        guard !normalizingUsb.contains(drive.id) else { return }
+        normalizingUsb.insert(drive.id)
+        let volume = drive.url
+        Task {
+            let report = await Task.detached { SquidNormalizer.normalizeAll(volume: volume) }.value
+            // Decoded audio of the changed files is out of date.
+            player.cache.forget(pathPrefix: SquidStick.rootURL(volume: volume).path)
+            await reloadUsb()
+            normalizingUsb.remove(drive.id)
+            errorMessage = Self.summary(of: report, drive: drive.name)
+        }
+    }
+
+    private static func summary(of report: SquidNormalizeReport, drive: String) -> String {
+        var lines = ["Levels on \(drive): \(report.adjusted) sample\(report.adjusted == 1 ? "" : "s") changed, \(report.alreadyMatched) already matched."]
+        if !report.skipped.isEmpty { lines.append("\(report.skipped.count) not 16-bit WAV, left as they are: " + report.skipped.prefix(5).joined(separator: ", ") + (report.skipped.count > 5 ? "…" : "")) }
+        if !report.failed.isEmpty { lines.append("Could not change \(report.failed.count): " + report.failed.prefix(3).joined(separator: "; ")) }
+        return lines.joined(separator: "\n")
+    }
 }

@@ -93,6 +93,7 @@ extension AppModel {
                 return .success(())
             } catch { return .failure(error) }
         }.value
+        player.cache.forget(pathPrefix: SquidStick.rootURL(volume: volume).path)      // files may have been replaced
         refreshUsbDrives(settle: false)
         if case .failure(let error) = outcome { return error.localizedDescription }
         return nil
