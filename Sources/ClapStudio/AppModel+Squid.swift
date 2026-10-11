@@ -4,16 +4,18 @@ import Foundation
 
 /// A place on a USB stick that is selected in the sidebar.
 struct UsbSelection: Hashable {
-    enum Area: Hashable { case set(String?), pool }
+    enum Area: Hashable { case set(String?), bank(set: String?, number: Int), pool }
     let drive: String          // UsbDrive.id
     let area: Area
 
     private static let separator = "\u{1F}"
+    private static let bankSeparator = "\u{1E}"      // between a bank's number and its set's name
 
     var tag: String {
         switch area {
         case .pool: return ["usb", "pool", "", drive].joined(separator: Self.separator)
         case .set(let name): return ["usb", "set", name ?? "", drive].joined(separator: Self.separator)
+        case .bank(let set, let number): return ["usb", "bank", "\(number)\(Self.bankSeparator)\(set ?? "")", drive].joined(separator: Self.separator)
         }
     }
 
@@ -26,6 +28,10 @@ struct UsbSelection: Hashable {
         switch parts[1] {
         case "pool": self.area = .pool
         case "set": self.area = .set(parts[2].isEmpty ? nil : parts[2])
+        case "bank":
+            let pieces = parts[2].split(separator: Character(Self.bankSeparator), maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+            guard pieces.count == 2, let number = Int(pieces[0]) else { return nil }
+            self.area = .bank(set: pieces[1].isEmpty ? nil : pieces[1], number: number)
         default: return nil
         }
     }
@@ -93,7 +99,14 @@ extension AppModel {
         let wanted = usbDrives.map { SquidStick.rootURL(volume: $0.url).path }
         for root in store.transientRoots() where !wanted.contains(root.path) { try? store.removeRoot(id: root.id) }
         for path in wanted { _ = try? store.addRoot(path: path, transient: true) }
-        if let selection = usbSelection, !isAvailable(selection) { selectSidebar("smart.\(SmartFilter.all.rawValue)") }
+        if let selection = usbSelection, !isAvailable(selection) {
+            // A bank that went away leaves its set open, if the set is still there.
+            if case .bank(let set, _) = selection.area, usbContents[selection.drive]?.set(named: set) != nil {
+                selectSidebar(UsbSelection(drive: selection.drive, area: .set(set)).tag)
+            } else {
+                selectSidebar("smart.\(SmartFilter.all.rawValue)")
+            }
+        }
         reloadSamples()
         if !wanted.isEmpty { requestIndexing() }
     }
@@ -103,6 +116,7 @@ extension AppModel {
         switch selection.area {
         case .pool: return contents.hasPool
         case .set(let name): return contents.set(named: name) != nil
+        case .bank(let set, let number): return contents.set(named: set)?.banks.contains { $0.number == number } ?? false
         }
     }
 
@@ -134,6 +148,8 @@ extension AppModel {
             guard sample.rootPath == root else { return false }
             switch (SquidLayout.location(ofRelativePath: sample.relPath), selection.area) {
             case (.bank(let set, _, _), .set(let wanted)): return SquidLayout.sameSet(set, wanted)
+            case (.bank(let set, let number, _), .bank(let wantedSet, let wantedNumber)):
+                return number == wantedNumber && SquidLayout.sameSet(set, wantedSet)
             case (.pool, .pool): return true
             default: return false
             }

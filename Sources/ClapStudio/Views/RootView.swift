@@ -118,6 +118,8 @@ struct UsbBrowser: View {
         switch selection.area {
         case .set(let name):
             SquidSetView(selection: selection, setName: name)
+        case .bank(let set, let number):
+            SquidSetView(selection: selection, setName: set, onlyBank: number)
         case .pool:
             HStack {
                 Label("Pool", systemImage: "tray.2").font(.headline)

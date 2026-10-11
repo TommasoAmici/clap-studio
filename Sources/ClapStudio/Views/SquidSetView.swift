@@ -6,28 +6,35 @@ struct SquidSetView: View {
     @Environment(AppModel.self) private var model
     let selection: UsbSelection
     let setName: String?
+    /// Shows just this bank (picked in the sidebar) rather than every bank of the set.
+    var onlyBank: Int?
 
     var body: some View {
         let drive = model.drive(id: selection.drive)
         let set = model.usbContents[selection.drive]?.set(named: setName)
         let slots = slotMap()
+        let banks = (set?.banks ?? []).filter { onlyBank == nil || $0.number == onlyBank }
         VStack(spacing: 0) {
             HStack {
                 Label(set?.title ?? "Set", systemImage: "square.stack.3d.up").font(.headline)
+                if let onlyBank {
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                    Text("Bank \(onlyBank)").font(.headline)
+                }
                 Text("on \(drive?.name ?? "USB drive")").foregroundStyle(.secondary)
                 Spacer()
                 Button("New Bank") { model.newBank(drive: selection.drive, set: setName) }
                     .disabled(model.usbContents[selection.drive]?.freeBankNumbers(inSet: setName).isEmpty ?? true)
                     .help("Make an empty bank in this set")
-                Button("Send Samples…") { model.openSquidExport(ids: model.actionTargets, drive: selection.drive, set: setName) }
-                    .help("Add a bank to this set")
+                Button("Send Samples…") { model.openSquidExport(ids: model.actionTargets, drive: selection.drive, set: setName, bank: onlyBank) }
+                    .help(onlyBank == nil ? "Add a bank to this set" : "Add samples to this bank")
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             Divider()
-            if let set, !set.banks.isEmpty {
+            if !banks.isEmpty {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
-                        ForEach(set.banks) { bank in
+                        ForEach(banks) { bank in
                             BankCard(bank: bank, samples: slots[bank.number] ?? [:], drive: drive,
                                      otherSets: (model.usbContents[selection.drive]?.sets ?? []).filter { !SquidLayout.sameSet($0.name, bank.set) }.map(\.name))
                         }

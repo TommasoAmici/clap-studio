@@ -39,6 +39,7 @@ extension AppModel {
             switch selection.area {
             case .pool: target.pool = true
             case .set(let name): target.set = name
+            case .bank(let set, let number): target.set = set; target.bank = number
             }
         }
         let chosenByContext = drive != nil || set != nil || pool || bank != nil || usbSelection != nil

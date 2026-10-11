@@ -39,7 +39,12 @@ extension AppModel {
         renamingUsb = nil
         Task {
             guard await changeUsb(driveID, { try SquidManager.renameSet(old, to: new, volume: $0) }) != nil else { return }
-            if usbSelection == UsbSelection(drive: driveID, area: .set(old)) { selectSidebar(UsbSelection(drive: driveID, area: .set(new)).tag) }
+            guard let selection = usbSelection, selection.drive == driveID else { return }
+            switch selection.area {
+            case .set(old): selectSidebar(UsbSelection(drive: driveID, area: .set(new)).tag)
+            case .bank(old, let number): selectSidebar(UsbSelection(drive: driveID, area: .bank(set: new, number: number)).tag)
+            default: break
+            }
         }
     }
 
@@ -52,6 +57,10 @@ extension AppModel {
     func newBank(drive driveID: String, set: String?) {
         Task {
             guard let number = await changeUsb(driveID, { try SquidManager.createBank(set: set, volume: $0) }) else { return }
+            // The name is edited on the bank's card, so show a view that has it: the set's, or the new bank's own.
+            if usbSelection != UsbSelection(drive: driveID, area: .set(set)) {
+                selectSidebar(UsbSelection(drive: driveID, area: .bank(set: set, number: number)).tag)
+            }
             renamingUsb = .bank(drive: driveID, set: set, number: number)
         }
     }

@@ -13,7 +13,7 @@ import AppKit
 ///                                  (to CLAP_PERF_OUT, default /tmp/clap-perf.txt); CLAP_PERF_DELAY waits for loading
 ///   CLAP_PERF_MAP=1                with CLAP_PERF: do it on the Map tab
 ///   CLAP_NO_INDEX=1                do not scan or index at launch (for a synthetic library)
-///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive
+///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive; NAME/2 shows its bank 2
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
@@ -26,8 +26,11 @@ enum DebugSnapshot {
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }
         if env["CLAP_SNAPSHOT_SELECT"] == "1" { model.select(model.visible.first?.id, play: false) }
         if let usb = env["CLAP_SNAPSHOT_USB"], let drive = model.usbDrives.first {
-            let set = usb == "default" ? nil : usb
-            model.selectSidebar(UsbSelection(drive: drive.id, area: .set(set)).tag)
+            // "NAME" is a set ("default" for the first one), "NAME/2" is that set's bank 2.
+            let parts = usb.split(separator: "/", maxSplits: 1).map(String.init)
+            let set = parts.first == "default" ? nil : parts.first
+            let area: UsbSelection.Area = parts.count == 2 ? .bank(set: set, number: Int(parts[1]) ?? 1) : .set(set)
+            model.selectSidebar(UsbSelection(drive: drive.id, area: area).tag)
             if env["CLAP_SNAPSHOT_RENAME"] == "1", let bank = model.usbContents[drive.id]?.set(named: set)?.banks.first {
                 model.renamingUsb = .bank(drive: drive.id, set: set, number: bank.number)
             }
