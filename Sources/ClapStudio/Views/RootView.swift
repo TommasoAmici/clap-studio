@@ -175,8 +175,10 @@ struct StatusBar: View {
                 Text("\(model.samples.count) samples").monospacedDigit()
                 if model.failedCount > 0 { Text("· \(model.failedCount) unreadable").foregroundStyle(.secondary) }
             }
-            if model.tableSelection.count > 1 {
-                Text("· \(model.tableSelection.count) selected").monospacedDigit().foregroundStyle(.secondary)
+            // The rows picked in the list, or the dots picked on the map (shift-drag), whichever is showing.
+            let picked = model.viewMode == .map ? model.mapSelection.count : model.tableSelection.count
+            if picked > 1 {
+                Text("· \(picked) selected").monospacedDigit().foregroundStyle(.secondary)
             }
             Spacer()
             if let name = model.undoName {
