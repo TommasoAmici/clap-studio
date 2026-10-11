@@ -50,25 +50,25 @@ public enum TrainingExport {
         let folder = try makeFolder(in: parent, date: date)
         var summary = Summary(folder: folder)
         let model = SQLValue.text(ClapEmbedder.versionTag)
-        let long = SQLValue.double(FieldRecording.minimumSeconds)
+        let field = FieldRecording.sqlIs("s")
         func count(_ extra: String, _ params: [SQLValue] = []) throws -> Int {
             Int(try store.db.scalarInt("SELECT COUNT(*) \(base) \(extra)", [model] + params) ?? 0)
         }
 
-        let eligible = "AND COALESCE(s.duration, 0) < ? AND \(effective) IS NOT NULL"
+        let eligible = "AND NOT \(field) AND \(effective) IS NOT NULL"
             + (manualOnly ? " AND s.category_manual IS NOT NULL" : "")
-        summary.rows = try count(eligible, [long])
-        summary.manual = try count(eligible + " AND s.category_manual IS NOT NULL", [long])
+        summary.rows = try count(eligible)
+        summary.manual = try count(eligible + " AND s.category_manual IS NOT NULL")
         summary.automatic = summary.rows - summary.manual
-        summary.skippedFieldRecordings = try count("AND COALESCE(s.duration, 0) >= ?", [long])
-        summary.skippedUncategorised = try count("AND COALESCE(s.duration, 0) < ? AND \(effective) IS NULL", [long])
+        summary.skippedFieldRecordings = try count("AND \(field)")
+        summary.skippedUncategorised = try count("AND NOT \(field) AND \(effective) IS NULL")
         if manualOnly {
             summary.skippedAutomatic = try count("""
-                AND COALESCE(s.duration, 0) < ? AND s.category_manual IS NULL AND s.category IS NOT NULL
-                """, [long])
+                AND NOT \(field) AND s.category_manual IS NULL AND s.category IS NOT NULL
+                """)
         }
 
-        let dimension = try store.db.scalarInt("SELECT length(s.embedding) / 2 \(base) \(eligible) LIMIT 1", [model, long])
+        let dimension = try store.db.scalarInt("SELECT length(s.embedding) / 2 \(base) \(eligible) LIMIT 1", [model])
             .map(Int.init) ?? 512
         let fm = FileManager.default
         let npyURL = folder.appendingPathComponent(embeddingsFile), csvURL = folder.appendingPathComponent(labelsFile)
@@ -87,7 +87,7 @@ public enum TrainingExport {
                 SELECT s.id, r.path, s.rel_path, s.name, \(effective), s.category_manual IS NOT NULL, s.category,
                        s.category_conf, s.fingerprint, s.model_version, s.embedding
                 \(base) \(eligible) AND s.id > ? ORDER BY s.id LIMIT ?
-                """, [model, long, .int(lastID), .int(Int64(chunkSize))]) { row in
+                """, [model, .int(lastID), .int(Int64(chunkSize))]) { row in
                 (id: row.int(0), embedding: row.blob(10), fields: [
                     row.text(1) + "/" + row.text(2), row.text(2), row.text(3), row.text(4),
                     row.int(5) != 0 ? "manual" : "automatic",

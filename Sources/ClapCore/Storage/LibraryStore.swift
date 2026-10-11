@@ -189,10 +189,11 @@ public final class LibraryStore: @unchecked Sendable {
 
     public func pendingJobs(limit: Int) -> [IndexJob] {
         (try? db.query("""
-            SELECT s.id, r.path, s.rel_path FROM samples s JOIN roots r ON r.id = s.root_id
+            SELECT s.id, r.path, s.rel_path, s.category_manual FROM samples s JOIN roots r ON r.id = s.root_id
             WHERE s.status = 'pending' ORDER BY s.id LIMIT ?
             """, [.int(Int64(limit))]) {
-            IndexJob(id: $0.int(0), url: URL(fileURLWithPath: $0.text(1)).appendingPathComponent($0.text(2)))
+            IndexJob(id: $0.int(0), url: URL(fileURLWithPath: $0.text(1)).appendingPathComponent($0.text(2)),
+                     isFieldRecording: !$0.isNull(3) && $0.text(3) == FieldRecording.categoryName)
         }) ?? []
     }
 

@@ -85,10 +85,10 @@ extension LibraryStore {
     public func recordingsNeedingSpecies() -> [SpeciesJob] {
         (try? db.query("""
             SELECT s.id, r.path, s.rel_path, s.name, s.duration FROM samples s JOIN roots r ON r.id = s.root_id
-            WHERE s.status = 'ok' AND r.transient = 0 AND s.duration >= ?
+            WHERE s.status = 'ok' AND r.transient = 0 AND \(FieldRecording.sqlIs("s"))
               AND (s.species_version IS NULL OR s.species_version != ?)
             ORDER BY s.id
-            """, [.double(FieldRecording.minimumSeconds), .text(Self.speciesVersion)]) {
+            """, [.text(Self.speciesVersion)]) {
             SpeciesJob(id: $0.int(0), url: URL(fileURLWithPath: $0.text(1)).appendingPathComponent($0.text(2)),
                        duration: $0.double(4), name: $0.text(3))
         }) ?? []

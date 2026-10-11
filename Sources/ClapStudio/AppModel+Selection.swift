@@ -172,11 +172,19 @@ extension AppModel {
         if descriptorFilter.isActive { refilter() }
     }
 
+    /// A file put in the Field recording category by hand is segmented and listened to like a long one; one taken out of it
+    /// is indexed as a single sound again. Both need the file read again, which the index run does.
+    private func resegmentIfFieldRecordingChanged() {
+        guard let store, let queued = try? store.markFieldRecordingsStale(), queued > 0 else { return }
+        requestIndexing()
+    }
+
     /// Sets (or with nil clears) the user's category; the automatic one is kept.
     func setCategory(_ id: Int64, _ category: String?) {
         guard let store else { return }
         do { try store.setManualCategory(sampleID: id, category) } catch { errorMessage = "Could not save the category: \(error)"; return }
         mutate(id) { $0.categoryManual = category }
+        resegmentIfFieldRecordingChanged()
         updateCategoryCounts()
         buildClusterInfo()
         if mapColorMode == .category { refreshMapColoring() }
@@ -201,6 +209,7 @@ extension AppModel {
         guard let store, !values.isEmpty else { return }
         do { try store.setManualCategories(values) } catch { errorMessage = "Could not save the categories: \(error)"; return }
         for value in values { mutate(value.id) { $0.categoryManual = value.category } }
+        resegmentIfFieldRecordingChanged()
         updateCategoryCounts()
         buildClusterInfo()
         if mapColorMode == .category { refreshMapColoring() }

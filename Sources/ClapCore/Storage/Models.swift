@@ -55,7 +55,8 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
 
     /// The user's BPM correction wins over the detected one.
     /// Long recordings are analysed in segments (see `FieldRecording`).
-    public var isFieldRecording: Bool { FieldRecording.isFieldRecording(duration: duration) }
+    /// Long files, and any file the user has put in the Field recording category.
+    public var isFieldRecording: Bool { FieldRecording.isFieldRecording(duration: duration, manualCategory: categoryManual) }
 
     public var effectiveBPM: Double? { bpmManual ?? bpm }
     public var effectiveCategory: String? { categoryManual ?? category }
@@ -91,6 +92,8 @@ public struct SyncResult: Equatable, Sendable {
 public struct IndexJob: Sendable {
     public let id: Int64
     public let url: URL
+    /// The user put this file in the Field recording category, so it is segmented whatever its length.
+    public var isFieldRecording = false
 }
 
 /// One audible stretch of a field recording and its embedding.

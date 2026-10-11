@@ -8,6 +8,48 @@ import Testing
         #expect(FieldRecording.isFieldRecording(duration: 30))
     }
 
+    @Test func aFileThePersonPutInTheCategoryIsOneWhateverItsLength() {
+        #expect(FieldRecording.isFieldRecording(duration: 2, manualCategory: "Field recording"))
+        #expect(!FieldRecording.isFieldRecording(duration: 2, manualCategory: "Kick"))
+        #expect(!FieldRecording.isFieldRecording(duration: 2, manualCategory: nil))
+        #expect(FieldRecording.isFieldRecording(duration: 90, manualCategory: "Kick"), "length still counts")
+    }
+
+    @Test func aShortFileSetToFieldRecordingIsSegmentedAndBackAgain() async throws {
+        let dir = TestSupport.tempDir()
+        var rng = SplitMix64(seed: 3)
+        try writeTestWav(dir.appendingPathComponent("birdy.wav"), seconds: 8) { t in
+            (t > 1 && t < 3) || (t > 5 && t < 7) ? (rng.nextFloat() * 2 - 1) * 0.3 : 0
+        }
+        let store = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        let pipeline = IndexingPipeline(store: store, embedder: HandcraftedEmbedder(), workers: 1)
+        _ = await pipeline.run(onProgress: { _ in })
+        let id = try #require(store.loadSamples().first).id
+        #expect(store.segmentCount(sampleID: id) == 0 && store.sample(id: id)?.isFieldRecording == false)
+        #expect(try store.markFieldRecordingsStale() == 0)
+
+        // The person says it is a field recording: it counts as one at once and is queued to be read in segments.
+        try store.setManualCategory(sampleID: id, "Field recording")
+        #expect(store.sample(id: id)?.isFieldRecording == true)
+        #expect(store.descriptorBacklog() == 0, "its descriptors come from the segments")
+        #expect(try store.markFieldRecordingsStale() == 1)
+        #expect(store.pendingJobs(limit: 5).first?.isFieldRecording == true)
+        _ = await pipeline.run(onProgress: { _ in })
+        #expect(store.segmentCount(sampleID: id) == 2)
+        #expect(try store.markFieldRecordingsStale() == 0, "done, not queued again")
+        #expect(store.sample(id: id)?.categoryManual == "Field recording", "their choice is kept")
+
+        // Taking the category away makes it an ordinary sound again.
+        try store.setManualCategory(sampleID: id, nil)
+        #expect(store.sample(id: id)?.isFieldRecording == false)
+        #expect(try store.markFieldRecordingsStale() == 1)
+        _ = await pipeline.run(onProgress: { _ in })
+        #expect(store.segmentCount(sampleID: id) == 0)
+        #expect(try store.markFieldRecordingsStale() == 0)
+    }
+
     @Test func compositeIsALengthWeightedUnitVector() {
         let a = SegmentEmbedding(start: 0, end: 3, embedding: [1, 0])
         let b = SegmentEmbedding(start: 5, end: 6, embedding: [0, 1])

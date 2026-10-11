@@ -31,7 +31,7 @@ extension LibraryStore {
     /// With `excludingFieldRecordings`, long recordings are left out (their composite embedding is not a sound).
     public func forEachEmbeddingChunk(modelVersion: String, chunkSize: Int = 4096, excludingFieldRecordings: Bool = false,
                                       _ body: ([Int64], [Float], Int) -> Void) throws {
-        let extra = excludingFieldRecordings ? " AND COALESCE(duration, 0) < \(FieldRecording.minimumSeconds)" : ""
+        let extra = excludingFieldRecordings ? " AND NOT \(FieldRecording.sqlIs())" : ""
         var lastID: Int64 = 0
         while true {
             let rows = try db.query("""

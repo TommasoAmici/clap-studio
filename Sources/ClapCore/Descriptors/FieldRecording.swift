@@ -3,14 +3,23 @@ import Foundation
 /// Field recordings are long files that hold many different sounds. They are indexed in audible segments;
 /// the sample's own embedding is the composite of the segment embeddings.
 public enum FieldRecording {
-    /// Files at least this long (seconds) are field recordings.
+    /// Files at least this long (seconds) are field recordings. So is any file the user has put in the
+    /// "Field recording" category by hand, however short.
     public static let minimumSeconds = 30.0
     /// Bump when segmentation changes so existing field recordings are re-indexed.
     public static let segmenterVersion = 1
     /// Name of the automatic category.
     public static let categoryName = "Field recording"
 
-    public static func isFieldRecording(duration: Double) -> Bool { duration >= minimumSeconds }
+    public static func isFieldRecording(duration: Double, manualCategory: String? = nil) -> Bool {
+        duration >= minimumSeconds || manualCategory == categoryName
+    }
+
+    /// The same rule as SQL, for a row of `samples` (with the table's alias, if the query has one).
+    static func sqlIs(_ alias: String = "") -> String {
+        let p = alias.isEmpty ? "" : alias + "."
+        return "(COALESCE(\(p)duration, 0) >= \(minimumSeconds) OR COALESCE(\(p)category_manual, '') = '\(categoryName)')"
+    }
 
     /// Length-weighted mean of the segment embeddings, L2-normalised. Long events count for more.
     public static func composite(_ segments: [SegmentEmbedding]) -> [Float] {

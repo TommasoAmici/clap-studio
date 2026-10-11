@@ -53,18 +53,18 @@ extension LibraryStore {
         }
     }
 
-    /// Queues indexed field recordings that were segmented by an older segmenter, or not at all
-    /// (indexed before field recordings were supported).
+    /// Queues indexed samples whose segmentation is out of step with what they are: field recordings that were segmented by
+    /// an older segmenter or not at all (indexed before field recordings were supported, or just put in the Field recording
+    /// category by hand), and files that have segments but are no longer field recordings (the category was taken away).
     @discardableResult
     public func markFieldRecordingsStale() throws -> Int {
-        let params: [SQLValue] = [.double(FieldRecording.minimumSeconds), .int(Int64(FieldRecording.segmenterVersion))]
-        let n = try db.scalarInt("""
-            SELECT COUNT(*) FROM samples WHERE status = 'ok' AND duration >= ? AND segment_version < ?
-            """, params) ?? 0
-        if n > 0 {
-            try db.run("UPDATE samples SET status = 'pending' WHERE status = 'ok' AND duration >= ? AND segment_version < ?",
-                       params)
-        }
+        let field = FieldRecording.sqlIs()
+        let condition = """
+            status = 'ok' AND ((\(field) AND segment_version < ?) OR (NOT \(field) AND segment_version > 0))
+            """
+        let params: [SQLValue] = [.int(Int64(FieldRecording.segmenterVersion))]
+        let n = try db.scalarInt("SELECT COUNT(*) FROM samples WHERE \(condition)", params) ?? 0
+        if n > 0 { try db.run("UPDATE samples SET status = 'pending' WHERE \(condition)", params) }
         return Int(n)
     }
 }
