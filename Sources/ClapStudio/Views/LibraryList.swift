@@ -192,7 +192,27 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard !changingSelection, let table else { return }
         let ids = table.selectedRowIndexes.compactMap { $0 < model.visible.count ? model.visible[$0].id : nil }
-        if ids.count == 1 { model.select(ids[0], play: true) } else { model.tableSelection = Set(ids) }
+        if ids.count == 1 { model.select(ids[0], play: true); return }
+        // Adding to a selection (shift or command click, shift-arrow) plays the sample that was just added.
+        let added = Set(ids).subtracting(model.tableSelection)
+        let newest = added.isEmpty ? nil : newestSample(among: added, in: table)
+        model.tableSelection = Set(ids)
+        if let newest { model.select(newest, play: true, keepSelection: true) }
+    }
+
+    /// The sample the person just picked: the one under the click, or for the keyboard the last row added.
+    /// Dragging across rows does not play each one it passes.
+    private func newestSample(among added: Set<Int64>, in table: NSTableView) -> Int64? {
+        var row = -1
+        if let event = NSApp.currentEvent {
+            switch event.type {
+            case .leftMouseDown: row = table.row(at: table.convert(event.locationInWindow, from: nil))
+            case .keyDown: row = table.selectedRow
+            default: return nil
+            }
+        }
+        guard row >= 0, row < model.visible.count, added.contains(model.visible[row].id) else { return nil }
+        return model.visible[row].id
     }
 
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {

@@ -4,7 +4,9 @@ import Foundation
 extension AppModel {
     // MARK: selection and similarity
 
-    func select(_ id: Int64?, play: Bool = false, keepSweep: Bool = false) {
+    /// `keepSelection` leaves the highlighted rows as they are (a sample picked while several are selected is
+    /// shown and heard, but the rest stay selected for a batch action).
+    func select(_ id: Int64?, play: Bool = false, keepSweep: Bool = false, keepSelection: Bool = false) {
         guard id != selectedID || play else { return }
         if !keepSweep { sweepList = [] }
         if id != selectedID { startMarkerFrame = nil }
@@ -14,7 +16,7 @@ extension AppModel {
         if let id, let found, startMarkerFrame == nil, let sample = sampleByID[id] {
             startMarkerFrame = Int64((found.start * (sample.sampleRate > 0 ? sample.sampleRate : 44_100)).rounded())
         }
-        if tableSelection != (id.map { [$0] } ?? []) { tableSelection = id.map { [$0] } ?? [] }
+        if !keepSelection, tableSelection != (id.map { [$0] } ?? []) { tableSelection = id.map { [$0] } ?? [] }
         selectedCueID = nil
         guard let id, let sample = sampleByID[id] else {
             similar = []; similarRows = []; cues = []; waveform = []
