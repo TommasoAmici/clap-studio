@@ -11,6 +11,7 @@ import AppKit
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
 ///   CLAP_PERF=cat.Kick,cat.Snare   switch the sidebar through these tags and log how long the main thread is busy each time
 ///                                  (to CLAP_PERF_OUT, default /tmp/clap-perf.txt); CLAP_PERF_DELAY waits for loading
+///   CLAP_PERF_MAP=1                with CLAP_PERF: do it on the Map tab
 ///   CLAP_NO_INDEX=1                do not scan or index at launch (for a synthetic library)
 ///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
@@ -42,6 +43,7 @@ enum DebugSnapshot {
         let out = env["CLAP_PERF_OUT"] ?? "/tmp/clap-perf.txt"
         var log = "samples: \(model.samples.count)\n"
         try? await Task.sleep(for: .seconds(Double(env["CLAP_PERF_DELAY"] ?? "") ?? 30))
+        if env["CLAP_PERF_MAP"] == "1" { model.viewMode = .map; try? await Task.sleep(for: .seconds(3)) }
         log += "after wait: samples \(model.samples.count), visible \(model.visible.count)\n"
         for round in 0..<2 {
             for tag in tags {
