@@ -10,11 +10,24 @@ struct RootView: View {
     #endif
     @State private var columns = NavigationSplitViewVisibility.all
     @State private var mainWidth: CGFloat = 750
+    @State private var settleTask: Task<Void, Never>?
 
-    /// The inspector's toggle sits in the main column's toolbar while the inspector is hidden, so the controls leave
-    /// it room; made too wide, the toolbar would drop them.
+    /// The width of the toolbar's controls: the main column, less a margin and, with the inspector hidden, room for
+    /// its toggle. Made wider than the column, the toolbar would drop them for good, so while the inspector opens or
+    /// closes, either one (the column's width is changing, and the measurement is behind) they take a width that fits whatever
+    /// the column's width, which is never under `ToolbarLayout.narrowest`.
     private var controlsWidth: CGFloat {
-        max(mainWidth - 15 - (showInspector ? 0 : 70), 0)
+        guard settleTask == nil else { return ToolbarLayout.safeWidth }
+        return max(mainWidth - ToolbarLayout.margin - (showInspector ? 0 : ToolbarLayout.inspectorToggle), 0)
+    }
+
+    /// Called as a sidebar opens or closes.
+    private func columnsChanging() {
+        settleTask?.cancel()
+        settleTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            if !Task.isCancelled { settleTask = nil }
+        }
     }
 
     var body: some View {
@@ -43,7 +56,7 @@ struct RootView: View {
             }
             // The toolbar's controls are the system's, at their large size, so they follow the system's appearance
             // settings.
-            .frame(minWidth: 750)
+            .frame(minWidth: ToolbarLayout.narrowest)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mainWidth = $0 }
             // The title would take room from the controls; the window keeps it for the Window menu.
             .modifier(HideToolbarTitle())
@@ -54,6 +67,8 @@ struct RootView: View {
                 if #available(macOS 26.0, *) { ToolbarSpacer(.flexible) }
                 ToolbarItem(placement: .primaryAction) { InspectorToggle(isShown: $showInspector) }
             }
+            .onChange(of: showInspector) { columnsChanging() }
+            .onChange(of: columns) { columnsChanging() }
             .inspector(isPresented: $showInspector) {
                 InspectorView()
                     .inspectorColumnWidth(min: 300, ideal: 360, max: 480)
@@ -269,4 +284,16 @@ private struct InspectorToggle: View {
             .controlSize(.large)
             .help(isShown ? "Hide the inspector" : "Show the inspector")
     }
+}
+
+/// What the toolbar's controls are laid out by.
+private enum ToolbarLayout {
+    /// The narrowest the main column gets.
+    static let narrowest: CGFloat = 750
+    /// Left over beside the controls so they sit as far from the inspector as from the sidebar.
+    static let margin: CGFloat = 15
+    /// What the inspector's toggle takes in the main column while the inspector is hidden.
+    static let inspectorToggle: CGFloat = 70
+    /// A width that fits in the main column in either case.
+    static let safeWidth = narrowest - margin - inspectorToggle
 }
