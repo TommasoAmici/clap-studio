@@ -37,11 +37,15 @@ extension AppModel {
         Task {
             defer { if cleanUp { try? FileManager.default.removeItem(at: url) } }
             do {
-                let hits = try await Task.detached { try searcher.similar(to: url, limit: 100) }.value
+                let (vector, hits) = try await Task.detached { () -> ([Float], [TextHit]) in
+                    let vector = try searcher.embedding(of: url)
+                    return (vector, try searcher.similar(to: url, limit: 100))
+                }.value
                 exampleQuery = ExampleQuery(name: name ?? url.lastPathComponent,
                                             scores: Dictionary(hits.map { ($0.sampleID, $0.score) }, uniquingKeysWith: max),
                                             segments: Dictionary(hits.compactMap { hit in hit.segment.map { (hit.sampleID, $0) } },
-                                                                 uniquingKeysWith: { first, _ in first }))
+                                                                 uniquingKeysWith: { first, _ in first }),
+                                            vector: vector)
                 searchText = ""
                 refilter()
             } catch {
@@ -64,4 +68,11 @@ struct ExampleQuery {
     var segments: [Int64: SegmentMatch] = [:]
     /// Set when the query is a library sample (not a dropped file), so it can follow the similarity weights.
     var referenceID: Int64?
+    /// What the search started from, kept so words can adjust it (set for a file or recording; a library sample's is read when needed).
+    var vector: [Float]?
+    /// Words that adjust the search ("darker, no reverb"); `plain` is what the list showed before they were applied.
+    var refinement = ""
+    var plain: (scores: [Int64: Float], segments: [Int64: SegmentMatch])?
+    var refining = false
+    let token = UUID()
 }

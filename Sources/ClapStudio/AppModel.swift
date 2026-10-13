@@ -51,6 +51,7 @@ final class AppModel {
     @ObservationIgnored var cancelToken = CancelToken()
     @ObservationIgnored var textSearcher: TextSearcher?
     @ObservationIgnored var soundSearchTask: Task<Void, Never>?
+    @ObservationIgnored var refineTask: Task<Void, Never>?
     @ObservationIgnored var lastGrab: [Int64: Date] = [:]
     @ObservationIgnored var recentDragAt = Date.distantPast
     @ObservationIgnored var recentDrags: [Int64] = []      // samples the user started dragging, newest last

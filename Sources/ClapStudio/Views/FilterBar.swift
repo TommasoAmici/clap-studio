@@ -8,7 +8,16 @@ struct FilterBar: View {
 
     var body: some View {
         @Bindable var model = model
-        HStack(spacing: 10) {
+        VStack(spacing: 0) {
+            filters
+            if let example = model.exampleQuery { ExampleBar(example: example) }
+        }
+        .background(.bar)
+    }
+
+    private var filters: some View {
+        @Bindable var model = model
+        return HStack(spacing: 10) {
             Picker("Type", selection: $model.descriptorFilter.kind) {
                 ForEach(DescriptorFilter.Kind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
@@ -33,15 +42,6 @@ struct FilterBar: View {
             CategoryFilterMenu()
             MoodFilterMenu()
 
-            if let example = model.exampleQuery {
-                HStack(spacing: 4) {
-                    Image(systemName: "waveform.badge.magnifyingglass")
-                    Text("Like \(example.name)").lineLimit(1)
-                    Button { model.clearExample() } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.borderless)
-                }
-                .padding(.horizontal, 8).padding(.vertical, 2)
-                .background(Color.accentColor.opacity(0.18), in: Capsule())
-            }
             RecordButton()
             Spacer()
             if model.viewMode == .library {
@@ -62,7 +62,6 @@ struct FilterBar: View {
         }
         .controlSize(.small)
         .padding(.horizontal, 12).padding(.vertical, 6)
-        .background(.bar)
     }
 
     private var tempoTitle: String {
@@ -201,5 +200,46 @@ struct RecordButton: View {
                 .disabled(model.recordingStarting)
                 .help("Make a sound into the microphone (up to 10 seconds) and find library sounds like it")
         }
+    }
+}
+
+/// What a search by example is like, with a box for adjusting it in words ("but darker, no reverb").
+private struct ExampleBar: View {
+    @Environment(AppModel.self) private var model
+    let example: ExampleQuery
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "waveform.badge.magnifyingglass")
+            Text("Like \(example.name)").lineLimit(1).fixedSize()
+            if model.canRefineSearch {
+                Text("but").foregroundStyle(.secondary)
+                TextField("darker, no reverb, more punch…", text: Binding(get: { model.refinementText }, set: { model.refinementText = $0 }))
+                    .textFieldStyle(.roundedBorder).frame(minWidth: 160, maxWidth: 320)
+                    .help("Describe how the results should differ from this sound. Start a phrase with no, less or without to rule it out. Separate phrases with commas.")
+                Menu {
+                    Menu("More") {
+                        ForEach(AppModel.refinementSuggestions, id: \.self) { phrase in
+                            Button(phrase) { model.addRefinement(phrase, negative: false) }
+                        }
+                    }
+                    Menu("Less") {
+                        ForEach(AppModel.refinementSuggestions, id: \.self) { phrase in
+                            Button(phrase) { model.addRefinement(phrase, negative: true) }
+                        }
+                    }
+                    Divider()
+                    Button("Clear Words") { model.refinementText = "" }.disabled(model.refinementText.isEmpty)
+                } label: { Image(systemName: "plus.circle") }
+                    .menuStyle(.borderlessButton).fixedSize()
+                if example.refining { ProgressView().controlSize(.small) }
+            }
+            Spacer(minLength: 0)
+            Button { model.clearExample() } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.borderless).help("Back to the whole library")
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12).padding(.vertical, 5)
+        .background(Color.accentColor.opacity(0.14))
     }
 }

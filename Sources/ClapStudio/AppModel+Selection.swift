@@ -50,6 +50,7 @@ extension AppModel {
             errorMessage = "Finding similar sounds needs the library to be indexed and analysed."
             return
         }
+        let keptWords = exampleQuery?.referenceID == id ? exampleQuery?.refinement ?? "" : ""
         selectSidebar("smart.\(SmartFilter.all.rawValue)")
         searchText = ""
         let neighbours = AspectSimilarity.rank(reference: reference, index: snap.index, weights: aspectWeights, limit: 100) { [sampleByID] in sampleByID[$0] }
@@ -59,6 +60,7 @@ extension AppModel {
         refilter()
         select(id)
         addSegmentMatches(reference: reference)
+        if !keptWords.isEmpty { exampleQuery?.refinement = keptWords; scheduleRefinement(immediately: true) }
     }
 
     /// Field recordings are found by their best segment, which the map's reduced vectors cannot see. Added once
