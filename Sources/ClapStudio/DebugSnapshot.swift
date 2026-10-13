@@ -14,6 +14,7 @@ import AppKit
 ///   CLAP_PERF_MAP=1                with CLAP_PERF: do it on the Map tab
 ///   CLAP_NO_INDEX=1                do not scan or index at launch (for a synthetic library)
 ///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive; NAME/2 shows its bank 2
+///   CLAP_SNAPSHOT_WIDTH=1100       resize the window to this width first (it cannot go below the window's minimum)
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
@@ -34,6 +35,11 @@ enum DebugSnapshot {
             if env["CLAP_SNAPSHOT_RENAME"] == "1", let bank = model.usbContents[drive.id]?.set(named: set)?.banks.first {
                 model.renamingUsb = .bank(drive: drive.id, set: set, number: bank.number)
             }
+        }
+        if let width = Double(env["CLAP_SNAPSHOT_WIDTH"] ?? ""), let window = NSApp.windows.first(where: \.isVisible) {
+            var frame = window.frame
+            frame.size.width = width
+            window.setFrame(frame, display: true)
         }
         try? await Task.sleep(for: .seconds(3))
         if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }

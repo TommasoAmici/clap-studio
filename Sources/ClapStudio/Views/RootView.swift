@@ -26,6 +26,11 @@ struct RootView: View {
                 DrumPanel()
                 StatusBar()
             }
+            // The toolbar controls below belong to this column; narrower than they need, they spill over the
+            // inspector, so the other columns give way first.
+            .frame(minWidth: 700)
+            // The title would take room from the controls; the window keeps it for the Window menu.
+            .modifier(HideToolbarTitle())
             .toolbar {
                 // Attached to the main content, before the inspector, so they stay above it and never slide under
                 // the inspector column.
@@ -197,5 +202,12 @@ struct StatusBar: View {
         .font(.callout)
         .padding(.horizontal, 12).padding(.vertical, 6)
         .background(.bar)
+    }
+}
+
+/// Takes the window title out of the toolbar (macOS 15 and later), where it claims room the controls need.
+private struct HideToolbarTitle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) { content.toolbar(removing: .title) } else { content }
     }
 }
