@@ -19,6 +19,7 @@ import ClapCore
 ///   CLAP_SNAPSHOT_DRUMS=1          open the drum machine with the first three samples
 ///   CLAP_SNAPSHOT_LIKE=name        show sounds like the first sample whose name contains this; CLAP_SNAPSHOT_WORDS adds words ("dark, no reverb")
 ///   CLAP_SNAPSHOT_PLACES=1         show the Places tab
+///   CLAP_SNAPSHOT_NO_INSPECTOR=1   start with the inspector hidden
 ///   CLAP_SNAPSHOT_WIDTH=1100       resize the window to this width first (it cannot go below the window's minimum)
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor

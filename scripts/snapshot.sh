@@ -7,6 +7,7 @@
 #     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
 #     --like NAME [--words "dark, no reverb"]  show sounds like the first sample named NAME, adjusted by the words
 #     --places  show the Places tab
+#     --no-inspector  start with the inspector hidden
 #     --drums  open the drum machine with three samples
 #     --width PX  resize the window to this width first (down to its minimum)
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name
@@ -28,6 +29,7 @@ while [ $# -gt 0 ]; do
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;
     --places) export CLAP_SNAPSHOT_PLACES=1 ;;
     --drums) export CLAP_SNAPSHOT_DRUMS=1 ;;
+    --no-inspector) export CLAP_SNAPSHOT_NO_INSPECTOR=1 ;;
     --width) shift; export CLAP_SNAPSHOT_WIDTH="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
     --delay) shift; DELAY="$1" ;;

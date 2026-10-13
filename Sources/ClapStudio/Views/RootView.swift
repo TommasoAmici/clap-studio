@@ -3,9 +3,19 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    #if DEBUG
+    @State private var showInspector = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_NO_INSPECTOR"] == nil
+    #else
     @State private var showInspector = true
+    #endif
     @State private var columns = NavigationSplitViewVisibility.all
     @State private var mainWidth: CGFloat = 750
+
+    /// The inspector's toggle sits in the main column's toolbar while the inspector is hidden, so the controls leave
+    /// it room; made too wide, the toolbar would drop them.
+    private var controlsWidth: CGFloat {
+        max(mainWidth - 15 - (showInspector ? 0 : 70), 0)
+    }
 
     var body: some View {
         @Bindable var model = model
@@ -40,7 +50,7 @@ struct RootView: View {
             .toolbar {
                 // The system puts this item at the main column's left, after the sidebar; made as wide as the column,
                 // it keeps the controls there and the search box at the column's right, just before the inspector.
-                ToolbarItem(placement: .navigation) { ToolbarControls().frame(width: max(mainWidth - 15, 0)) }
+                ToolbarItem(placement: .navigation) { ToolbarControls().frame(width: controlsWidth) }
                 if #available(macOS 26.0, *) { ToolbarSpacer(.flexible) }
                 ToolbarItem(placement: .primaryAction) { InspectorToggle(isShown: $showInspector) }
             }
