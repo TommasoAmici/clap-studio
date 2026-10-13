@@ -27,20 +27,19 @@ struct RootView: View {
                 DrumPanel()
                 StatusBar()
             }
-            // The controls sit at the right end of the toolbar, the search box beside the inspector toggle. They
-            // are the system's controls at their large size, so they follow the system's appearance settings.
+            // The controls start at the left of the toolbar, the search box beside the inspector toggle on the right.
+            // They are the system's controls at their large size, so they follow the system's appearance settings.
             .frame(minWidth: 750)
             // The title would take room from the controls; the window keeps it for the Window menu.
             .modifier(HideToolbarTitle())
             .toolbar {
-                // Attached to the main content, before the inspector, so they stay above it and never slide under
-                // the inspector column; the stretch pushes them to its right end.
-                // The stretching item would otherwise sit on one wide glass plate (macOS 26), leaving empty space
-                // left of the controls.
+                // At the leading end of the main content, right after the sidebar.
+                ToolbarItem(placement: .navigation) { ToolbarControls() }
+                // Pushes the search box and the inspector toggle to the trailing end.
                 if #available(macOS 26.0, *) {
-                    ToolbarItem(placement: .principal) { ToolbarControls() }.sharedBackgroundVisibility(.hidden)
+                    ToolbarSpacer(.flexible)
                 } else {
-                    ToolbarItem(placement: .principal) { ToolbarControls() }
+                    ToolbarItem(placement: .principal) { Spacer() }
                 }
                 ToolbarItem(placement: .primaryAction) { SearchField() }
                 ToolbarItem(placement: .primaryAction) {
@@ -205,14 +204,13 @@ private struct HideToolbarTitle: ViewModifier {
 }
 
 
-/// The view picker and the toggles at the right end of the toolbar; the system's controls at their large size.
+/// The view picker and the toggles; the system's controls at their large size.
 private struct ToolbarControls: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         @Bindable var model = model
         HStack(spacing: 8) {
-            Spacer(minLength: 0)
             // Nothing is highlighted while a stick is showing; either choice leaves it.
             Picker("View", selection: Binding<ViewMode?>(get: { model.showingUsb ? nil : model.viewMode },
                                                          set: { if let mode = $0 { model.show(mode) } })) {
@@ -230,6 +228,5 @@ private struct ToolbarControls: View {
         }
         .toggleStyle(.button)
         .controlSize(.large)
-        .frame(maxWidth: .infinity)
     }
 }
