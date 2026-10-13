@@ -60,7 +60,6 @@ import Testing
         let down = EditRender.apply(b, edit: SampleEdit(speedSemitones: -12))
         #expect(abs(Double(down.frameLength) - Double(b.frameLength) * 2) <= 2)
         #expect(abs(frequency(down) - 220) < 4)
-        #expect(abs(SampleEdit(speedSemitones: 12).lengthFactor - 0.5) < 1e-9)
     }
 
     @Test func fasterPlaybackDoesNotFoldHighFrequenciesBackDown() throws {

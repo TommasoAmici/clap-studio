@@ -29,9 +29,6 @@ public struct SampleEdit: Equatable, Sendable {
     /// file would be wrong.
     public var changesTiming: Bool { reverse || speedSemitones != 0 }
 
-    /// How much longer the sound plays than its source part (1 for no change).
-    public var lengthFactor: Double { pow(2, -speedSemitones / 12) }
-
     /// Values brought into range (tiny changes count as none).
     public func clamped() -> SampleEdit {
         func snap(_ v: Double) -> Double { abs(v) < 0.05 ? 0 : v }

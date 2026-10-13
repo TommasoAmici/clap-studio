@@ -6,15 +6,15 @@ import Foundation
 extension AppModel {
     func fileMetadata(for id: Int64) -> FileMetadata? { store?.fileMetadata(sampleID: id) }
 
-    /// Samples whose file metadata mentions the search text. The answer is kept while the text stays the same.
+    /// Samples whose file metadata mentions the search text. The metadata is held in memory (read again after it
+    /// changes), so searching as the user types does not touch the database.
     func filesMentioning(_ query: String) -> Set<Int64> {
-        if let cached = fileInfoSearch, cached.query == query, cached.revision == fileInfoRevision { return cached.ids }
-        let ids = store?.samplesWithFileMetadata(matching: query) ?? []
-        fileInfoSearch = (query, fileInfoRevision, ids)
-        return ids
+        if fileInfoSearch?.revision != fileInfoRevision {
+            fileInfoSearch = (fileInfoRevision, store?.fileMetadataSearchText() ?? [:])
+        }
+        let needle = query.lowercased()
+        return Set(fileInfoSearch?.text.compactMap { $0.value.contains(needle) ? $0.key : nil } ?? [])
     }
-
-    // MARK: keywords as tags
 
     /// Adds the keywords found in the files as tags: one undo step for the lot.
     func importFileKeywords(_ ids: [Int64]) {
@@ -42,9 +42,7 @@ extension AppModel {
         statusMessage = "Added \(additions.count) tags to \(samplesPhrase(count))"
     }
 
-    // MARK: writing into files
-
-    /// WAV files off a USB drive (those are never changed) can carry tags.
+    /// WAV files can carry tags, unless they are on a USB drive (those are never changed).
     func canWriteTags(_ sample: SampleRecord) -> Bool {
         CueFileSync.canStoreCues(ext: sample.ext) && !isOnUsb(sample.id)
     }

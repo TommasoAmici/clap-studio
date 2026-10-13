@@ -114,7 +114,7 @@ public enum WavCueWriter {
         return SHA256.hash(data: data[chunk.dataStart..<(chunk.dataStart + chunk.size)]).map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func makeBackup(of url: URL) throws -> URL {
+    static func makeBackup(of url: URL) throws -> URL {
         var candidate = url.appendingPathExtension("bak")
         var n = 1
         while FileManager.default.fileExists(atPath: candidate.path) {

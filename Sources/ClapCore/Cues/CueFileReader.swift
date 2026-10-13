@@ -100,6 +100,40 @@ struct WavChunk {
 }
 
 enum WavChunks {
+    static func isRiffWave(_ data: Data) -> Bool {
+        data.count >= 12 && String(decoding: data[0..<4], as: UTF8.self) == "RIFF" && String(decoding: data[8..<12], as: UTF8.self) == "WAVE"
+    }
+
+    /// The file mapped into memory, when it is a WAV file.
+    static func mappedWav(_ url: URL) -> Data? {
+        guard let data = try? Data(contentsOf: url, options: .alwaysMapped), isRiffWave(data) else { return nil }
+        return data
+    }
+
+    static func isList(_ chunk: WavChunk, ofType type: String, in data: Data) -> Bool {
+        chunk.id == "LIST" && chunk.size >= 4 && String(decoding: data[chunk.dataStart..<(chunk.dataStart + 4)], as: UTF8.self) == type
+    }
+
+    /// The entries of an INFO list, in order, with their text read up to the first zero byte.
+    static func infoEntries(_ data: Data, _ chunk: WavChunk) -> [(id: String, text: String)] {
+        var entries: [(String, String)] = []
+        var o = chunk.dataStart + 4
+        let end = chunk.dataStart + chunk.size
+        while o + 8 <= end {
+            let id = String(decoding: data[o..<(o + 4)], as: UTF8.self)
+            let size = Int(data.le32(o + 4))
+            guard o + 8 + size <= end else { break }
+            entries.append((id, text(data[(o + 8)..<(o + 8 + size)])))
+            o += 8 + size + (size & 1)
+        }
+        return entries
+    }
+
+    /// Text up to the first zero byte, trimmed.
+    static func text(_ bytes: Data) -> String {
+        String(decoding: bytes.prefix { $0 != 0 }, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Stops at the first chunk that does not fit inside the file.
     static func parse(_ data: Data) -> [WavChunk] {
         var chunks: [WavChunk] = []

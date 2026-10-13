@@ -29,6 +29,8 @@ public enum PlaceGrouping {
         }.sorted { ($0.count, $1.id) > ($1.count, $0.id) }
     }
 
+    private struct Cell: Hashable { let row: Int, column: Int }
+
     private struct Building {
         var lat: Double, lon: Double
         var members: [(id: Int64, point: GeoPoint)]
@@ -38,15 +40,15 @@ public enum PlaceGrouping {
     /// Pins are found through a grid of the same size, so this stays fast for a large library.
     private static func merge(_ located: [(id: Int64, point: GeoPoint)], radius: Double) -> [Building] {
         var pins: [Building] = []
-        var grid: [String: [Int]] = [:]
-        func cell(_ lat: Double, _ lon: Double) -> (Int, Int) { (Int((lat / radius).rounded(.down)), Int((lon / radius).rounded(.down))) }
+        var grid: [Cell: [Int]] = [:]
+        func cell(_ lat: Double, _ lon: Double) -> Cell { Cell(row: Int((lat / radius).rounded(.down)), column: Int((lon / radius).rounded(.down))) }
         for item in located.sorted(by: { $0.id < $1.id }) {
-            let (row, column) = cell(item.point.latitude, item.point.longitude)
+            let home = cell(item.point.latitude, item.point.longitude)
             let scale = max(0.05, cos(item.point.latitude * .pi / 180))
             var target: Int?
             search: for dr in -1...1 {
                 for dc in -1...1 {
-                    for index in grid["\(row + dr)/\(column + dc)"] ?? [] {
+                    for index in grid[Cell(row: home.row + dr, column: home.column + dc)] ?? [] {
                         let dLat = pins[index].lat - item.point.latitude
                         let dLon = (pins[index].lon - item.point.longitude) * scale
                         if dLat * dLat + dLon * dLon <= radius * radius { target = index; break search }
@@ -59,7 +61,7 @@ public enum PlaceGrouping {
                 pins[target].lon = (pins[target].lon * n + item.point.longitude) / (n + 1)
                 pins[target].members.append(item)
             } else {
-                grid["\(row)/\(column)", default: []].append(pins.count)
+                grid[home, default: []].append(pins.count)
                 pins.append(Building(lat: item.point.latitude, lon: item.point.longitude, members: [item]))
             }
         }

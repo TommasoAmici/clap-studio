@@ -167,10 +167,10 @@ import Testing
         try store.saveFileMetadata(samples.map { ($0.id, FileMetadataReader.read(url: $0.url)) })
 
         #expect(store.fileMetadata(sampleID: a.id)?.keywords == ["wood", "creak"] && store.fileMetadata(sampleID: b.id) == nil)
-        #expect(store.samplesWithFileMetadata(matching: "creak") == [a.id])
-        #expect(store.samplesWithFileMetadata(matching: "WOOD") == [a.id], "any case")
-        #expect(store.samplesWithFileMetadata(matching: "100%") == [a.id] && store.samplesWithFileMetadata(matching: "%").count == 1, "wildcards are literal")
-        #expect(store.samplesWithFileMetadata(matching: "nothing like this").isEmpty)
+        let text = store.fileMetadataSearchText()
+        func matches(_ word: String) -> Set<Int64> { Set(text.filter { $0.value.contains(word) }.keys) }
+        #expect(matches("creak") == [a.id] && matches("100% door") == [a.id] && matches("nothing like this").isEmpty)
+        #expect(text[b.id] == nil, "a file that says nothing has nothing to search")
         #expect(store.fileKeywords(sampleIDs: [a.id, b.id]) == [a.id: ["wood", "creak"]])
 
         try store.addTag("punchy", to: [b.id])

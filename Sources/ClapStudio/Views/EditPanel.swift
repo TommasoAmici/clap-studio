@@ -19,8 +19,8 @@ struct EditPanel: View {
                        help: "Pitch and length together, like a tape: +12 is an octave up and half as long")
                 slider("Volume", value: $draft.gainDB, range: SampleEdit.gainRange, format: { String(format: "%+.1f dB", $0) },
                        help: "Louder sounds are clipped at full scale")
-                filter("Low-pass", hz: $draft.lowPassHz, help: "Removes what is above this frequency")
-                filter("High-pass", hz: $draft.highPassHz, help: "Removes what is below this frequency")
+                filter("Low-pass", isLowPass: true, hz: $draft.lowPassHz, help: "Removes what is above this frequency")
+                filter("High-pass", isLowPass: false, hz: $draft.highPassHz, help: "Removes what is below this frequency")
                 HStack {
                     Button { model.playSample(sample) } label: { Label("Edited", systemImage: "play.fill") }
                     Button("Original") { model.playSample(sample, fullFile: true) }
@@ -58,12 +58,12 @@ struct EditPanel: View {
     }
 
     /// A frequency on a logarithmic scale, with the far end meaning off.
-    private func filter(_ title: String, hz: Binding<Double?>, help: String) -> some View {
+    private func filter(_ title: String, isLowPass: Bool, hz: Binding<Double?>, help: String) -> some View {
         let range = SampleEdit.filterRange
         let position = Binding<Double>(
-            get: { hz.wrappedValue.map { log(max($0, range.lowerBound) / range.lowerBound) / log(range.upperBound / range.lowerBound) } ?? (title == "Low-pass" ? 1 : 0) },
+            get: { hz.wrappedValue.map { log(max($0, range.lowerBound) / range.lowerBound) / log(range.upperBound / range.lowerBound) } ?? (isLowPass ? 1 : 0) },
             set: { p in
-                let off = title == "Low-pass" ? p >= 0.99 : p <= 0.01
+                let off = isLowPass ? p >= 0.99 : p <= 0.01
                 hz.wrappedValue = off ? nil : range.lowerBound * pow(range.upperBound / range.lowerBound, p)
             })
         return HStack {

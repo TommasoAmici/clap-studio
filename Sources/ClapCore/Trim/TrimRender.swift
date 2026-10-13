@@ -49,7 +49,7 @@ public enum TrimRender {
         }
         file.framePosition = first
         try file.read(into: buffer, frameCount: AVAudioFrameCount(frames))
-        if let edit, !edit.isNeutral { buffer = EditRender.apply(buffer, edit: edit) }
+        if let edit { buffer = EditRender.apply(buffer, edit: edit) }
         applyFades(to: buffer, fadeIn: fadeIn, fadeOut: fadeOut)
         guard let format else { return buffer }
         return try AudioConvert.convert(buffer, to: format)

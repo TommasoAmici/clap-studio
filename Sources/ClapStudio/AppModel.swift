@@ -81,7 +81,7 @@ final class AppModel {
     var tagPromptTargets: [Int64]?            // non-nil while the "add tag" prompt is open
     var tagWriteTargets: [Int64]?             // non-nil while the "write tags into files" prompt is open
     var fileInfoRevision = 0                  // changes when what files say about themselves is read again
-    @ObservationIgnored var fileInfoSearch: (query: String, revision: Int, ids: Set<Int64>)?
+    @ObservationIgnored var fileInfoSearch: (revision: Int, text: [Int64: String])?
     var showExport = false
     @ObservationIgnored var folderWatcher: FolderWatcher?
     @ObservationIgnored var rescanTask: Task<Void, Never>?
@@ -187,7 +187,8 @@ final class AppModel {
     var locations: [Int64: GeoPoint] = [:]
     var placesRevision = 0
     var placePins: [PlaceCluster] = []          // the Places tab's pins, for what the filters let through
-    var placeSelectionID: String? { didSet { if placeSelectionID != oldValue { refilter() } } }
+    var placeSelectionID: String? { didSet { if placeSelectionID != oldValue, !clearingPlaceSelection { refilter() } } }
+    @ObservationIgnored private var clearingPlaceSelection = false
     var selectedID: Int64?
     var tableSelection: Set<Int64> = []     // rows highlighted in the list (more than one for batch actions)
     var similar: [SimilarResult] = []
@@ -412,7 +413,11 @@ final class AppModel {
                 list = list.filter { members.contains($0.id) }
             } else {
                 list = list.filter { locations[$0.id] != nil }
-                if placeSelectionID != nil { placeSelectionID = nil }
+                if placeSelectionID != nil {      // the pin is gone (filters changed); the list built here is already without it
+                    clearingPlaceSelection = true
+                    placeSelectionID = nil
+                    clearingPlaceSelection = false
+                }
             }
         }
         visible = list

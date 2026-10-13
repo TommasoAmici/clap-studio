@@ -1,6 +1,5 @@
 import Foundation
 
-/// A place on Earth.
 public struct GeoPoint: Sendable, Equatable, Hashable {
     public let latitude: Double
     public let longitude: Double
@@ -11,14 +10,26 @@ public struct GeoPoint: Sendable, Equatable, Hashable {
         self.longitude = longitude
     }
 
-    /// For showing: "51.5000, -0.1000".
     public var text: String { String(format: "%.4f, %.4f", latitude, longitude) }
 }
 
 /// Regular-expression matches as plain strings: each match is its whole text followed by its groups ("" for a group that did not take part).
 enum Rx {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var compiled: [String: NSRegularExpression] = [:]
+
+    /// Patterns are compiled once; they are fixed strings in the code.
+    private static func regex(_ pattern: String, _ options: NSRegularExpression.Options) -> NSRegularExpression? {
+        lock.lock(); defer { lock.unlock() }
+        let key = "\(options.rawValue):\(pattern)"
+        if let found = compiled[key] { return found }
+        let made = try? NSRegularExpression(pattern: pattern, options: options)
+        compiled[key] = made
+        return made
+    }
+
     static func matches(_ pattern: String, in text: String, options: NSRegularExpression.Options = []) -> [[String]] {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else { return [] }
+        guard let regex = regex(pattern, options) else { return [] }
         let whole = NSRange(text.startIndex..., in: text)
         return regex.matches(in: text, range: whole).map { match in
             (0..<match.numberOfRanges).map { i in

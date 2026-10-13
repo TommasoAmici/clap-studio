@@ -20,17 +20,19 @@ public final class FileInfoBackfill: @unchecked Sendable {
             if jobs.isEmpty { break }
             var found: [(id: Int64, point: GeoPoint?)] = []
             var described: [(id: Int64, meta: FileMetadata)] = []
+            @Sendable func read(_ job: IndexJob) async -> (Int64, GeoPoint?, FileMetadata) {
+                (job.id, await LocationReader.read(url: job.url), FileMetadataReader.read(url: job.url))
+            }
             await withTaskGroup(of: (Int64, GeoPoint?, FileMetadata).self) { group in
                 var iterator = jobs.makeIterator()
-                var running = 0
-                while running < 8, let job = iterator.next() { group.addTask { (job.id, await LocationReader.read(url: job.url), FileMetadataReader.read(url: job.url)) }; running += 1 }
+                for _ in 0..<8 { if let job = iterator.next() { group.addTask { await read(job) } } }
                 for await result in group {
                     found.append((result.0, result.1)); described.append((result.0, result.2))
-                    if !isCancelled(), let job = iterator.next() { group.addTask { (job.id, await LocationReader.read(url: job.url), FileMetadataReader.read(url: job.url)) } }
+                    if !isCancelled(), let job = iterator.next() { group.addTask { await read(job) } }
                 }
             }
-            try? store.saveFileMetadata(described)
-            guard let saved = try? store.saveFileLocations(found) else { break }
+            // Files are marked as looked at only when both have been stored, or they would never be read again.
+            guard (try? store.saveFileMetadata(described)) != nil, let saved = try? store.saveFileLocations(found) else { break }
             placed += saved
             done += found.count
             onProgress(done, total)

@@ -156,7 +156,7 @@ enum Schema {
         try db.exec("ALTER TABLE sample_trims ADD COLUMN high_pass REAL")
     }
 
-    /// What files say about themselves (titles, descriptions, keywords, UCS names), read from the file, never edited.
+    /// What files say about themselves (titles, descriptions, keywords, UCS names), read from the file (the app writes back only the category and keywords, on request).
     /// `keywords` are joined with the unit separator.
     private static func v12(_ db: SQLiteDB) throws {
         try db.exec("""

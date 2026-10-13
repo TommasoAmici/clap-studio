@@ -11,23 +11,13 @@ public enum WavInfo {
     /// and the RIFF length at the start are written.
     public static func appendGenre(_ genre: String, to url: URL) throws {
         let data = try Data(contentsOf: url, options: .alwaysMapped)
-        guard data.count >= 12, String(decoding: data[0..<4], as: UTF8.self) == "RIFF",
-              String(decoding: data[8..<12], as: UTF8.self) == "WAVE" else { throw CueWriteError.unsupported("not a RIFF/WAVE file") }
+        guard WavChunks.isRiffWave(data) else { throw CueWriteError.unsupported("not a RIFF/WAVE file") }
         let chunks = WavChunks.parse(data)
         // Only a file whose chunks run to its very end can take another one.
         guard let last = chunks.last, last.end >= data.count - 1, last.end <= data.count + 1,
               chunks.contains(where: { $0.id == "data" }) else { throw CueWriteError.malformed }
 
-        var text = Data(genre.utf8)
-        text.append(0)
-        var info = Data("INFO".utf8)
-        info.append(contentsOf: Array(genreID.utf8))
-        info.appendLE32(UInt32(text.count))
-        info.append(text)
-        if text.count & 1 == 1 { info.append(0) }
-        var chunk = Data("LIST".utf8)
-        chunk.appendLE32(UInt32(info.count))
-        chunk.append(info)
+        let chunk = WavMetadataWriter.infoChunk([(genreID, genre)])
 
         var tail = Data()
         if last.end > data.count { tail.append(0) }        // the previous chunk's own padding byte
@@ -47,23 +37,9 @@ public enum WavInfo {
 
     /// The genre entry of a WAV file, if it has one.
     public static func genre(of url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url, options: .alwaysMapped), data.count >= 12,
-              String(decoding: data[0..<4], as: UTF8.self) == "RIFF",
-              String(decoding: data[8..<12], as: UTF8.self) == "WAVE" else { return nil }
-        for chunk in WavChunks.parse(data) where chunk.id == "LIST" && chunk.size >= 4
-            && String(decoding: data[chunk.dataStart..<(chunk.dataStart + 4)], as: UTF8.self) == "INFO" {
-            var o = chunk.dataStart + 4
-            let end = chunk.dataStart + chunk.size
-            while o + 8 <= end {
-                let id = String(decoding: data[o..<(o + 4)], as: UTF8.self)
-                let size = Int(data.le32(o + 4))
-                guard o + 8 + size <= end else { break }
-                if id == genreID {
-                    let text = String(decoding: data[(o + 8)..<(o + 8 + size)].prefix { $0 != 0 }, as: UTF8.self)
-                    return text.isEmpty ? nil : text
-                }
-                o += 8 + size + (size & 1)
-            }
+        guard let data = WavChunks.mappedWav(url) else { return nil }
+        for chunk in WavChunks.parse(data) where WavChunks.isList(chunk, ofType: "INFO", in: data) {
+            if let entry = WavChunks.infoEntries(data, chunk).first(where: { $0.id == genreID }), !entry.text.isEmpty { return entry.text }
         }
         return nil
     }

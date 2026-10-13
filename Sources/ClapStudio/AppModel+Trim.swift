@@ -58,8 +58,7 @@ extension AppModel {
     /// Takes the cut away; the sound edits stay.
     func clearTrim() {
         guard let sample = selectedSample else { return }
-        let edit = selectedEdit
-        setTrim(edit.isNeutral ? nil : SampleTrim(start: 0, end: sample.duration, edit: edit), for: sample.id, actionName: "Remove Trim")
+        setTrim(SampleTrim(start: 0, end: sample.duration, edit: selectedEdit), for: sample.id, actionName: "Remove Trim")
     }
 
     /// Where the user is pointing: the spot they clicked on the waveform, or else the playhead.

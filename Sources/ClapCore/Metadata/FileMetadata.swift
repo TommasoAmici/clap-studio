@@ -2,7 +2,7 @@ import Foundation
 
 /// What a file says about itself: the descriptive metadata sound libraries and recorders write into WAV files
 /// (BWF `bext`, iXML, `LIST`/`INFO`) and the Universal Category System (UCS) naming of the file itself.
-/// It is read, shown and searched; the app never edits it, apart from the category and keywords it writes on request.
+/// It is read, shown and searched; the app only writes the category and keywords, and only on request.
 public struct FileMetadata: Equatable, Sendable {
     public var title = ""
     public var description = ""

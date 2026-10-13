@@ -17,7 +17,4 @@ extension AppModel {
     }
 
     func resetEdit() { setEdit(SampleEdit(), audition: false) }
-
-    /// Whether the sample has edits, for lists and the drum machine.
-    func isEdited(_ sample: SampleRecord) -> Bool { activeTrim(for: sample).map { !$0.edit.isNeutral } ?? false }
 }

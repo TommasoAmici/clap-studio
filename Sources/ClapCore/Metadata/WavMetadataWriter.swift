@@ -7,7 +7,7 @@ import Foundation
 /// clone changes (an INFO list that already ends the file is cut off and written again, one in the middle is turned
 /// into a `JUNK` chunk that readers skip), the result is checked, and only then does it replace the original.
 public enum WavMetadataWriter {
-    static let genreID = "IGNR", keywordsID = "IKEY"
+    static let genreID = WavInfo.genreID, keywordsID = "IKEY"
 
     /// - Parameters:
     ///   - category: the genre to write; nil or empty removes the entry.
@@ -18,19 +18,16 @@ public enum WavMetadataWriter {
         let ext = url.pathExtension.lowercased()
         guard ext == "wav" || ext == "wave" else { throw CueWriteError.unsupported("only WAV files can carry tags") }
         let original = try Data(contentsOf: url, options: .alwaysMapped)
-        guard original.count >= 12, String(decoding: original[0..<4], as: UTF8.self) == "RIFF",
-              String(decoding: original[8..<12], as: UTF8.self) == "WAVE" else { throw CueWriteError.unsupported("not a RIFF/WAVE file") }
+        guard WavChunks.isRiffWave(original) else { throw CueWriteError.unsupported("not a RIFF/WAVE file") }
         let chunks = WavChunks.parse(original)
         guard let last = chunks.last, last.end >= original.count - 1, last.end <= original.count + 1,
               let dataChunk = chunks.first(where: { $0.id == "data" }) else { throw CueWriteError.malformed }
 
-        func isInfo(_ chunk: WavChunk) -> Bool {
-            chunk.id == "LIST" && chunk.size >= 4 && String(decoding: original[chunk.dataStart..<(chunk.dataStart + 4)], as: UTF8.self) == "INFO"
-        }
+        func isInfo(_ chunk: WavChunk) -> Bool { WavChunks.isList(chunk, ofType: "INFO", in: original) }
         // Existing entries other than the two we set, in their order.
         var entries: [(id: String, text: String)] = []
         for chunk in chunks where isInfo(chunk) {
-            entries += FileMetadataReader.infoEntries(original, chunk).filter { $0.id != genreID && $0.id != keywordsID }
+            entries += WavChunks.infoEntries(original, chunk).filter { $0.id != genreID && $0.id != keywordsID }
         }
         let genre = category?.trimmingCharacters(in: .whitespaces) ?? ""
         if !genre.isEmpty { entries.append((genreID, genre)) }
@@ -69,12 +66,7 @@ public enum WavMetadataWriter {
             if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
                let perms = attrs[.posixPermissions] { try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: temp.path) }
             var backupURL: URL?
-            if keepBackup {
-                var candidate = url.appendingPathExtension("bak"), n = 1
-                while FileManager.default.fileExists(atPath: candidate.path) { n += 1; candidate = url.appendingPathExtension("bak\(n)") }
-                try FileManager.default.copyItem(at: url, to: candidate)
-                backupURL = candidate
-            }
+            if keepBackup { backupURL = try WavCueWriter.makeBackup(of: url) }
             _ = try FileManager.default.replaceItemAt(url, withItemAt: temp)
             return backupURL
         } catch {
@@ -83,7 +75,7 @@ public enum WavMetadataWriter {
         }
     }
 
-    private static func infoChunk(_ entries: [(id: String, text: String)]) -> Data {
+    static func infoChunk(_ entries: [(id: String, text: String)]) -> Data {
         var inner = Data("INFO".utf8)
         for entry in entries {
             var text = Data(entry.text.utf8)
@@ -111,9 +103,8 @@ public enum WavMetadataWriter {
               chunks.last.map({ $0.end >= written.count - 1 }) == true
         else { throw CueWriteError.verificationFailed }
         var genre = "", words = ""
-        for chunk in chunks where chunk.id == "LIST" && chunk.size >= 4
-            && String(decoding: written[chunk.dataStart..<(chunk.dataStart + 4)], as: UTF8.self) == "INFO" {
-            for entry in FileMetadataReader.infoEntries(written, chunk) {
+        for chunk in chunks where WavChunks.isList(chunk, ofType: "INFO", in: written) {
+            for entry in WavChunks.infoEntries(written, chunk) {
                 if entry.id == genreID { genre = entry.text } else if entry.id == keywordsID { words = entry.text }
             }
         }

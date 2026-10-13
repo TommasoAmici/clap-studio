@@ -36,24 +36,22 @@ extension LibraryStore {
         return rows.first
     }
 
-    /// The keywords files carry for samples, for turning them into tags.
+    /// The keywords files carry, for turning them into tags.
     public func fileKeywords(sampleIDs: [Int64]) -> [Int64: [String]] {
-        var found: [Int64: [String]] = [:]
-        for id in sampleIDs {
-            if let words = fileMetadata(sampleID: id)?.keywords, !words.isEmpty { found[id] = words }
-        }
-        return found
+        let wanted = Set(sampleIDs)
+        let rows = (try? db.query("SELECT sample_id, keywords FROM file_meta WHERE keywords != ''") {
+            ($0.int(0), $0.text(1).components(separatedBy: Self.separator).filter { !$0.isEmpty })
+        }) ?? []
+        return Dictionary(rows.filter { wanted.contains($0.0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// Samples whose file metadata mentions `text` (any word, any case).
-    public func samplesWithFileMetadata(matching text: String) -> Set<Int64> {
-        let escaped = text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%")
-            .replacingOccurrences(of: "_", with: "\\_")
-        let pattern = SQLValue.text("%\(escaped)%")
-        let columns = ["title", "description", "keywords", "category", "subcategory", "ucs_id", "creator", "source", "originator"]
-        let condition = columns.map { "\($0) LIKE ? ESCAPE '\\'" }.joined(separator: " OR ")
-        let ids = (try? db.query("SELECT sample_id FROM file_meta WHERE \(condition)", Array(repeating: pattern, count: columns.count)) { $0.int(0) }) ?? []
-        return Set(ids)
+    /// Everything a sample's file says, lowercased and in one string, for searching as the user types.
+    public func fileMetadataSearchText() -> [Int64: String] {
+        let rows = (try? db.query("""
+            SELECT sample_id, title || ' ' || description || ' ' || keywords || ' ' || category || ' ' || subcategory || ' '
+                || ucs_id || ' ' || creator || ' ' || source || ' ' || originator FROM file_meta
+            """) { ($0.int(0), $0.text(1).replacingOccurrences(of: Self.separator, with: " ").lowercased()) }) ?? []
+        return Dictionary(rows, uniquingKeysWith: { first, _ in first })
     }
 
     /// Writes the sample's category and tags (and moods) into its WAV file, then makes the library agree with

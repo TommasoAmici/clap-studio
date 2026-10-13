@@ -15,9 +15,7 @@ public enum LocationReader {
     // MARK: WAV
 
     static func readWav(url: URL) -> GeoPoint? {
-        guard let data = try? Data(contentsOf: url, options: .alwaysMapped), data.count >= 12,
-              String(decoding: data[0..<4], as: UTF8.self) == "RIFF", String(decoding: data[8..<12], as: UTF8.self) == "WAVE" else { return nil }
-        return readWav(data)
+        WavChunks.mappedWav(url).flatMap { readWav($0) }
     }
 
     static func readWav(_ data: Data) -> GeoPoint? {
@@ -28,26 +26,12 @@ public enum LocationReader {
                 if let point = point(inMarkup: text) { return point }
             case "LIST":
                 // INFO comments and the like sometimes carry a plain "lat, lon" or ISO 6709 text.
-                guard chunk.size >= 4, String(decoding: data[chunk.dataStart..<(chunk.dataStart + 4)], as: UTF8.self) == "INFO" else { continue }
-                if let point = infoLocation(data, chunk) { return point }
+                guard WavChunks.isList(chunk, ofType: "INFO", in: data) else { continue }
+                for entry in WavChunks.infoEntries(data, chunk) where ["ICMT", "ISBJ", "IARL"].contains(entry.id) {
+                    if let point = GeoParse.iso6709(entry.text) { return point }
+                }
             default: break
             }
-        }
-        return nil
-    }
-
-    private static func infoLocation(_ data: Data, _ chunk: WavChunk) -> GeoPoint? {
-        var o = chunk.dataStart + 4
-        let end = chunk.dataStart + chunk.size
-        while o + 8 <= end {
-            let id = String(decoding: data[o..<(o + 4)], as: UTF8.self)
-            let size = Int(data.le32(o + 4))
-            guard o + 8 + size <= end else { break }
-            if id == "ICMT" || id == "ISBJ" || id == "IARL" {
-                let text = String(decoding: data[(o + 8)..<(o + 8 + size)].prefix { $0 != 0 }, as: UTF8.self)
-                if let point = GeoParse.iso6709(text) { return point }
-            }
-            o += 8 + size + (size & 1)
         }
         return nil
     }

@@ -6,11 +6,7 @@ public enum FileMetadataReader {
     public static func read(url: URL) -> FileMetadata {
         var meta = FileMetadata()
         let ext = url.pathExtension.lowercased()
-        if ext == "wav" || ext == "wave" || ext == "bwf",
-           let data = try? Data(contentsOf: url, options: .alwaysMapped), data.count >= 12,
-           String(decoding: data[0..<4], as: UTF8.self) == "RIFF", String(decoding: data[8..<12], as: UTF8.self) == "WAVE" {
-            meta = readWav(data)
-        }
+        if ext == "wav" || ext == "wave" || ext == "bwf", let data = WavChunks.mappedWav(url) { meta = readWav(data) }
         if let ucs = UCSName.parse(fileName: url.lastPathComponent) { meta.fill(from: ucs) }
         return meta
     }
@@ -23,8 +19,7 @@ public enum FileMetadataReader {
                 ixml.fill(from: fromMarkup(String(decoding: data[chunk.dataStart..<(chunk.dataStart + chunk.size)], as: UTF8.self)))
             case "bext": bext.fill(from: fromBext(data, chunk))
             case "LIST":
-                guard chunk.size >= 4, String(decoding: data[chunk.dataStart..<(chunk.dataStart + 4)], as: UTF8.self) == "INFO" else { continue }
-                info.fill(from: fromInfo(data, chunk))
+                if WavChunks.isList(chunk, ofType: "INFO", in: data) { info.fill(from: fromInfo(data, chunk)) }
             default: break
             }
         }
@@ -36,24 +31,9 @@ public enum FileMetadataReader {
 
     // MARK: LIST / INFO
 
-    /// The entries of every INFO list in the file, in order.
-    static func infoEntries(_ data: Data, _ chunk: WavChunk) -> [(id: String, text: String)] {
-        var entries: [(String, String)] = []
-        var o = chunk.dataStart + 4
-        let end = chunk.dataStart + chunk.size
-        while o + 8 <= end {
-            let id = String(decoding: data[o..<(o + 4)], as: UTF8.self)
-            let size = Int(data.le32(o + 4))
-            guard o + 8 + size <= end else { break }
-            entries.append((id, text(data[(o + 8)..<(o + 8 + size)])))
-            o += 8 + size + (size & 1)
-        }
-        return entries
-    }
-
     private static func fromInfo(_ data: Data, _ chunk: WavChunk) -> FileMetadata {
         var meta = FileMetadata()
-        for (id, value) in infoEntries(data, chunk) where !value.isEmpty {
+        for (id, value) in WavChunks.infoEntries(data, chunk) where !value.isEmpty {
             switch id {
             case "INAM": meta.title = value
             case "ICMT": if GeoParse.iso6709(value) == nil { meta.description = value }   // a place is not a description
@@ -76,7 +56,7 @@ public enum FileMetadataReader {
         var meta = FileMetadata()
         func field(_ from: Int, _ length: Int) -> String {
             guard chunk.size >= from + length else { return "" }
-            return text(data[(chunk.dataStart + from)..<(chunk.dataStart + from + length)])
+            return WavChunks.text(data[(chunk.dataStart + from)..<(chunk.dataStart + from + length)])
         }
         meta.description = field(0, 256)
         meta.originator = field(256, 32)
@@ -113,10 +93,5 @@ public enum FileMetadataReader {
         text.replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
             .replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&apos;", with: "'")
             .replacingOccurrences(of: "&amp;", with: "&")
-    }
-
-    /// Text up to the first zero byte, trimmed.
-    private static func text(_ bytes: Data) -> String {
-        String(decoding: bytes.prefix { $0 != 0 }, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
