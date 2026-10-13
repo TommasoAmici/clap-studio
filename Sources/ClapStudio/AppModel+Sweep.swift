@@ -30,13 +30,15 @@ extension AppModel {
     // MARK: query by example
 
     /// Ranks the library by similarity to a file that need not be part of it (for example one dragged in from Finder).
-    func findSimilar(toFileAt url: URL) {
+    /// `cleanUp` deletes the file afterwards (for a temporary recording).
+    func findSimilar(toFileAt url: URL, name: String? = nil, cleanUp: Bool = false) {
         guard let searcher = exampleSearcher else { return }
         errorMessage = nil
         Task {
+            defer { if cleanUp { try? FileManager.default.removeItem(at: url) } }
             do {
                 let hits = try await Task.detached { try searcher.similar(to: url, limit: 100) }.value
-                exampleQuery = ExampleQuery(name: url.lastPathComponent,
+                exampleQuery = ExampleQuery(name: name ?? url.lastPathComponent,
                                             scores: Dictionary(hits.map { ($0.sampleID, $0.score) }, uniquingKeysWith: max),
                                             segments: Dictionary(hits.compactMap { hit in hit.segment.map { (hit.sampleID, $0) } },
                                                                  uniquingKeysWith: { first, _ in first }))

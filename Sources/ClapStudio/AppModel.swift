@@ -47,6 +47,7 @@ final class AppModel {
     @ObservationIgnored var embedder: EmbeddingProvider?
     @ObservationIgnored let player = SamplePlayer()
     @ObservationIgnored lazy var drumMachine: DrumMachine = makeDrumMachine()
+    @ObservationIgnored let recorder = AudioRecorder()
     @ObservationIgnored var cancelToken = CancelToken()
     @ObservationIgnored var textSearcher: TextSearcher?
     @ObservationIgnored var soundSearchTask: Task<Void, Never>?
@@ -83,6 +84,10 @@ final class AppModel {
     var undoStack: [LibraryEdit] = []
     var redoStack: [LibraryEdit] = []
     var sweepList: [Int64] = []             // the neighbours being stepped through with ← →
+    var isRecording = false                  // the microphone is on, to search with what it hears
+    var recordingStarting = false
+    var recordingLevel: Float = 0
+    var recordingSeconds = 0.0
     var exampleQuery: ExampleQuery?          // set while the list shows sounds similar to a dropped file
     @ObservationIgnored var exampleSearcher: ExampleSearcher?
     /// Segments of field recordings, shared by every search that reports where in a recording a sound is.

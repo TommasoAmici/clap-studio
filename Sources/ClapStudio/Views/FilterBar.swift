@@ -12,7 +12,7 @@ struct FilterBar: View {
             Picker("Type", selection: $model.descriptorFilter.kind) {
                 ForEach(DescriptorFilter.Kind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 340)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 300)
 
             Button { showTempo.toggle() } label: {
                 FilterLabel(tempoTitle, systemImage: "metronome")
@@ -42,6 +42,7 @@ struct FilterBar: View {
                 .padding(.horizontal, 8).padding(.vertical, 2)
                 .background(Color.accentColor.opacity(0.18), in: Capsule())
             }
+            RecordButton()
             Spacer()
             if model.viewMode == .library {
                 HStack(spacing: 2) {
@@ -169,6 +170,36 @@ struct FilterLabel: View {
         HStack(spacing: 5) {
             Image(systemName: systemImage).imageScale(.small).frame(width: 13)
             Text(title)
+        }
+    }
+}
+
+/// Listens through the microphone and finds library sounds like what it heard: beatbox a kick, tap a desk, hum a bass line.
+struct RecordButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.isRecording {
+            HStack(spacing: 6) {
+                Image(systemName: "record.circle.fill").foregroundStyle(.red)
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.quaternary)
+                        Capsule().fill(.red).frame(width: geometry.size.width * CGFloat(min(1, model.recordingLevel.squareRoot())))
+                    }
+                }
+                .frame(width: 60, height: 6)
+                Text(String(format: "%.1f s", model.recordingSeconds)).monospacedDigit().foregroundStyle(.secondary)
+                Button("Find Similar") { model.finishRecording() }
+                Button { model.cancelRecording() } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.borderless).help("Throw the recording away")
+            }
+            .padding(.horizontal, 8).padding(.vertical, 2)
+            .background(Color.red.opacity(0.15), in: Capsule())
+        } else {
+            Button { model.toggleRecording() } label: { Image(systemName: "mic") }
+                .disabled(model.recordingStarting)
+                .help("Make a sound into the microphone (up to 10 seconds) and find library sounds like it")
         }
     }
 }
