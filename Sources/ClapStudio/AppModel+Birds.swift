@@ -9,10 +9,6 @@ extension AppModel {
 
     func speciesOccurrences(_ id: Int64) -> [SpeciesOccurrence] { store?.speciesOccurrences(sampleID: id) ?? [] }
 
-    func recordingLocation(_ id: Int64) -> GeoPoint? { store?.location(sampleID: id) }
-
-    var defaultBirdLocation: GeoPoint? { store?.defaultLocation }
-
     /// Listens to every field recording not yet listened to. Needs no progress UI beyond the status line.
     nonisolated static func listenForBirds(_ store: LibraryStore, token: CancelToken,
                                            report: @escaping @Sendable (String) -> Void) {
@@ -24,10 +20,9 @@ extension AppModel {
                                }, isCancelled: { token.isCancelled })
     }
 
-    /// Says where recordings were made (nil clears it), which rules out species that do not live there.
-    func setLocation(_ point: GeoPoint?, for ids: [Int64]) {
+    /// A recording's place changed: its birds are ruled in or out again, and it is listened to again.
+    func placeChangedForBirds(_ ids: [Int64]) {
         guard let store else { return }
-        try? store.setLocation(point, sampleIDs: ids)
         store.forgetSpecies(sampleIDs: ids)
         refilterSpecies(ids)
     }

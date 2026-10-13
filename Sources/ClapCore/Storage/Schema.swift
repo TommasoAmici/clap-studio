@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 10
+    static let currentVersion = 11
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -16,6 +16,7 @@ enum Schema {
         if version < 8 { try v8(db) }
         if version < 9 { try v9(db) }
         if version < 10 { try v10(db) }
+        if version < 11 { try v11(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -137,6 +138,11 @@ enum Schema {
     /// joined with the unit separator. The automatic moods in `sample_moods` are recomputed freely and never touched.
     private static func v10(_ db: SQLiteDB) throws {
         try db.exec("ALTER TABLE samples ADD COLUMN moods_manual TEXT")
+    }
+
+    /// Whether a file has been looked at for a place it carries (0: not yet). A place the user sets counts as looked at.
+    private static func v11(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE samples ADD COLUMN location_version INTEGER NOT NULL DEFAULT 0")
     }
 
     /// Bird species heard in field recordings. `latitude`/`longitude` are where a recording was made (optional);

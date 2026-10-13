@@ -38,7 +38,7 @@ struct BirdSettingsView: View {
             } header: { Text("Where you record") }
         }
         .formStyle(.grouped)
-        .onAppear { place = model.defaultBirdLocation }
+        .onAppear { place = model.defaultLocation }
     }
 
     private func setPlace(_ point: GeoPoint?) {

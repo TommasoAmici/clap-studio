@@ -16,6 +16,7 @@ import AppKit
 ///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive; NAME/2 shows its bank 2
 ///   CLAP_SNAPSHOT_DRUMS=1          open the drum machine with the first three samples
 ///   CLAP_SNAPSHOT_LIKE=name        show sounds like the first sample whose name contains this; CLAP_SNAPSHOT_WORDS adds words ("dark, no reverb")
+///   CLAP_SNAPSHOT_PLACES=1         show the Places tab
 ///   CLAP_SNAPSHOT_WIDTH=1100       resize the window to this width first (it cannot go below the window's minimum)
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
@@ -27,6 +28,7 @@ enum DebugSnapshot {
         let delay = Double(env["CLAP_SNAPSHOT_DELAY"] ?? "") ?? 9
         try? await Task.sleep(for: .seconds(delay - 3))
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }
+        if env["CLAP_SNAPSHOT_PLACES"] == "1" { model.viewMode = .places }
         if env["CLAP_SNAPSHOT_DRUMS"] == "1" { model.addToDrums(Array(model.visible.prefix(3).map(\.id))) }
         if let like = env["CLAP_SNAPSHOT_LIKE"], let sample = model.samples.first(where: { $0.name.contains(like) }) {
             model.showSimilar(to: sample.id)

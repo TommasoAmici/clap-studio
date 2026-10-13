@@ -57,6 +57,14 @@ extension AppModel {
                     Task { @MainActor in self.statusMessage = "Measuring sounds (\(done)/\(total))" }
                 }, isCancelled: { token.isCancelled })
             }
+            // Places carried by the files (a phone's or recorder's GPS): found before birds are listened for, since a place changes which birds can be there.
+            if store.locationBacklog() > 0, !token.isCancelled {
+                statusMessage = "Reading places from files"
+                await LocationBackfill(store: store).run(onProgress: { done, total in
+                    Task { @MainActor in self.statusMessage = "Reading places from files (\(done)/\(total))" }
+                }, isCancelled: { token.isCancelled })
+                reloadLocations()
+            }
             if Self.needsClassification(store), !token.isCancelled {
                 statusMessage = "Sorting sounds into categories and moods"
                 await Task.detached { Self.classifyLibrary(store) }.value

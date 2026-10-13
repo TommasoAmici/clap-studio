@@ -21,6 +21,7 @@ struct RootView: View {
                     switch model.viewMode {
                     case .library: LibraryTableView()
                     case .map: MapPanel()
+                    case .places: PlacesPanel()
                     }
                 }
                 DrumPanel()
@@ -28,7 +29,7 @@ struct RootView: View {
             }
             // The toolbar controls below belong to this column; narrower than they need, they spill over the
             // inspector, so the other columns give way first.
-            .frame(minWidth: 700)
+            .frame(minWidth: 750)
             // The title would take room from the controls; the window keeps it for the Window menu.
             .modifier(HideToolbarTitle())
             .toolbar {
@@ -41,7 +42,7 @@ struct RootView: View {
                         ForEach(ViewMode.allCases) { Text($0.rawValue).tag(Optional($0)) }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 160)
+                    .frame(width: 210)
                     SearchField()
                     ProjectButton()
                     Toggle(isOn: $model.project.matchLoudness) { Image(systemName: "dial.medium") }

@@ -16,7 +16,7 @@ struct ClapStudioApp: App {
         WindowGroup("Clap Studio") {
             RootView()
                 .environment(model)
-                .frame(minWidth: 1200, minHeight: 680)
+                .frame(minWidth: 1250, minHeight: 680)
                 .task { if model.store == nil { model.bootstrap() } }
         }
         .commands {

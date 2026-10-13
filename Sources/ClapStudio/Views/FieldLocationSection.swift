@@ -1,9 +1,9 @@
-#if NON_COMMERCIAL
 import ClapCore
 import SwiftUI
 
-/// Where a field recording was made. The place rules out the birds that do not live there, so changing it
-/// listens for them again; a recording without its own place uses the one set for the library.
+/// Where a field recording was made: read from the file when it says, or picked on a map. With BirdNET the place rules
+/// out the birds that do not live there, so changing it listens for them again; a recording without its own place
+/// uses the one set for the library.
 struct FieldLocationSection: View {
     @Environment(AppModel.self) private var model
     let sample: SampleRecord
@@ -12,14 +12,14 @@ struct FieldLocationSection: View {
     @State private var choosing = false
 
     var body: some View {
-        if model.birdsAvailable {
+        do {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Recorded at").font(.subheadline.bold())
                 HStack(spacing: 6) {
-                    Button(place?.text ?? model.defaultBirdLocation.map { "\($0.text) (library)" } ?? "Choose on Map…") { choosing = true }
+                    Button(place?.text ?? model.defaultLocation.map { "\($0.text) (library)" } ?? "Choose on Map…") { choosing = true }
                         .buttonStyle(.borderless).monospacedDigit()
                         .popover(isPresented: $choosing) {
-                            LocationPicker(initial: place ?? model.defaultBirdLocation) {
+                            LocationPicker(initial: place ?? model.defaultLocation) {
                                 model.setLocation($0, for: [sample.id])
                                 place = $0
                             }
@@ -29,13 +29,12 @@ struct FieldLocationSection: View {
                             .buttonStyle(.borderless).help("Use the library's place instead")
                     }
                 }
-                if place == nil, model.defaultBirdLocation == nil {
+                if place == nil, model.defaultLocation == nil, model.birdsAvailable {
                     Text("Pick a place to rule out birds that do not live there.").font(.caption2).foregroundStyle(.secondary)
                 }
             }
             .font(.caption)
-            .task(id: "\(sample.id)|\(model.birdsRevision)") { place = model.recordingLocation(sample.id) }
+            .task(id: "\(sample.id)|\(model.birdsRevision)|\(model.placesRevision)") { place = model.recordingLocation(sample.id) }
         }
     }
 }
-#endif

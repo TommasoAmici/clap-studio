@@ -1,21 +1,6 @@
 #if NON_COMMERCIAL
 import Foundation
 
-/// A place on Earth.
-public struct GeoPoint: Sendable, Equatable {
-    public let latitude: Double
-    public let longitude: Double
-
-    public init?(latitude: Double, longitude: Double) {
-        guard (-90...90).contains(latitude), (-180...180).contains(longitude) else { return nil }
-        self.latitude = latitude
-        self.longitude = longitude
-    }
-
-    /// For showing: "51.5000, -0.1000".
-    public var text: String { String(format: "%.4f, %.4f", latitude, longitude) }
-}
-
 /// A bird species heard in a recording, and where.
 public struct SpeciesOccurrence: Sendable, Equatable {
     public let scientific: String
@@ -47,37 +32,6 @@ extension LibraryStore {
     public static let reportedConfidence: Float = 0.8
     /// Two windows of one species closer than this are shown as one stretch.
     static let speciesMergeGap = 0.5
-
-    // MARK: places
-
-    /// Where a recording was made, if the user said.
-    public func location(sampleID: Int64) -> GeoPoint? {
-        let rows = (try? db.query("SELECT latitude, longitude FROM samples WHERE id = ? AND latitude IS NOT NULL",
-                                  [.int(sampleID)]) { GeoPoint(latitude: $0.double(0), longitude: $0.double(1)) }) ?? []
-        return rows.first.flatMap { $0 }
-    }
-
-    public func setLocation(_ point: GeoPoint?, sampleIDs: [Int64]) throws {
-        try db.transaction {
-            for id in sampleIDs {
-                try db.run("UPDATE samples SET latitude = ?, longitude = ? WHERE id = ?",
-                           [point.map { .double($0.latitude) } ?? .null, point.map { .double($0.longitude) } ?? .null, .int(id)])
-            }
-        }
-    }
-
-    /// The place assumed for recordings without their own.
-    public var defaultLocation: GeoPoint? {
-        get {
-            guard let text = meta("bird_default_location") else { return nil }
-            let parts = text.split(separator: ",").compactMap { Double($0) }
-            return parts.count == 2 ? GeoPoint(latitude: parts[0], longitude: parts[1]) : nil
-        }
-        set { try? setMeta("bird_default_location", newValue.map { "\($0.latitude),\($0.longitude)" } ?? "") }
-    }
-
-    /// The recording's own place, else the library's.
-    public func effectiveLocation(sampleID: Int64) -> GeoPoint? { location(sampleID: sampleID) ?? defaultLocation }
 
     // MARK: listening
 

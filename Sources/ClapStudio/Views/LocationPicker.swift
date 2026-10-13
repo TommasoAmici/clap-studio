@@ -1,4 +1,3 @@
-#if NON_COMMERCIAL
 import ClapCore
 import MapKit
 import SwiftUI
@@ -86,4 +85,3 @@ struct LocationPicker: View {
         return GeoPoint(latitude: coordinate.latitude, longitude: (longitude < 0 ? longitude + 360 : longitude) - 180)
     }
 }
-#endif

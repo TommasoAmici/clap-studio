@@ -4,7 +4,7 @@ import Observation
 import SwiftUI
 
 enum ViewMode: String, CaseIterable, Identifiable {
-    case library = "Library", map = "Map"
+    case library = "Library", map = "Map", places = "Places"
     var id: String { rawValue }
 }
 
@@ -175,7 +175,16 @@ final class AppModel {
     var shuffleSeed: UInt64? { didSet { refilter() } }      // non-nil while the list is in a random order
 
     // MARK: selection and similarity
-    var viewMode: ViewMode = .library
+    var viewMode: ViewMode = .library { didSet {
+        guard viewMode != oldValue else { return }
+        if oldValue == .places { placeSelectionID = nil }
+        if viewMode == .places || oldValue == .places { refilter() }
+    } }
+    /// Where recordings of the library were made (read from their files, or set by hand).
+    var locations: [Int64: GeoPoint] = [:]
+    var placesRevision = 0
+    var placePins: [PlaceCluster] = []          // the Places tab's pins, for what the filters let through
+    var placeSelectionID: String? { didSet { if placeSelectionID != oldValue { refilter() } } }
     var selectedID: Int64?
     var tableSelection: Set<Int64> = []     // rows highlighted in the list (more than one for batch actions)
     var similar: [SimilarResult] = []
@@ -313,6 +322,7 @@ final class AppModel {
         usbSamples = squidEnabled ? store.loadTransientSamples() : []
         usbSampleIDs = Set(usbSamples.map(\.id))
         trims = store.trims()
+        locations = store.locations()
         sampleByID = Dictionary(uniqueKeysWithValues: (samples + usbSamples).map { ($0.id, $0) })
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
@@ -388,7 +398,20 @@ final class AppModel {
         publish(list)
     }
 
-    private func publish(_ list: [SampleRecord]) {
+    private func publish(_ shown: [SampleRecord]) {
+        var list = shown
+        if viewMode == .places {
+            // The Places tab lists recordings that have a place; a pin narrows the list to what was recorded there.
+            let pins = PlaceGrouping.group(list.compactMap { sample in locations[sample.id].map { (sample.id, $0) } })
+            if pins != placePins { placePins = pins }
+            if let selected = placeSelectionID, let pin = pins.first(where: { $0.id == selected }) {
+                let members = Set(pin.ids)
+                list = list.filter { members.contains($0.id) }
+            } else {
+                list = list.filter { locations[$0.id] != nil }
+                if placeSelectionID != nil { placeSelectionID = nil }
+            }
+        }
         visible = list
         filtersActive = usbSelection != nil || smartFilter != .all || tagFilter != nil || exampleQuery != nil || collectionSelection != nil || hiddenCount > 0 || folderSelection != nil || descriptorFilter.isActive || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
         filterVersion += 1

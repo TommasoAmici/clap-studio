@@ -28,8 +28,8 @@ struct PropertiesPanel: View {
             }
             if sample.isFieldRecording {
                 FieldSoundsSection(sample: sample).padding(.top, 8)
-                #if NON_COMMERCIAL
                 FieldLocationSection(sample: sample).padding(.top, 8)
+                #if NON_COMMERCIAL
                 FieldBirdsSection(sample: sample).padding(.top, 8)
                 #endif
             }

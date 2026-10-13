@@ -5,6 +5,7 @@
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
 #     --like NAME [--words "dark, no reverb"]  show sounds like the first sample named NAME, adjusted by the words
+#     --places  show the Places tab
 #     --drums  open the drum machine with three samples
 #     --width PX  resize the window to this width first (down to its minimum)
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name
@@ -23,6 +24,7 @@ while [ $# -gt 0 ]; do
     --usb) shift; export CLAP_SNAPSHOT_USB="$1" ;;
     --like) shift; export CLAP_SNAPSHOT_LIKE="$1" ;;
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;
+    --places) export CLAP_SNAPSHOT_PLACES=1 ;;
     --drums) export CLAP_SNAPSHOT_DRUMS=1 ;;
     --width) shift; export CLAP_SNAPSHOT_WIDTH="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
