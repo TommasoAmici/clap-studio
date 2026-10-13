@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// The search box in the toolbar, centred over the main area with the other toolbar controls. Cmd+F focuses it.
+/// The search box in the toolbar, next to the inspector toggle. Cmd+F focuses it.
 struct SearchField: View {
     @Environment(AppModel.self) private var model
     @FocusState private var focused: Bool
-    private static let height: CGFloat = 28
 
     var body: some View {
         @Bindable var model = model
@@ -22,8 +21,8 @@ struct SearchField: View {
         }
         .padding(.horizontal, 8)
         .frame(minWidth: 120, idealWidth: 160, maxWidth: 240)
-        .frame(height: Self.height)        // as tall as the other toolbar controls
-        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+        .frame(height: ToolbarMetrics.height)
+        .background(ToolbarMetrics.fill, in: RoundedRectangle(cornerRadius: ToolbarMetrics.corner))
         .onChange(of: model.searchFocusRequests) { focused = true }
     }
 }

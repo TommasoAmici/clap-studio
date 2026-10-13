@@ -7,19 +7,23 @@ struct ProjectButton: View {
     @State private var open = false
 
     var body: some View {
-        Button { open.toggle() } label: {
-            Label(title, systemImage: "metronome")
+        ToolbarIconButton(action: { open.toggle() }) {
+            HStack(spacing: 5) {
+                Image(systemName: "metronome")
+                if let summary { Text(summary).font(.system(size: 12)).monospacedDigit() }
+            }
         }
         .help("Project tempo and key")
         .popover(isPresented: $open) { ProjectEditor().padding(14).frame(width: 290) }
     }
 
-    private var title: String {
+    /// The tempo and key the project is set to, if any.
+    private var summary: String? {
         let p = model.project
         var parts: [String] = []
         if let bpm = p.bpm { parts.append(String(format: bpm.rounded() == bpm ? "%.0f" : "%.1f", bpm)) }
         if let tonic = p.tonic { parts.append(tonic) }
-        return parts.isEmpty ? "Project" : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 
