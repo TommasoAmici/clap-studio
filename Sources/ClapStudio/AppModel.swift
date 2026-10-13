@@ -110,6 +110,10 @@ final class AppModel {
     var drumTracks: [Int64: Int] = [:]     // sample id -> its (first) drum track number, 1-based; for highlighting
     var dropZones: [DropZone: CGRect] = [:]     // where dropped files are taken, in window coordinates
     var dropHover: DropZone?                    // the place a drag is currently over
+    /// How far a swap or shuffle reaches from the sound it replaces (remembered between launches).
+    var drumVariation = DrumVariation(rawValue: UserDefaults.standard.string(forKey: "drum.variation") ?? "") ?? .medium {
+        didSet { UserDefaults.standard.set(drumVariation.rawValue, forKey: "drum.variation") }
+    }
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumPlaying = false
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples

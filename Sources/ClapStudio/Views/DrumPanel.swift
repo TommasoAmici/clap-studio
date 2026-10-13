@@ -74,6 +74,24 @@ struct DrumPanel: View {
         }
     }
 
+    /// Tries other sounds on every track that is not locked, staying close to what is there.
+    private var shuffleControls: some View {
+        @Bindable var model = model
+        return HStack(spacing: 2) {
+            Button { model.shuffleDrumKit() } label: { Label("Shuffle Kit", systemImage: "dice") }
+                .disabled(!model.canShuffleDrums)
+                .help("Swap every unlocked track for a similar sound from the library. Lock the tracks you want to keep.")
+            Menu {
+                Picker("Variation", selection: $model.drumVariation) {
+                    ForEach(DrumVariation.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.inline).labelsHidden()
+            } label: { EmptyView() }
+                .menuIndicator(.visible).fixedSize()
+                .help("How far a swap may reach from the sound it replaces: \(model.drumVariation.rawValue)")
+        }
+    }
+
     private var header: some View {
         @Bindable var model = model
         return HStack(spacing: 10) {
@@ -84,6 +102,7 @@ struct DrumPanel: View {
             .help(model.drumPlaying ? "Stop the pattern" : "Play the pattern in a loop")
             Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
             grooveMenu
+            shuffleControls
             HStack(spacing: 4) {
                 TextField("BPM", value: $model.project.bpm, format: .number.precision(.fractionLength(0...1)),
                           prompt: Text(String(format: "%.0f", DrumTiming.defaultBPM)))
@@ -167,17 +186,31 @@ private struct DrumTrackRow: View {
                         Text(model.drumSampleName(track)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
-                .frame(width: 130, alignment: .leading)
+                .frame(width: 110, alignment: .leading)
             }
             .buttonStyle(.plain)
             .help(model.sampleByID[track.sampleID] == nil
                   ? "This sample is no longer in the library. Drop another sample here to replace it."
                   : "Preview this sound")
-            HStack(spacing: 2) {
-                Button { model.cycleDrumSample(track: index, by: -1) } label: { Image(systemName: "chevron.left") }
-                Button { model.cycleDrumSample(track: index, by: 1) } label: { Image(systemName: "chevron.right") }
+            if track.alternatives.count > 1 {
+                HStack(spacing: 2) {
+                    Button { model.cycleDrumSample(track: index, by: -1) } label: { Image(systemName: "chevron.left") }
+                    Button { model.cycleDrumSample(track: index, by: 1) } label: { Image(systemName: "chevron.right") }
+                }
+                .buttonStyle(.borderless).help("Try another sound from the kit")
             }
-            .buttonStyle(.borderless).disabled(track.alternatives.count < 2).help("Try another sound from the kit")
+            HStack(spacing: 2) {
+                Button { model.swapDrumSound(track: index) } label: { Image(systemName: "dice") }
+                    .disabled(model.sampleByID[track.sampleID] == nil)
+                    .help("Try a similar sound here")
+                Button { model.undoDrumSwap(track: index) } label: { Image(systemName: "arrow.uturn.backward") }
+                    .disabled(track.history.isEmpty)
+                    .help("Go back to the previous sound")
+                Button { model.toggleDrumLock(track: index) } label: { Image(systemName: track.locked ? "lock.fill" : "lock.open") }
+                    .foregroundStyle(track.locked ? Color.accentColor : Color.secondary)
+                    .help(track.locked ? "Locked: Shuffle Kit leaves this sound alone" : "Lock this sound so Shuffle Kit keeps it")
+            }
+            .buttonStyle(.borderless)
             Button { if let id = model.selectedID { model.replaceDrumSample(track: index, with: id) } } label: {
                 Image(systemName: "arrow.left.arrow.right.square")
             }
@@ -189,7 +222,7 @@ private struct DrumTrackRow: View {
             toggle("S", on: track.solo, color: .yellow, help: "Solo") { model.drumPattern.tracks[index].solo.toggle() }
             Slider(value: Binding(get: { Double(track.volume) },
                                   set: { model.drumPattern.tracks[index].volume = Float($0) }), in: 0...1)
-                .frame(width: 70).controlSize(.mini)
+                .frame(width: 56).controlSize(.mini)
             Button { model.drumPattern.removeTrack(at: index) } label: { Image(systemName: "minus.circle") }
                 .buttonStyle(.borderless).help("Remove this track")
         }
@@ -238,7 +271,7 @@ private struct StepCell: View {
         RoundedRectangle(cornerRadius: 3)
             .fill(on ? Color.accentColor : Color.secondary.opacity(beat ? 0.32 : 0.18))
             .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(playing ? Color.white.opacity(0.9) : .clear, lineWidth: 1.5))
-            .frame(minWidth: 16, maxWidth: 34, minHeight: 22, maxHeight: 22)
+            .frame(minWidth: 13, maxWidth: 34, minHeight: 22, maxHeight: 22)
             .contentShape(Rectangle())
     }
 }

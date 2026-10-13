@@ -11,11 +11,36 @@ public struct DrumTrack: Identifiable, Equatable, Sendable, Codable {
     public var solo: Bool
     /// Other samples that fit this slot (from the kit builder), so the sound can be swapped in place.
     public var alternatives: [Int64]
+    /// A locked track keeps its sound when the kit is shuffled.
+    public var locked: Bool
+    /// The sounds this track had before, most recent last, so a swap can be taken back.
+    public var history: [Int64]
+
+    public static let historyLimit = 20
 
     public init(id: UUID = UUID(), sampleID: Int64, label: String, hits: [Bool] = Array(repeating: false, count: DrumPattern.stepCount),
-                volume: Float = 0.9, muted: Bool = false, solo: Bool = false, alternatives: [Int64] = []) {
+                volume: Float = 0.9, muted: Bool = false, solo: Bool = false, alternatives: [Int64] = [],
+                locked: Bool = false, history: [Int64] = []) {
         self.id = id; self.sampleID = sampleID; self.label = label
         self.hits = hits; self.volume = volume; self.muted = muted; self.solo = solo; self.alternatives = alternatives
+        self.locked = locked; self.history = history
+    }
+
+    // Patterns saved by earlier versions have no lock or history.
+    private enum CodingKeys: String, CodingKey { case id, sampleID, label, hits, volume, muted, solo, alternatives, locked, history }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        sampleID = try c.decode(Int64.self, forKey: .sampleID)
+        label = try c.decode(String.self, forKey: .label)
+        hits = try c.decode([Bool].self, forKey: .hits)
+        volume = try c.decode(Float.self, forKey: .volume)
+        muted = try c.decode(Bool.self, forKey: .muted)
+        solo = try c.decode(Bool.self, forKey: .solo)
+        alternatives = try c.decode([Int64].self, forKey: .alternatives)
+        locked = try c.decodeIfPresent(Bool.self, forKey: .locked) ?? false
+        history = try c.decodeIfPresent([Int64].self, forKey: .history) ?? []
     }
 }
 
@@ -49,6 +74,7 @@ public struct DrumPattern: Equatable, Sendable, Codable {
             var t = track
             t.hits = (0..<Self.stepCount).map { track.hits.indices.contains($0) && track.hits[$0] }
             t.volume = min(max(track.volume.isFinite ? track.volume : 0.9, 0), 1)
+            t.history = Array(track.history.suffix(DrumTrack.historyLimit))
             return t
         }
         copy.swing = min(max(swing.isFinite ? swing : 0, -0.5), 0.5)
@@ -82,10 +108,20 @@ public struct DrumPattern: Equatable, Sendable, Codable {
         return true
     }
 
-    /// Swaps the sound on a track and keeps the rhythm.
+    /// Swaps the sound on a track and keeps the rhythm. The sound it had is remembered for `restorePreviousSample`.
     public mutating func replaceSample(track: Int, with sampleID: Int64) {
-        guard tracks.indices.contains(track) else { return }
+        guard tracks.indices.contains(track), tracks[track].sampleID != sampleID else { return }
+        tracks[track].history.append(tracks[track].sampleID)
+        if tracks[track].history.count > DrumTrack.historyLimit { tracks[track].history.removeFirst(tracks[track].history.count - DrumTrack.historyLimit) }
         tracks[track].sampleID = sampleID
+    }
+
+    /// Goes back to the sound the track had before its last swap. Returns it, or nil when there is none.
+    @discardableResult
+    public mutating func restorePreviousSample(track: Int) -> Int64? {
+        guard tracks.indices.contains(track), let previous = tracks[track].history.popLast() else { return nil }
+        tracks[track].sampleID = previous
+        return previous
     }
 
     public mutating func clearHits() {
