@@ -59,11 +59,12 @@ extension AppModel {
             }
             // Places carried by the files (a phone's or recorder's GPS): found before birds are listened for, since a place changes which birds can be there.
             if store.locationBacklog() > 0, !token.isCancelled {
-                statusMessage = "Reading places from files"
-                await LocationBackfill(store: store).run(onProgress: { done, total in
-                    Task { @MainActor in self.statusMessage = "Reading places from files (\(done)/\(total))" }
+                statusMessage = "Reading places and tags from files"
+                await FileInfoBackfill(store: store).run(onProgress: { done, total in
+                    Task { @MainActor in self.statusMessage = "Reading places and tags from files (\(done)/\(total))" }
                 }, isCancelled: { token.isCancelled })
                 reloadLocations()
+                fileInfoRevision += 1
             }
             if Self.needsClassification(store), !token.isCancelled {
                 statusMessage = "Sorting sounds into categories and moods"

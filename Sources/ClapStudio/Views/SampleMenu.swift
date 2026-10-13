@@ -56,6 +56,10 @@ extension AppModel {
         }
         menu.append(.submenu("Set Mood", moodItems))
         menu.append(.action("Add Tag…") { [unowned self] in tagPromptTargets = ids })
+        menu.append(.action("Tags from File Keywords") { [unowned self] in importFileKeywords(ids) })
+        if samples.contains(where: canWriteTags) {
+            menu.append(.action("Write Tags into Files…") { [unowned self] in tagWriteTargets = ids.filter { sampleByID[$0].map(canWriteTags) == true } })
+        }
         menu.append(.action("Copy To…") { [unowned self] in openExport(ids: ids) })
         menu.append(.divider)
         if samples.allSatisfy(\.hidden) {

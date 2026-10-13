@@ -110,6 +110,7 @@ struct RootView: View {
         }
         .modifier(NewCollectionPrompt())
         .modifier(AddTagPrompt())
+        .modifier(WriteTagsPrompt())
         .alert("Normalize all samples on \(model.normalizeRequest?.name ?? "the drive")?",
                isPresented: Binding(get: { model.normalizeRequest != nil }, set: { if !$0 { model.normalizeRequest = nil } })) {
             Button("Normalize") { if let drive = model.normalizeRequest { model.normalizeUsb(drive) } }

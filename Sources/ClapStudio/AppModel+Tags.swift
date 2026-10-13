@@ -33,7 +33,7 @@ extension AppModel {
         applyTag(tag, to: changed, add: false)
     }
 
-    private func applyTag(_ tag: String, to ids: [Int64], add: Bool) {
+    func applyTag(_ tag: String, to ids: [Int64], add: Bool) {
         guard let store else { return }
         do {
             if add { try store.addTag(tag, to: ids) } else { try store.removeTag(tag, from: ids) }

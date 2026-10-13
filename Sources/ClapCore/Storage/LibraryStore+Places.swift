@@ -2,8 +2,8 @@ import Foundation
 
 /// Where recordings were made: the user's own choice, or what the file says, and a place for the library as a whole.
 extension LibraryStore {
-    /// Bump when the file reader learns to find more, so files are looked at again.
-    public static let locationReaderVersion = 1
+    /// Bump when the file readers (places, descriptive metadata) learn to find more, so files are looked at again.
+    public static let locationReaderVersion = 2
 
     /// Where a recording was made, if known.
     public func location(sampleID: Int64) -> GeoPoint? {

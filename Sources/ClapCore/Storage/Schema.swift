@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 11
+    static let currentVersion = 12
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -17,6 +17,7 @@ enum Schema {
         if version < 9 { try v9(db) }
         if version < 10 { try v10(db) }
         if version < 11 { try v11(db) }
+        if version < 12 { try v12(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -143,6 +144,18 @@ enum Schema {
     /// Whether a file has been looked at for a place it carries (0: not yet). A place the user sets counts as looked at.
     private static func v11(_ db: SQLiteDB) throws {
         try db.exec("ALTER TABLE samples ADD COLUMN location_version INTEGER NOT NULL DEFAULT 0")
+    }
+
+    /// What files say about themselves (titles, descriptions, keywords, UCS names), read from the file, never edited.
+    /// `keywords` are joined with the unit separator.
+    private static func v12(_ db: SQLiteDB) throws {
+        try db.exec("""
+        CREATE TABLE IF NOT EXISTS file_meta(
+            sample_id INTEGER PRIMARY KEY, title TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
+            keywords TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', subcategory TEXT NOT NULL DEFAULT '',
+            ucs_id TEXT NOT NULL DEFAULT '', creator TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '',
+            originator TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '');
+        """)
     }
 
     /// Bird species heard in field recordings. `latitude`/`longitude` are where a recording was made (optional);

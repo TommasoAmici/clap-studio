@@ -79,6 +79,9 @@ final class AppModel {
     var tagFilter: String? { didSet { refilter() } }
     var tagCounts: [(name: String, count: Int)] = []
     var tagPromptTargets: [Int64]?            // non-nil while the "add tag" prompt is open
+    var tagWriteTargets: [Int64]?             // non-nil while the "write tags into files" prompt is open
+    var fileInfoRevision = 0                  // changes when what files say about themselves is read again
+    @ObservationIgnored var fileInfoSearch: (query: String, revision: Int, ids: Set<Int64>)?
     var showExport = false
     @ObservationIgnored var folderWatcher: FolderWatcher?
     @ObservationIgnored var rescanTask: Task<Void, Never>?
@@ -379,7 +382,7 @@ final class AppModel {
             let named = Set(list.filter {
                 $0.name.localizedCaseInsensitiveContains(query) || $0.relPath.localizedCaseInsensitiveContains(query)
                     || $0.tags.contains { $0.localizedCaseInsensitiveContains(query) }
-            }.map(\.id))
+            }.map(\.id)).union(filesMentioning(query))
             if soundSearchActive && soundScoresQuery == query {
                 // One search box: file-name matches first, then sounds that match the description.
                 let order = HybridSearch.rank(ids: list.map(\.id), nameMatches: named, scores: soundScores)

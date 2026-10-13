@@ -34,6 +34,7 @@ struct PropertiesPanel: View {
                 #endif
             }
             TagEditor(sample: sample).padding(.top, 8)
+            FileInfoSection(sample: sample).padding(.top, 8)
         }
         .onAppear(perform: syncText)
         .onChange(of: sample.id) { syncText() }
