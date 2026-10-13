@@ -34,14 +34,13 @@ struct RootView: View {
             // The toolbar's controls are the system's, at their large size, so they follow the system's appearance
             // settings.
             .frame(minWidth: 750)
-            .background(GeometryReader { Color.clear.preference(key: MainWidthKey.self, value: $0.size.width) })
-            .onPreferenceChange(MainWidthKey.self) { mainWidth = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mainWidth = $0 }
             // The title would take room from the controls; the window keeps it for the Window menu.
             .modifier(HideToolbarTitle())
             .toolbar {
                 // The system puts this item at the main column's left, after the sidebar; made as wide as the column,
                 // it keeps the controls there and the search box at the column's right, just before the inspector.
-                ToolbarItem(placement: .navigation) { ToolbarControls().frame(width: max(mainWidth - 24, 0)) }
+                ToolbarItem(placement: .navigation) { ToolbarControls().frame(width: max(mainWidth - 15, 0)) }
                 if #available(macOS 26.0, *) { ToolbarSpacer(.flexible) }
                 ToolbarItem(placement: .primaryAction) { InspectorToggle(isShown: $showInspector) }
             }
@@ -243,7 +242,7 @@ private struct SidebarToggle: View {
     @Binding var columns: NavigationSplitViewVisibility
 
     var body: some View {
-        Button { columns = columns == .detailOnly ? .all : .detailOnly } label: { Image(systemName: "sidebar.leading") }
+        Button { withAnimation { columns = columns == .detailOnly ? .all : .detailOnly } } label: { Image(systemName: "sidebar.leading") }
             .buttonStyle(.bordered)
             .controlSize(.large)
             .help(columns == .detailOnly ? "Show the sidebar" : "Hide the sidebar")
@@ -255,14 +254,9 @@ private struct InspectorToggle: View {
     @Binding var isShown: Bool
 
     var body: some View {
-        Button { isShown.toggle() } label: { Image(systemName: "sidebar.trailing") }
+        Button { withAnimation { isShown.toggle() } } label: { Image(systemName: "sidebar.trailing") }
             .buttonStyle(.bordered)
             .controlSize(.large)
             .help(isShown ? "Hide the inspector" : "Show the inspector")
     }
-}
-
-private struct MainWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 750
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
