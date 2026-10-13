@@ -4,12 +4,16 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @State private var showInspector = true
+    @State private var columns = NavigationSplitViewVisibility.all
+    @State private var mainWidth: CGFloat = 750
 
     var body: some View {
         @Bindable var model = model
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 340)
+                .modifier(HideSidebarToggle())
+                .toolbar { ToolbarItem(placement: .automatic) { SidebarToggle(columns: $columns) } }
         } detail: {
             VStack(spacing: 0) {
                 if let usb = model.usbSelection, model.showingUsb {
@@ -27,25 +31,19 @@ struct RootView: View {
                 DrumPanel()
                 StatusBar()
             }
-            // The controls start at the left of the toolbar, the search box beside the inspector toggle on the right.
-            // They are the system's controls at their large size, so they follow the system's appearance settings.
+            // The toolbar's controls are the system's, at their large size, so they follow the system's appearance
+            // settings.
             .frame(minWidth: 750)
+            .background(GeometryReader { Color.clear.preference(key: MainWidthKey.self, value: $0.size.width) })
+            .onPreferenceChange(MainWidthKey.self) { mainWidth = $0 }
             // The title would take room from the controls; the window keeps it for the Window menu.
             .modifier(HideToolbarTitle())
             .toolbar {
-                // At the leading end of the main content, right after the sidebar.
-                ToolbarItem(placement: .navigation) { ToolbarControls() }
-                // Pushes the search box and the inspector toggle to the trailing end.
-                if #available(macOS 26.0, *) {
-                    ToolbarSpacer(.flexible)
-                } else {
-                    ToolbarItem(placement: .principal) { Spacer() }
-                }
-                ToolbarItem(placement: .primaryAction) { SearchField() }
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
-                        .help(showInspector ? "Hide the inspector" : "Show the inspector")
-                }
+                // The system puts this item at the main column's left, after the sidebar; made as wide as the column,
+                // it keeps the controls there and the search box at the column's right, just before the inspector.
+                ToolbarItem(placement: .navigation) { ToolbarControls().frame(width: max(mainWidth - 24, 0)) }
+                if #available(macOS 26.0, *) { ToolbarSpacer(.flexible) }
+                ToolbarItem(placement: .primaryAction) { InspectorToggle(isShown: $showInspector) }
             }
             .inspector(isPresented: $showInspector) {
                 InspectorView()
@@ -204,7 +202,14 @@ private struct HideToolbarTitle: ViewModifier {
 }
 
 
-/// The view picker and the toggles; the system's controls at their large size.
+private struct HideSidebarToggle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) { content.toolbar(removing: .sidebarToggle) } else { content }
+    }
+}
+
+/// The view picker, the toggles and the search box, filling the main column's toolbar; the system's controls at
+/// their large size.
 private struct ToolbarControls: View {
     @Environment(AppModel.self) private var model
 
@@ -225,8 +230,39 @@ private struct ToolbarControls: View {
                 .help("Show the drum machine")
             Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
                 .help("Play a sample when it is selected")
+            Spacer(minLength: 0)
+            SearchField()
         }
         .toggleStyle(.button)
         .controlSize(.large)
     }
+}
+
+/// Shows or hides the sidebar; drawn like the other toolbar buttons, which the system's own toggle isn't.
+private struct SidebarToggle: View {
+    @Binding var columns: NavigationSplitViewVisibility
+
+    var body: some View {
+        Button { columns = columns == .detailOnly ? .all : .detailOnly } label: { Image(systemName: "sidebar.leading") }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .help(columns == .detailOnly ? "Show the sidebar" : "Hide the sidebar")
+    }
+}
+
+/// Shows or hides the inspector.
+private struct InspectorToggle: View {
+    @Binding var isShown: Bool
+
+    var body: some View {
+        Button { isShown.toggle() } label: { Image(systemName: "sidebar.trailing") }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .help(isShown ? "Hide the inspector" : "Show the inspector")
+    }
+}
+
+private struct MainWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 750
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
