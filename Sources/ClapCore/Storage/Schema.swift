@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 12
+    static let currentVersion = 13
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -18,6 +18,7 @@ enum Schema {
         if version < 10 { try v10(db) }
         if version < 11 { try v11(db) }
         if version < 12 { try v12(db) }
+        if version < 13 { try v13(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
     }
 
@@ -144,6 +145,15 @@ enum Schema {
     /// Whether a file has been looked at for a place it carries (0: not yet). A place the user sets counts as looked at.
     private static func v11(_ db: SQLiteDB) throws {
         try db.exec("ALTER TABLE samples ADD COLUMN location_version INTEGER NOT NULL DEFAULT 0")
+    }
+
+    /// Non-destructive sound edits kept with the trim (see `SampleEdit`): `low_pass` and `high_pass` are NULL when off.
+    private static func v13(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE sample_trims ADD COLUMN reverse INTEGER NOT NULL DEFAULT 0")
+        try db.exec("ALTER TABLE sample_trims ADD COLUMN gain_db REAL NOT NULL DEFAULT 0")
+        try db.exec("ALTER TABLE sample_trims ADD COLUMN speed REAL NOT NULL DEFAULT 0")
+        try db.exec("ALTER TABLE sample_trims ADD COLUMN low_pass REAL")
+        try db.exec("ALTER TABLE sample_trims ADD COLUMN high_pass REAL")
     }
 
     /// What files say about themselves (titles, descriptions, keywords, UCS names), read from the file, never edited.

@@ -38,7 +38,7 @@ public enum TrimExporter {
         var buffer = try TrimRender.read(url: source, start: trim?.start ?? 0, end: trim?.end,
                                          fadeIn: fades ? SampleTrim.declick : 0,
                                          fadeOut: trim?.effectiveFadeOut ?? (fades ? SampleTrim.declick : 0),
-                                         maxSeconds: maxSeconds)
+                                         edit: trim?.edit, maxSeconds: maxSeconds)
 
         let channels = format.mono ? 1 : native.channelCount
         let rate = format.sampleRate ?? native.sampleRate

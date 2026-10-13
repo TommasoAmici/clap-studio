@@ -15,6 +15,7 @@ struct InspectorView: View {
                     WaveformCueView()
                     transport(sample)
                     TrimPanel(sample: sample)
+                    EditPanel(sample: sample)
                     PropertiesPanel(sample: sample)
                     CuePanel()
                     SimilarList()

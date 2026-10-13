@@ -17,7 +17,7 @@ struct ExportSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Copy \(model.samplesPhrase(samples.count))").font(.title3.bold())
             Text("The originals are not changed. Existing files in the destination are never overwritten."
-                 + (trimmed > 0 ? " \(trimmed == 1 ? "1 sample is" : "\(trimmed) samples are") trimmed, so only the trimmed part is written, as a WAV file." : ""))
+                 + (trimmed > 0 ? " \(trimmed == 1 ? "1 sample is" : "\(trimmed) samples are") trimmed or edited, so they are written as they sound here, as WAV files." : ""))
                 .font(.caption).foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 6) {

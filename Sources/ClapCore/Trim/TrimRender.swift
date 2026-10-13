@@ -32,9 +32,10 @@ public enum AudioConvert {
 /// Reads a part of an audio file straight from disk, so very long files are not decoded whole.
 public enum TrimRender {
     /// Reads `start`..<`end` (seconds; to the end of the file when nil), with linear fades at the edges,
-    /// optionally converted to `format`. `maxSeconds` limits how much is read.
+    /// optionally converted to `format`. `maxSeconds` limits how much is read. An `edit` is applied before the fades,
+    /// so a reversed sound still fades in at its new start.
     public static func read(url: URL, start: Double = 0, end: Double? = nil, fadeIn: Double = 0, fadeOut: Double = 0,
-                            convertTo format: AVAudioFormat? = nil, maxSeconds: Double? = nil) throws -> AVAudioPCMBuffer {
+                            edit: SampleEdit? = nil, convertTo format: AVAudioFormat? = nil, maxSeconds: Double? = nil) throws -> AVAudioPCMBuffer {
         let file = try AVAudioFile(forReading: url)
         let native = file.processingFormat
         let rate = native.sampleRate
@@ -43,11 +44,12 @@ public enum TrimRender {
         var last = end.map { min(max(first, Int64($0 * rate)), total) } ?? total
         if let maxSeconds { last = min(last, first + Int64(maxSeconds * rate)) }
         let frames = last - first
-        guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: native, frameCapacity: AVAudioFrameCount(frames)) else {
+        guard frames > 0, var buffer = AVAudioPCMBuffer(pcmFormat: native, frameCapacity: AVAudioFrameCount(frames)) else {
             throw AudioDecodeError.empty
         }
         file.framePosition = first
         try file.read(into: buffer, frameCount: AVAudioFrameCount(frames))
+        if let edit, !edit.isNeutral { buffer = EditRender.apply(buffer, edit: edit) }
         applyFades(to: buffer, fadeIn: fadeIn, fadeOut: fadeOut)
         guard let format else { return buffer }
         return try AudioConvert.convert(buffer, to: format)

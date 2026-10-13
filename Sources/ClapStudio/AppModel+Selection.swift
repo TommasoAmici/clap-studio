@@ -115,6 +115,11 @@ extension AppModel {
             playRegion(of: sample, start: trim.start, end: trim.end, fadeOut: trim.effectiveFadeOut)
             return
         }
+        // An edited sound is always heard edited, from wherever it is started.
+        if !fullFile, let trim = activeTrim(for: sample), !trim.edit.isNeutral {
+            playRegion(of: sample, start: seconds, end: nil)
+            return
+        }
         if seconds >= AudioBufferCache.maxSeconds - 1 {
             playRegion(of: sample, start: seconds, end: nil)
             return

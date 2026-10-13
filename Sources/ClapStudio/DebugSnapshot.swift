@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import ClapCore
 
 /// Development aid: renders the app's window (title bar and toolbar included) to a PNG without needing screen
 /// capture permission or the window to be on the current Space. Run it with `scripts/snapshot.sh`.
@@ -9,6 +10,7 @@ import AppKit
 ///   CLAP_SNAPSHOT_DELAY=9          seconds to wait for the library to load (default 9)
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
+///   CLAP_SNAPSHOT_EDIT=1           with SELECT: give the selected sample a sample edit (changes the library: use a copy)
 ///   CLAP_PERF=cat.Kick,cat.Snare   switch the sidebar through these tags and log how long the main thread is busy each time
 ///                                  (to CLAP_PERF_OUT, default /tmp/clap-perf.txt); CLAP_PERF_DELAY waits for loading
 ///   CLAP_PERF_MAP=1                with CLAP_PERF: do it on the Map tab
@@ -36,6 +38,7 @@ enum DebugSnapshot {
             if env["CLAP_SNAPSHOT_LOG"] == "1" { NSLog("SNAPSHOT-ORDER %@", model.visible.prefix(8).map(\.name).joined(separator: ", ")) }
         }
         if env["CLAP_SNAPSHOT_SELECT"] == "1" { model.select(model.visible.first?.id, play: false) }
+        if env["CLAP_SNAPSHOT_EDIT"] == "1" { model.setEdit(SampleEdit(reverse: true, gainDB: -3, lowPassHz: 4000), audition: false) }
         if let usb = env["CLAP_SNAPSHOT_USB"], let drive = model.usbDrives.first {
             // "NAME" is a set ("default" for the first one), "NAME/2" is that set's bank 2.
             let parts = usb.split(separator: "/", maxSplits: 1).map(String.init)

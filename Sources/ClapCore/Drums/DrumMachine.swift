@@ -76,7 +76,7 @@ public final class DrumMachine: @unchecked Sendable {
         let buffer: AVAudioPCMBuffer?
         if let trim = source.trim {
             buffer = try? TrimRender.read(url: source.url, start: trim.start, end: trim.end, fadeIn: SampleTrim.declick,
-                                          fadeOut: trim.effectiveFadeOut, convertTo: cache.format, maxSeconds: 60)
+                                          fadeOut: trim.effectiveFadeOut, edit: trim.edit, convertTo: cache.format, maxSeconds: 60)
         } else {
             buffer = try? cache.buffer(for: source.url)
         }

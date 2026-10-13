@@ -4,6 +4,7 @@
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
+#     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
 #     --like NAME [--words "dark, no reverb"]  show sounds like the first sample named NAME, adjusted by the words
 #     --places  show the Places tab
 #     --drums  open the drum machine with three samples
@@ -21,6 +22,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
+    --edit) export CLAP_SNAPSHOT_EDIT=1 ;;
     --usb) shift; export CLAP_SNAPSHOT_USB="$1" ;;
     --like) shift; export CLAP_SNAPSHOT_LIKE="$1" ;;
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;

@@ -220,7 +220,8 @@ extension AppModel {
 
     func drumSampleName(_ track: DrumTrack) -> String {
         guard let sample = sampleByID[track.sampleID] else { return "Missing sample" }
-        return activeTrim(for: sample) == nil ? sample.name : sample.name + " · trimmed"
+        guard let trim = activeTrim(for: sample) else { return sample.name }
+        return sample.name + (trim.coversWholeFile(duration: sample.duration) ? " · edited" : " · trimmed")
     }
 
     // MARK: dropping files on the window

@@ -10,10 +10,17 @@ extension AppModel {
         trims[sample.id]?.clamped(toDuration: sample.duration)
     }
 
-    var selectedTrim: SampleTrim? { selectedSample.flatMap(activeTrim(for:)) }
+    /// What the sample cuts out of its file (nil when it only has edits, or nothing at all).
+    var selectedTrim: SampleTrim? {
+        guard let sample = selectedSample, let trim = activeTrim(for: sample), !trim.coversWholeFile(duration: sample.duration) else { return nil }
+        return trim
+    }
 
     /// Saves a trim for a sample (nil removes it) and makes it undoable.
     func setTrim(_ trim: SampleTrim?, for id: Int64, actionName: String = "Trim") {
+        // A trim that cuts nothing and changes nothing is no trim.
+        var trim = trim
+        if let t = trim, t.edit.isNeutral, let sample = sampleByID[id], t.coversWholeFile(duration: sample.duration) { trim = nil }
         guard trims[id] != trim else { return }
         let before = trims[id]
         apply(trim, for: id)
@@ -32,7 +39,7 @@ extension AppModel {
         guard let sample = selectedSample, sample.duration > 0 else { return }
         let current = selectedTrim ?? SampleTrim(start: 0, end: sample.duration)
         let start = min(max(0, seconds), current.end - SampleTrim.minimumLength)
-        setTrim(SampleTrim(start: start, end: current.end, fadeOut: current.fadeOut), for: sample.id)
+        setTrim(SampleTrim(start: start, end: current.end, fadeOut: current.fadeOut, edit: selectedEdit), for: sample.id)
     }
 
     /// Moves the end of the selected sample's trim (creating one that starts at the beginning if needed).
@@ -40,17 +47,19 @@ extension AppModel {
         guard let sample = selectedSample, sample.duration > 0 else { return }
         let current = selectedTrim ?? SampleTrim(start: 0, end: sample.duration)
         let end = max(min(sample.duration, seconds), current.start + SampleTrim.minimumLength)
-        setTrim(SampleTrim(start: current.start, end: end, fadeOut: current.fadeOut), for: sample.id)
+        setTrim(SampleTrim(start: current.start, end: end, fadeOut: current.fadeOut, edit: selectedEdit), for: sample.id)
     }
 
     func setTrimFadeOut(_ seconds: Double) {
         guard let sample = selectedSample, let current = selectedTrim else { return }
-        setTrim(SampleTrim(start: current.start, end: current.end, fadeOut: seconds), for: sample.id)
+        setTrim(SampleTrim(start: current.start, end: current.end, fadeOut: seconds, edit: selectedEdit), for: sample.id)
     }
 
+    /// Takes the cut away; the sound edits stay.
     func clearTrim() {
-        guard let id = selectedID else { return }
-        setTrim(nil, for: id, actionName: "Remove Trim")
+        guard let sample = selectedSample else { return }
+        let edit = selectedEdit
+        setTrim(edit.isNeutral ? nil : SampleTrim(start: 0, end: sample.duration, edit: edit), for: sample.id, actionName: "Remove Trim")
     }
 
     /// Where the user is pointing: the spot they clicked on the waveform, or else the playhead.
@@ -71,7 +80,8 @@ extension AppModel {
             return
         }
         let fit = adjustment(for: sample)
-        player.playRegion(sampleID: sample.id, url: sample.url, start: start, end: end, fadeOut: fadeOut, rate: fit.rate,
+        player.playRegion(sampleID: sample.id, url: sample.url, start: start, end: end, fadeOut: fadeOut,
+                          edit: activeTrim(for: sample)?.edit, rate: fit.rate,
                           pitchCents: Float(fit.semitones * 100), gainDB: previewGain(for: sample)) { [weak self] error in
             if let error { Task { @MainActor in self?.errorMessage = "Cannot play \(sample.name): \(error.localizedDescription)" } }
         }
