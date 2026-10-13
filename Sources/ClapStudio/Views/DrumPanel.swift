@@ -192,13 +192,14 @@ private struct DrumTrackRow: View {
             .help(model.sampleByID[track.sampleID] == nil
                   ? "This sample is no longer in the library. Drop another sample here to replace it."
                   : "Preview this sound")
-            if track.alternatives.count > 1 {
-                HStack(spacing: 2) {
-                    Button { model.cycleDrumSample(track: index, by: -1) } label: { Image(systemName: "chevron.left") }
-                    Button { model.cycleDrumSample(track: index, by: 1) } label: { Image(systemName: "chevron.right") }
-                }
-                .buttonStyle(.borderless).help("Try another sound from the kit")
+            // Always laid out, so the steps line up on every row; hidden when the kit offers no other sound.
+            let hasAlternatives = track.alternatives.count > 1
+            HStack(spacing: 2) {
+                Button { model.cycleDrumSample(track: index, by: -1) } label: { Image(systemName: "chevron.left") }
+                Button { model.cycleDrumSample(track: index, by: 1) } label: { Image(systemName: "chevron.right") }
             }
+            .buttonStyle(.borderless).help("Try another sound from the kit")
+            .opacity(hasAlternatives ? 1 : 0).disabled(!hasAlternatives).accessibilityHidden(!hasAlternatives)
             HStack(spacing: 2) {
                 Button { model.swapDrumSound(track: index) } label: { Image(systemName: "dice") }
                     .disabled(model.sampleByID[track.sampleID] == nil)
