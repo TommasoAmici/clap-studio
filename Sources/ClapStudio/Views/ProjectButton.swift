@@ -7,10 +7,10 @@ struct ProjectButton: View {
     @State private var open = false
 
     var body: some View {
-        ToolbarIconButton(action: { open.toggle() }) {
+        Button { open.toggle() } label: {
             HStack(spacing: 5) {
                 Image(systemName: "metronome")
-                if let summary { Text(summary).font(.system(size: 12)).monospacedDigit() }
+                if let summary { Text(summary).monospacedDigit() }
             }
         }
         .help("Project tempo and key")

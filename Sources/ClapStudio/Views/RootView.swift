@@ -28,34 +28,23 @@ struct RootView: View {
                 StatusBar()
             }
             // The controls sit at the right end of the toolbar, the search box beside the inspector toggle. They
-            // are drawn at one height (`ToolbarMetrics`).
+            // are the system's controls at their large size, so they follow the system's appearance settings.
             .frame(minWidth: 750)
             // The title would take room from the controls; the window keeps it for the Window menu.
             .modifier(HideToolbarTitle())
             .toolbar {
                 // Attached to the main content, before the inspector, so they stay above it and never slide under
                 // the inspector column; the stretch pushes them to its right end.
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 8) {
-                        Spacer(minLength: 0)
-                        // Nothing is highlighted while a stick is showing; either choice leaves it.
-                        ToolbarSegments(choices: ViewMode.allCases.map { ($0.rawValue, $0) },
-                                        selection: model.showingUsb ? nil : model.viewMode) { model.show($0) }
-                        ProjectButton()
-                        ToolbarIconButton(isOn: model.project.matchLoudness, action: { model.project.matchLoudness.toggle() }) {
-                            Image(systemName: "dial.medium")
-                        }
-                        .help("Match preview loudness, so quiet and loud samples can be compared")
-                        ToolbarIconButton(isOn: model.showDrums, action: { model.showDrums.toggle() }) { Image(systemName: "square.grid.4x3.fill") }
-                            .help("Show the drum machine")
-                        ToolbarIconButton(isOn: model.autoplay, action: { model.autoplay.toggle() }) { Image(systemName: "speaker.wave.2") }
-                            .help("Play a sample when it is selected")
-                    }
-                    .frame(maxWidth: .infinity)
+                // The stretching item would otherwise sit on one wide glass plate (macOS 26), leaving empty space
+                // left of the controls.
+                if #available(macOS 26.0, *) {
+                    ToolbarItem(placement: .principal) { ToolbarControls() }.sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .principal) { ToolbarControls() }
                 }
                 ToolbarItem(placement: .primaryAction) { SearchField() }
                 ToolbarItem(placement: .primaryAction) {
-                    ToolbarIconButton(action: { showInspector.toggle() }) { Image(systemName: "sidebar.trailing") }
+                    Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
                         .help(showInspector ? "Hide the inspector" : "Show the inspector")
                 }
             }
@@ -212,5 +201,35 @@ struct StatusBar: View {
 private struct HideToolbarTitle: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 15.0, *) { content.toolbar(removing: .title) } else { content }
+    }
+}
+
+
+/// The view picker and the toggles at the right end of the toolbar; the system's controls at their large size.
+private struct ToolbarControls: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        HStack(spacing: 8) {
+            Spacer(minLength: 0)
+            // Nothing is highlighted while a stick is showing; either choice leaves it.
+            Picker("View", selection: Binding<ViewMode?>(get: { model.showingUsb ? nil : model.viewMode },
+                                                         set: { if let mode = $0 { model.show(mode) } })) {
+                ForEach(ViewMode.allCases) { Text($0.rawValue).tag(Optional($0)) }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 210)
+            ProjectButton()
+            Toggle(isOn: $model.project.matchLoudness) { Image(systemName: "dial.medium") }
+                .help("Match preview loudness, so quiet and loud samples can be compared")
+            Toggle(isOn: $model.showDrums) { Image(systemName: "square.grid.4x3.fill") }
+                .help("Show the drum machine")
+            Toggle(isOn: $model.autoplay) { Image(systemName: "speaker.wave.2") }
+                .help("Play a sample when it is selected")
+        }
+        .toggleStyle(.button)
+        .controlSize(.large)
+        .frame(maxWidth: .infinity)
     }
 }

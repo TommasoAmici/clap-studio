@@ -4,6 +4,7 @@ import SwiftUI
 struct SearchField: View {
     @Environment(AppModel.self) private var model
     @FocusState private var focused: Bool
+    private static let height: CGFloat = 28   // as tall as the large toolbar controls
 
     var body: some View {
         @Bindable var model = model
@@ -21,8 +22,8 @@ struct SearchField: View {
         }
         .padding(.horizontal, 8)
         .frame(minWidth: 120, idealWidth: 160, maxWidth: 240)
-        .frame(height: ToolbarMetrics.height)
-        .background(ToolbarMetrics.fill, in: RoundedRectangle(cornerRadius: ToolbarMetrics.corner))
+        .frame(height: Self.height)
+        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
         .onChange(of: model.searchFocusRequests) { focused = true }
     }
 }
