@@ -20,6 +20,8 @@ struct ClapStudioApp: App {
                 .task { if model.store == nil { model.bootstrap() } }
         }
         .commands {
+            SidebarCommands()
+            InspectorCommands()
             CommandGroup(after: .undoRedo) {
                 Button(model.undoName.map { "Undo \($0)" } ?? "Undo Library Change") { model.undoLibraryEdit() }
                     .keyboardShortcut("z", modifiers: [.command, .option]).disabled(model.undoName == nil)
@@ -27,7 +29,9 @@ struct ClapStudioApp: App {
                     .keyboardShortcut("z", modifiers: [.command, .option, .shift]).disabled(model.redoName == nil)
             }
             CommandGroup(after: .textEditing) {
-                Button("Find…") { if !SearchFocus.focus() { model.searchFocusRequests += 1 } }
+                Button("Find…") {
+                    if #available(macOS 15.0, *) { model.searchFocusRequests += 1 } else { SearchFocus.focus() }
+                }
                     .keyboardShortcut("f")
             }
             CommandGroup(replacing: .newItem) {

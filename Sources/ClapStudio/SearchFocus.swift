@@ -1,7 +1,7 @@
 import AppKit
 
-/// Moves keyboard focus to the search field in the window's toolbar (Cmd+F). SwiftUI's own focus state does not
-/// reliably reach a text field in the toolbar, so the field is found among the window's views.
+/// Moves keyboard focus to the search field in the window's toolbar (Cmd+F) on macOS 14, which has no
+/// `searchFocused`: the field is found among the window's views.
 @MainActor
 enum SearchFocus {
     static let placeholderPrefix = "Search by name"
