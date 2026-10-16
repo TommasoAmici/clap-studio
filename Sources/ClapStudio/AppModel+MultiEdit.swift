@@ -3,10 +3,10 @@ import Foundation
 
 /// Editing several samples at once from the inspector.
 extension AppModel {
-    /// The samples highlighted in the list, in list order. Empty unless more than one is highlighted in the library.
+    /// The samples highlighted in the list. Empty unless more than one is highlighted in the library.
     var multiSelection: [SampleRecord] {
         guard viewMode == .library, tableSelection.count > 1 else { return [] }
-        return visible.filter { tableSelection.contains($0.id) }
+        return tableSelection.compactMap { sampleByID[$0] }.sorted { $0.id < $1.id }
     }
 
     /// Sets (or with nil clears) the tempo of several loops at once, as one undoable change.
@@ -21,6 +21,22 @@ extension AppModel {
                            undo: { [unowned self] in applyBPMs(changed) },
                            redo: { [unowned self] in applyBPMs(after) }))
         applyBPMs(after)
+    }
+
+    /// The sound edit a sample has (neutral when none).
+    func edit(for sample: SampleRecord) -> SampleEdit { activeTrim(for: sample)?.edit ?? SampleEdit() }
+
+    /// Changes one or more parts of the sound edit of several samples at once, as one undoable change. Each keeps
+    /// its own trim and the parts of its edit that `change` leaves alone.
+    func changeEdits(_ ids: [Int64], _ change: (inout SampleEdit) -> Void) {
+        let updates = ids.compactMap { id -> (id: Int64, trim: SampleTrim?)? in
+            guard let sample = sampleByID[id], sample.duration > 0 else { return nil }
+            let current = activeTrim(for: sample) ?? SampleTrim(start: 0, end: sample.duration)
+            var edit = current.edit
+            change(&edit)
+            return (id, SampleTrim(start: current.start, end: current.end, fadeOut: current.fadeOut, edit: edit.clamped()))
+        }
+        setTrims(updates, actionName: "Edit Sound for \(samplesPhrase(updates.count))")
     }
 
     private func applyBPMs(_ values: [(id: Int64, bpm: Double?)]) {

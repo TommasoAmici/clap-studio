@@ -18,14 +18,29 @@ extension AppModel {
 
     /// Saves a trim for a sample (nil removes it) and makes it undoable.
     func setTrim(_ trim: SampleTrim?, for id: Int64, actionName: String = "Trim") {
-        // A trim that cuts nothing and changes nothing is no trim.
-        var trim = trim
-        if let t = trim, t.edit.isNeutral, let sample = sampleByID[id], t.coversWholeFile(duration: sample.duration) { trim = nil }
+        let trim = normalised(trim, for: id)
         guard trims[id] != trim else { return }
         let before = trims[id]
         apply(trim, for: id)
         record(LibraryEdit(name: actionName, undo: { [weak self] in self?.apply(before, for: id) },
                            redo: { [weak self] in self?.apply(trim, for: id) }))
+    }
+
+    /// Saves trims for several samples as one undoable change.
+    func setTrims(_ changes: [(id: Int64, trim: SampleTrim?)], actionName: String) {
+        let after = changes.map { (id: $0.id, trim: normalised($0.trim, for: $0.id)) }.filter { trims[$0.id] != $0.trim }
+        guard !after.isEmpty else { return }
+        let before = after.map { (id: $0.id, trim: trims[$0.id]) }
+        for change in after { apply(change.trim, for: change.id) }
+        record(LibraryEdit(name: actionName,
+                           undo: { [weak self] in for change in before { self?.apply(change.trim, for: change.id) } },
+                           redo: { [weak self] in for change in after { self?.apply(change.trim, for: change.id) } }))
+    }
+
+    /// A trim that cuts nothing and changes nothing is no trim.
+    private func normalised(_ trim: SampleTrim?, for id: Int64) -> SampleTrim? {
+        if let t = trim, t.edit.isNeutral, let sample = sampleByID[id], t.coversWholeFile(duration: sample.duration) { return nil }
+        return trim
     }
 
     private func apply(_ trim: SampleTrim?, for id: Int64) {
