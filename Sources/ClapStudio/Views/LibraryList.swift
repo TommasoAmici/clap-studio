@@ -41,9 +41,44 @@ final class LibraryNSTableView: NSTableView {
     var onKey: ((NSEvent) -> Bool)?
     var onReclick: ((Int) -> Void)?
 
+    /// Where a shift-arrow selection started (`anchorRow`) and the end that moves (`cursorRow`), as in Finder.
+    private var anchorRow = -1
+    private var cursorRow = -1
+
     override func keyDown(with event: NSEvent) {
         if onKey?(event) == true { return }
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if modifiers == .shift, event.keyCode == 125 || event.keyCode == 126 {
+            extendSelection(by: event.keyCode == 125 ? 1 : -1)
+            return
+        }
         super.keyDown(with: event)
+    }
+
+    /// The row the last shift-arrow moved to, or the table's own idea of the last selected row.
+    var keyboardRow: Int { trackedRange == nil ? selectedRow : cursorRow }
+
+    /// The rows between anchor and cursor, as long as they are what is selected.
+    private var trackedRange: IndexSet? {
+        guard anchorRow >= 0, cursorRow >= 0 else { return nil }
+        let range = IndexSet(integersIn: min(anchorRow, cursorRow)...max(anchorRow, cursorRow))
+        return range == selectedRowIndexes ? range : nil
+    }
+
+    /// Shift-up and shift-down: the selection always runs from the anchor to the cursor, so going back the
+    /// other way shrinks it. AppKit's own handling loses the anchor when the selection is set from the model.
+    private func extendSelection(by step: Int) {
+        guard numberOfRows > 0, let first = selectedRowIndexes.first, let last = selectedRowIndexes.last else { return }
+        if trackedRange == nil {
+            let contiguous = selectedRowIndexes.count == last - first + 1
+            let current = selectedRowIndexes.contains(selectedRow) ? selectedRow : last
+            cursorRow = current
+            anchorRow = contiguous && current == first ? last : contiguous && current == last ? first : current
+        }
+        cursorRow = min(max(cursorRow + step, 0), numberOfRows - 1)
+        selectRowIndexes(IndexSet(integersIn: min(anchorRow, cursorRow)...max(anchorRow, cursorRow)),
+                         byExtendingSelection: false)
+        scrollRowToVisible(cursorRow)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -54,6 +89,7 @@ final class LibraryNSTableView: NSTableView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        anchorRow = -1; cursorRow = -1          // a click starts a new selection
         let start = convert(event.locationInWindow, from: nil)
         let row = row(at: start)
         let plain = event.modifierFlags.intersection([.command, .shift, .control, .option]).isEmpty
@@ -207,7 +243,7 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
         if let event = NSApp.currentEvent {
             switch event.type {
             case .leftMouseDown: row = table.row(at: table.convert(event.locationInWindow, from: nil))
-            case .keyDown: row = table.selectedRow
+            case .keyDown: row = (table as? LibraryNSTableView)?.keyboardRow ?? table.selectedRow
             default: return nil
             }
         }
