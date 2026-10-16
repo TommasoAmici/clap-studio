@@ -46,4 +46,14 @@ extension LibraryStore {
     public func setManualBPM(sampleID: Int64, _ bpm: Double?) throws {
         try db.run("UPDATE samples SET bpm_manual = ? WHERE id = ?", [bpm.map { .double($0) } ?? .null, .int(sampleID)])
     }
+
+    /// Several samples at once, each with its own value (nil goes back to the detected tempo).
+    public func setManualBPMs(_ values: [(id: Int64, bpm: Double?)]) throws {
+        try db.transaction {
+            for value in values {
+                try db.run("UPDATE samples SET bpm_manual = ? WHERE id = ?",
+                           [value.bpm.map { .double($0) } ?? .null, .int(value.id)])
+            }
+        }
+    }
 }
