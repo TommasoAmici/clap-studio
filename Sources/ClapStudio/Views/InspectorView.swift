@@ -8,7 +8,10 @@ struct InspectorView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if let sample = model.selectedSample {
+        let multi = model.multiSelection
+        if multi.count > 1 {
+            ScrollView { MultiSelectionInspector(samples: multi).padding(14) }
+        } else if let sample = model.selectedSample {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header(sample)
