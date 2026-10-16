@@ -8,6 +8,7 @@ struct MultiSelectionInspector: View {
     let samples: [SampleRecord]
     @State private var bpmText = ""
     @State private var newTag = ""
+    @State private var choosingPlace = false
 
     private var ids: [Int64] { samples.map(\.id) }
     private var loops: [SampleRecord] { samples.filter { $0.isLoop == true } }
@@ -28,7 +29,10 @@ struct MultiSelectionInspector: View {
                 }
                 .font(.caption)
             }
+            MultiEditPanel(samples: samples)
+            if !fieldRecordings.isEmpty { locationSection }
             tags
+            fileActions
         }
         .onAppear(perform: syncText)
         .onChange(of: tempoKey) { syncText() }
@@ -164,6 +168,51 @@ struct MultiSelectionInspector: View {
             model.setBPM(loops.map(\.id), value)
         }
         syncText()
+    }
+
+    // MARK: place
+
+    private var fieldRecordings: [SampleRecord] { samples.filter(\.isFieldRecording) }
+
+    /// Where the field recordings were made: the place they share, or Mixed.
+    private var locationSection: some View {
+        let places = Set(fieldRecordings.map { model.recordingLocation($0.id) })
+        let place: GeoPoint?? = places.count == 1 ? .some(places.first!) : nil
+        let targets = fieldRecordings.map(\.id)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Recorded at").font(.subheadline.bold())
+            HStack(spacing: 6) {
+                Button(place.map { $0?.text ?? "Choose on Map…" } ?? Self.mixed) { choosingPlace = true }
+                    .buttonStyle(.borderless).monospacedDigit()
+                    .popover(isPresented: $choosingPlace) {
+                        LocationPicker(initial: place.flatMap { $0 } ?? model.defaultLocation) { model.setLocation($0, for: targets) }
+                    }
+                if place.map({ $0 != nil }) ?? true {      // not when none of them has a place of its own
+                    Button { model.setLocation(nil, for: targets) } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.borderless).help("Use the library's place instead")
+                }
+            }
+            if fieldRecordings.count != samples.count {
+                Text("Applies to the \(fieldRecordings.count) field recording\(fieldRecordings.count == 1 ? "" : "s") only")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
+        }
+        .font(.caption)
+    }
+
+    // MARK: files
+
+    private var fileActions: some View {
+        let writable = samples.filter(model.canWriteTags)
+        return VStack(alignment: .leading, spacing: 6) {
+            Button("Use Keywords as Tags") { model.importFileKeywords(ids) }
+                .help("Make the keywords found in these files tags")
+            if !writable.isEmpty {
+                Button("Write Tags into Files…") { model.tagWriteTargets = writable.map(\.id) }
+                    .help("Put their category, tags and moods into the WAV files, where other software can read them")
+            }
+        }
+        .controlSize(.small)
     }
 
     // MARK: tags
