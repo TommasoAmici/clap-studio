@@ -18,6 +18,7 @@ struct KitSheet: View {
             if model.kitSlots.isEmpty {
                 ContentUnavailableView("No kit to suggest", systemImage: "square.grid.3x3",
                                        description: Text("Categories are needed to find matching sounds. They appear once indexing finishes."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(model.kitSlots) { slot in row(slot) }
             }
