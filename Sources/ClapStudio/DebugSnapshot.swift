@@ -18,6 +18,7 @@ import ClapCore
 ///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive; NAME/2 shows its bank 2;
 ///                                  "pool" shows the Pool and "pool/Breaks/707" one of its folders
 ///   CLAP_SNAPSHOT_CLOSE=Breaks/707 with USB: fold that Pool folder shut
+///   CLAP_SNAPSHOT_SEND=Breaks   with USB: open the Send sheet for that Pool folder ("-" for the Pool itself)
 ///   CLAP_SNAPSHOT_DRUMS=1          open the drum machine with the first three samples
 ///   CLAP_SNAPSHOT_LIKE=name        show sounds like the first sample whose name contains this; CLAP_SNAPSHOT_WORDS adds words ("dark, no reverb")
 ///   CLAP_SNAPSHOT_PLACES=1         show the Places tab
@@ -52,6 +53,11 @@ enum DebugSnapshot {
             model.selectSidebar(UsbSelection(drive: drive.id, area: area).tag)
             // "Breaks/707" folds that Pool folder shut.
             if let closed = env["CLAP_SNAPSHOT_CLOSE"] { model.togglePoolFolder(drive: drive.id, path: closed.split(separator: "/").map(String.init)) }
+            // Opens the Send sheet for the Pool folder NAME ("-" for the Pool itself) with the first two samples shown.
+            if let send = env["CLAP_SNAPSHOT_SEND"] {
+                try? await Task.sleep(for: .seconds(1))
+                model.openSquidExport(ids: Array(model.visible.prefix(2).map(\.id)), drive: drive.id, pool: true, poolFolder: send == "-" ? "" : send)
+            }
             if env["CLAP_SNAPSHOT_RENAME"] == "1", let bank = model.usbContents[drive.id]?.set(named: set)?.banks.first {
                 model.renamingUsb = .bank(drive: drive.id, set: set, number: bank.number)
             }
@@ -97,7 +103,8 @@ enum DebugSnapshot {
 
     /// The frame view holds the toolbar as well as the content.
     private static func windowImage() -> Data? {
-        guard let window = NSApp.windows.first(where: \.isVisible), let view = window.contentView?.superview,
+        // A sheet is a window of its own: when one is open, it is what gets drawn.
+        guard let main = NSApp.windows.first(where: \.isVisible), let window = Optional(main.attachedSheet ?? main), let view = window.contentView?.superview,
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
         view.cacheDisplay(in: view.bounds, to: rep)
         return rep.representation(using: .png, properties: [:])

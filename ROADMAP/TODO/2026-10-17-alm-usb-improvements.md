@@ -2,5 +2,5 @@
 - [x] I want to be able to see folders inside the Pool
   - [x] they should be visible and expandable/collapsible in the left sidebar
   - [x] they should be visible and expandable/collapsible in the main window area
-- [ ] when sending samples to Squid, there should be a dropdown listing the existing folders in the Pool
-  - [ ] I should still be able to create a new one by typing its name
+- [x] when sending samples to Squid, there should be a dropdown listing the existing folders in the Pool
+  - [x] I should still be able to create a new one by typing its name

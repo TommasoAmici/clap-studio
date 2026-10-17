@@ -63,3 +63,35 @@ extension SquidStick {
             }
     }
 }
+
+extension SquidLayout {
+    /// The folders a typed Pool folder name stands for ("Breaks/707"): each part made safe for a FAT32 stick, with empty parts
+    /// dropped. Nothing typed can lead out of the Pool ("..", for one, loses its dots).
+    public static func poolPath(from typed: String) -> [String] {
+        typed.split(separator: "/").map { cleanFileStem(String($0), fallback: "") }.filter { !$0.isEmpty }
+    }
+}
+
+extension SquidStick {
+    /// Where a typed Pool folder is, and the names of its folders as they are (or will be) on the stick. A folder that is already
+    /// there is matched without regard to case and kept exactly, so a name the app would clean ("Café") still finds its folder;
+    /// one that is not there yet gets the cleaned name.
+    static func poolFolder(typed: String, volume: URL, fileManager fm: FileManager) -> (url: URL, names: [String]) {
+        // Built from the volume's own path (not from the URLs a directory listing returns), so it reads back the same.
+        let poolName = poolURL(volume: volume, fileManager: fm)?.lastPathComponent ?? SquidLayout.poolFolder
+        var folder = rootURL(volume: volume).appendingPathComponent(poolName, isDirectory: true)
+        var names = [poolName]
+        for part in typed.split(separator: "/").map({ $0.trimmingCharacters(in: .whitespaces) }) where !part.isEmpty {
+            let children = (try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+            if let existing = children.first(where: { $0.lastPathComponent.caseInsensitiveCompare(part) == .orderedSame
+                && (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) {
+                folder = folder.appendingPathComponent(existing.lastPathComponent, isDirectory: true)
+                names.append(existing.lastPathComponent)
+            } else if let cleaned = SquidLayout.poolPath(from: part).first {
+                folder = folder.appendingPathComponent(cleaned, isDirectory: true)
+                names.append(cleaned)
+            }
+        }
+        return (folder, names)
+    }
+}

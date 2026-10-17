@@ -170,13 +170,10 @@ public enum SquidExporter {
                                     fileManager fm: FileManager = .default) throws -> [URL] {
         guard !sources.isEmpty else { throw SquidExportError.invalid("Add at least one sample.") }
         try requireVolume(volume, fileManager: fm)
-        let parts = subfolder.split(separator: "/").map { SquidLayout.cleanFileStem(String($0), fallback: "") }.filter { !$0.isEmpty }
-        let folder = parts.reduce(SquidStick.rootURL(volume: volume).appendingPathComponent(SquidLayout.poolFolder, isDirectory: true)) {
-            $0.appendingPathComponent($1, isDirectory: true)
-        }
+        let (folder, names) = SquidStick.poolFolder(typed: subfolder, volume: volume, fileManager: fm)
         let existing = (try? fm.contentsOfDirectory(atPath: folder.path))?.filter { !$0.hasPrefix(".") }.count ?? 0
         guard existing + sources.count <= SquidLayout.maxEntriesPerFolder else {
-            throw SquidExportError.folderFull(([SquidLayout.poolFolder] + parts).joined(separator: "/"))
+            throw SquidExportError.folderFull(names.joined(separator: "/"))
         }
 
         let staging = fm.temporaryDirectory.appendingPathComponent("clap-squid-\(UUID().uuidString)", isDirectory: true)

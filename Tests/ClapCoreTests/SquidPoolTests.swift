@@ -102,6 +102,39 @@ import Testing
         #expect(describe(rows).last == "late", "nothing is hidden because the stick changed between the scan and the index")
     }
 
+    // MARK: sending to a folder
+
+    @Test func aTypedPoolFolderIsCleanedAndStaysInsidePool() {
+        #expect(SquidLayout.poolPath(from: "Breaks/707") == ["Breaks", "707"])
+        #expect(SquidLayout.poolPath(from: "  Breaks // 707/ ") == ["Breaks", "707"], "empty parts and spaces drop out")
+        #expect(SquidLayout.poolPath(from: "Bré:aks") == ["Breaks"], "accents are folded and characters a stick cannot hold go")
+        #expect(SquidLayout.poolPath(from: "../Bank 1") == ["Bank 1"], "'..' cannot lead out of the Pool")
+        #expect(SquidLayout.poolPath(from: "///").isEmpty && SquidLayout.poolPath(from: "").isEmpty, "no folder: the Pool itself")
+    }
+
+    @Test func anExistingFolderIsUsedAsItIsOnTheStick() throws {
+        let dir = TestSupport.tempDir()
+        let volume = try stickWithPool()
+        let pool = SquidStick.rootURL(volume: volume).appendingPathComponent("Pool")
+        try fm.createDirectory(at: pool.appendingPathComponent("Café 2"), withIntermediateDirectories: true)
+
+        let written = try SquidExporter.exportToPool([try source(dir, "tom")], subfolder: "Café 2", toVolume: volume)
+        #expect(written.first?.deletingLastPathComponent().lastPathComponent == "Café 2", "not the cleaned 'Cafe 2'")
+        let folders = SquidStick.read(volume: volume).poolFolders.map(\.name)
+        #expect(!folders.contains("Cafe 2"), "no second folder was made")
+
+        _ = try SquidExporter.exportToPool([try source(dir, "tom2")], subfolder: "breaks/707", toVolume: volume)
+        #expect(SquidStick.read(volume: volume).poolFolder(at: ["Breaks", "707"])?.sampleCount == 2, "the case of the name does not matter")
+        #expect(SquidStick.read(volume: volume).poolFolders.map(\.name) == ["Breaks", "Café 2", "Drums"])
+    }
+
+    @Test func aNewFolderIsMadeFromTheTypedName() throws {
+        let dir = TestSupport.tempDir()
+        let volume = try stickWithPool()
+        _ = try SquidExporter.exportToPool([try source(dir, "tom")], subfolder: "Toms/Floor", toVolume: volume)
+        #expect(SquidStick.read(volume: volume).poolFolder(at: ["Toms", "Floor"])?.sampleCount == 1)
+    }
+
     @Test func hiddenFilesAreNotCountedAsSamples() throws {
         let volume = try stickWithPool()
         let breaks = SquidStick.rootURL(volume: volume).appendingPathComponent("Pool/Breaks")

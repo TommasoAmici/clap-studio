@@ -12,7 +12,8 @@ struct SquidExportSheet: View {
     @State private var bankNumber = 1
     @State private var bankName = ""
     @State private var replace = false
-    @State private var poolFolder = ""
+    @State private var poolChoice = Self.poolRoot             // a folder of the Pool as "Breaks/707", or `newPoolFolder`
+    @State private var newPoolFolder = ""                     // the name typed for a new folder
     @State private var busy = false
     @State private var problem: String?
     @State private var dropTargeted = false
@@ -20,6 +21,8 @@ struct SquidExportSheet: View {
 
     private static let defaultSet = ""
     private static let newSet = "\u{1}new"
+    private static let poolRoot = ""
+    private static let newPoolFolderChoice = "\u{1}newfolder"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -47,7 +50,7 @@ struct SquidExportSheet: View {
         .padding(16)
         .frame(width: 520)
         .onAppear(perform: configure)
-        .onChange(of: driveID) { _, _ in pickFreeBank() }
+        .onChange(of: driveID) { _, _ in pickFreeBank(); keepPoolChoice() }
         .onChange(of: setChoice) { _, _ in pickFreeBank() }
         .onChange(of: bankNumber) { _, _ in replace = false }
     }
@@ -85,13 +88,51 @@ struct SquidExportSheet: View {
             }
             .pickerStyle(.segmented).labelsHidden()
             if toPool {
-                TextField("Folder inside Pool (optional)", text: $poolFolder).textFieldStyle(.roundedBorder)
-                Text("The Pool holds loose samples the module can load into any channel. Up to \(SquidLayout.maxEntriesPerFolder) entries per folder.")
-                    .font(.caption).foregroundStyle(.secondary)
+                poolFields
             } else {
                 bankFields
             }
         }
+    }
+
+    private var poolFields: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Folder", selection: $poolChoice) {
+                Text("Pool (no folder)").tag(Self.poolRoot)
+                if !contents.poolFolderPaths.isEmpty { Divider() }
+                ForEach(contents.poolFolderPaths, id: \.self) { path in
+                    Text(path.joined(separator: " / ")).tag(path.joined(separator: "/"))
+                }
+                Divider()
+                Text("New folder…").tag(Self.newPoolFolderChoice)
+            }
+            if poolChoice == Self.newPoolFolderChoice {
+                TextField("New folder name", text: $newPoolFolder).textFieldStyle(.roundedBorder)
+                Text(newPoolFolderNote).font(.caption).foregroundStyle(.secondary)
+            }
+            Text("The Pool holds loose samples the module can load into any channel. Up to \(SquidLayout.maxEntriesPerFolder) entries per folder.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// What typing in the new folder field will do: where the folder goes, or that it is already there.
+    private var newPoolFolderNote: String {
+        let parts = SquidLayout.poolPath(from: newPoolFolder)
+        guard !parts.isEmpty else { return "Type a name. Put a / between names to make a folder inside another one." }
+        let typed = newPoolFolder.split(separator: "/").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        if contents.poolFolder(at: typed) != nil { return "Pool/\(typed.joined(separator: "/")) is already on the stick. Samples are added to it." }
+        return "Made as Pool/\(parts.joined(separator: "/")) (letters, numbers, spaces, - and _ only, as the stick needs)."
+    }
+
+    /// The folder the samples go to, as a path inside the Pool ("" for the Pool itself).
+    private var poolSubfolder: String {
+        poolChoice == Self.newPoolFolderChoice ? SquidLayout.poolPath(from: newPoolFolder).joined(separator: "/") : poolChoice
+    }
+
+    /// A folder picked on one drive is not offered on another that does not have it.
+    private func keepPoolChoice() {
+        guard poolChoice != Self.poolRoot, poolChoice != Self.newPoolFolderChoice else { return }
+        if contents.poolFolder(at: poolChoice.split(separator: "/").map(String.init)) == nil { poolChoice = Self.poolRoot }
     }
 
     private var bankFields: some View {
@@ -195,7 +236,7 @@ struct SquidExportSheet: View {
 
     private var canSend: Bool {
         guard !busy, drive != nil, !model.squidItems.isEmpty else { return false }
-        if toPool { return true }
+        if toPool { return poolChoice != Self.newPoolFolderChoice || !SquidLayout.poolPath(from: newPoolFolder).isEmpty }
         if setChoice == Self.newSet && (setReport.isBlocked || tooManySets) { return false }
         guard let existing = existingBank else { return true }
         return replace || existing.freeSlots > 0
@@ -205,7 +246,11 @@ struct SquidExportSheet: View {
         let target = model.squidTarget
         driveID = target.drive ?? model.usbDrives.first?.id
         toPool = target.pool
-        poolFolder = target.poolFolder
+        // Where samples went last time is chosen again when that folder is still there; a name that is not there yet is typed in again.
+        let typed = target.poolFolder.split(separator: "/").map(String.init)
+        if typed.isEmpty { poolChoice = Self.poolRoot }
+        else if let existing = contents.poolFolder(at: typed) { poolChoice = existing.path.joined(separator: "/") }
+        else { poolChoice = Self.newPoolFolderChoice; newPoolFolder = typed.joined(separator: "/") }
         setChoice = target.set ?? Self.defaultSet
         pinnedBank = target.bank
         pickFreeBank()
@@ -223,7 +268,7 @@ struct SquidExportSheet: View {
 
     private func send() {
         guard let driveID else { return }
-        let plan: SquidPlan = toPool ? .pool(subfolder: poolFolder)
+        let plan: SquidPlan = toPool ? .pool(subfolder: poolSubfolder)
             : (adding ? .addToBank(set: chosenSet, number: bankNumber)
                       : .bank(set: chosenSet, number: bankNumber, name: bankName, replace: replace))
         busy = true
