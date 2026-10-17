@@ -4,7 +4,7 @@ import Foundation
 
 /// A place on a USB stick that is selected in the sidebar.
 struct UsbSelection: Hashable {
-    enum Area: Hashable { case set(String?), bank(set: String?, number: Int), pool }
+    enum Area: Hashable { case set(String?), bank(set: String?, number: Int), pool, poolFolder([String]) }
     let drive: String          // UsbDrive.id
     let area: Area
 
@@ -14,6 +14,7 @@ struct UsbSelection: Hashable {
     var tag: String {
         switch area {
         case .pool: return ["usb", "pool", "", drive].joined(separator: Self.separator)
+        case .poolFolder(let path): return ["usb", "poolfolder", path.joined(separator: "/"), drive].joined(separator: Self.separator)
         case .set(let name): return ["usb", "set", name ?? "", drive].joined(separator: Self.separator)
         case .bank(let set, let number): return ["usb", "bank", "\(number)\(Self.bankSeparator)\(set ?? "")", drive].joined(separator: Self.separator)
         }
@@ -27,6 +28,10 @@ struct UsbSelection: Hashable {
         self.drive = parts[3]
         switch parts[1] {
         case "pool": self.area = .pool
+        case "poolfolder":
+            let path = parts[2].split(separator: "/").map(String.init)      // a folder name cannot hold "/"
+            guard !path.isEmpty else { return nil }
+            self.area = .poolFolder(path)
         case "set": self.area = .set(parts[2].isEmpty ? nil : parts[2])
         case "bank":
             let pieces = parts[2].split(separator: Character(Self.bankSeparator), maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
@@ -118,6 +123,8 @@ extension AppModel {
             // A bank that went away leaves its set open, if the set is still there.
             if case .bank(let set, _) = selection.area, usbContents[selection.drive]?.set(named: set) != nil {
                 selectSidebar(UsbSelection(drive: selection.drive, area: .set(set)).tag)
+            } else if case .poolFolder = selection.area, usbContents[selection.drive]?.hasPool == true {
+                selectSidebar(UsbSelection(drive: selection.drive, area: .pool).tag)       // a folder that went away leaves the Pool open
             } else {
                 selectSidebar("smart.\(SmartFilter.all.rawValue)")
             }
@@ -130,6 +137,7 @@ extension AppModel {
         guard let contents = usbContents[selection.drive], usbDrives.contains(where: { $0.id == selection.drive }) else { return false }
         switch selection.area {
         case .pool: return contents.hasPool
+        case .poolFolder(let path): return contents.poolFolder(at: path) != nil
         case .set(let name): return contents.set(named: name) != nil
         case .bank(let set, let number): return contents.set(named: set)?.banks.contains { $0.number == number } ?? false
         }
@@ -161,11 +169,13 @@ extension AppModel {
         let root = SquidStick.rootURL(volume: drive.url).path
         return usbSamples.filter { sample in
             guard sample.rootPath == root else { return false }
-            switch (SquidLayout.location(ofRelativePath: sample.relPath), selection.area) {
+            let location = SquidLayout.location(ofRelativePath: sample.relPath)
+            switch (location, selection.area) {
             case (.bank(let set, _, _), .set(let wanted)): return SquidLayout.sameSet(set, wanted)
             case (.bank(let set, let number, _), .bank(let wantedSet, let wantedNumber)):
                 return number == wantedNumber && SquidLayout.sameSet(set, wantedSet)
-            case (.pool, .pool): return true
+            case (_, .pool): return SquidLayout.location(location, isInPoolFolder: [])
+            case (_, .poolFolder(let path)): return SquidLayout.location(location, isInPoolFolder: path)
             default: return false
             }
         }

@@ -31,13 +31,16 @@ struct SquidLastDestination: Codable, Equatable {
 extension AppModel {
     /// Opens the export sheet. `ids` fill the bank (or the Pool). The drive and place come from where the user is
     /// looking; failing that, from where samples were last sent.
-    func openSquidExport(ids: [Int64], drive: String? = nil, set: String? = nil, pool: Bool = false, bank: Int? = nil) {
+    func openSquidExport(ids: [Int64], drive: String? = nil, set: String? = nil, pool: Bool = false, bank: Int? = nil,
+                         poolFolder: String = "") {
         guard squidEnabled else { return }
         squidItems = ids
-        var target = SquidTarget(drive: drive ?? usbSelection?.drive ?? usbDrives.first?.id, set: set, pool: pool, bank: bank)
+        var target = SquidTarget(drive: drive ?? usbSelection?.drive ?? usbDrives.first?.id, set: set, pool: pool, bank: bank,
+                                 poolFolder: poolFolder)
         if drive == nil, let selection = usbSelection {
             switch selection.area {
             case .pool: target.pool = true
+            case .poolFolder(let path): target.pool = true; target.poolFolder = path.joined(separator: "/")
             case .set(let name): target.set = name
             case .bank(let set, let number): target.set = set; target.bank = number
             }

@@ -30,9 +30,11 @@ public struct SquidStickContents: Equatable, Sendable {
     public var hasSquidFolder = false
     public var sets: [SquidSet] = []
     public var hasPool = false
+    /// The folders inside the Pool, with their sub-folders.
+    public var poolFolders: [SquidPoolFolder] = []
 
-    public init(hasSquidFolder: Bool = false, sets: [SquidSet] = [], hasPool: Bool = false) {
-        self.hasSquidFolder = hasSquidFolder; self.sets = sets; self.hasPool = hasPool
+    public init(hasSquidFolder: Bool = false, sets: [SquidSet] = [], hasPool: Bool = false, poolFolders: [SquidPoolFolder] = []) {
+        self.hasSquidFolder = hasSquidFolder; self.sets = sets; self.hasPool = hasPool; self.poolFolders = poolFolders
     }
 
     public var namedSetCount: Int { sets.filter { $0.name != nil }.count }
@@ -64,7 +66,10 @@ public enum SquidStick {
         let entries = (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey],
                                                    options: [.skipsHiddenFiles])) ?? []
         let folders = entries.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
-        contents.hasPool = folders.contains { $0.lastPathComponent.caseInsensitiveCompare(SquidLayout.poolFolder) == .orderedSame }
+        if let pool = folders.first(where: { $0.lastPathComponent.caseInsensitiveCompare(SquidLayout.poolFolder) == .orderedSame }) {
+            contents.hasPool = true
+            contents.poolFolders = poolFolders(in: pool, fileManager: fm)
+        }
 
         contents.sets = [SquidSet(name: nil, banks: banks(in: root, set: nil, fileManager: fm))]
         let named = folders.compactMap { url in SquidLayout.setName(fromFolder: url.lastPathComponent).map { ($0, url) } }

@@ -1,7 +1,7 @@
 import ClapCore
 import SwiftUI
 
-/// "USB Drives" in the sidebar: each connected stick with its sets (open one to see its banks) and the Pool.
+/// "USB Drives" in the sidebar: each connected stick with its sets (open one to see its banks) and the Pool (open it to see its folders).
 struct SquidSidebarSection: View {
     @Environment(AppModel.self) private var model
     @State private var collapsed: Set<String> = []
@@ -48,9 +48,7 @@ struct SquidSidebarSection: View {
                 ForEach(set.banks) { bankRow($0, drive: drive) }
             }
         }
-        if stick.hasPool {
-            Label("Pool", systemImage: "tray.2").tag(UsbSelection(drive: drive.id, area: .pool).tag)
-        }
+        if stick.hasPool { PoolSidebarRows(drive: drive, stick: stick, open: $openSets) }
     }
 
     private func row(for set: SquidSet, drive: UsbDrive, stick: SquidStickContents) -> some View {
@@ -108,10 +106,15 @@ struct SquidSidebarSection: View {
         }
     }
 
-    /// A bank that is picked (here, or by making a new one) shows its set open.
+    /// A bank that is picked (here, or by making a new one) shows its set open; a Pool folder shows the ones around it.
     private func reveal(_ selection: UsbSelection?) {
-        guard let selection, case .bank(let set, _) = selection.area else { return }
-        openSets.insert(selection.drive + "|" + (set ?? ""))
+        guard let selection else { return }
+        switch selection.area {
+        case .bank(let set, _): openSets.insert(selection.drive + "|" + (set ?? ""))
+        case .poolFolder(let path):
+            for depth in 0..<path.count { openSets.insert(PoolSidebarRows.key(drive: selection.drive, path: Array(path.prefix(depth)))) }
+        default: break
+        }
     }
 
     private func bankRow(_ bank: SquidBank, drive: UsbDrive) -> some View {

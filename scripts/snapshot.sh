@@ -10,7 +10,8 @@
 #     --no-inspector  start with the inspector hidden
 #     --drums  open the drum machine with three samples
 #     --width PX  resize the window to this width first (down to its minimum)
-#     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name
+#     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
+#                 "pool" shows the Pool and "pool/Breaks/707" a folder of it
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
 set -e

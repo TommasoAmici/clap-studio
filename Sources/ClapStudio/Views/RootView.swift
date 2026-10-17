@@ -120,16 +120,35 @@ struct UsbBrowser: View {
         case .bank(let set, let number):
             SquidSetView(selection: selection, setName: set, onlyBank: number)
         case .pool:
-            HStack {
-                Label("Pool", systemImage: "tray.2").font(.headline)
-                Text("on \(model.drive(id: selection.drive)?.name ?? "USB drive")").foregroundStyle(.secondary)
-                Spacer()
-                Button("Send Samples…") { model.openSquidExport(ids: model.actionTargets, drive: selection.drive, pool: true) }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            Divider()
-            LibraryTableView()
+            PoolBrowser(selection: selection, folder: [])
+        case .poolFolder(let path):
+            PoolBrowser(selection: selection, folder: path)
         }
+    }
+}
+
+/// The Pool, or one folder of it, as a header over the sample list.
+struct PoolBrowser: View {
+    @Environment(AppModel.self) private var model
+    let selection: UsbSelection
+    let folder: [String]
+
+    var body: some View {
+        HStack {
+            Label("Pool", systemImage: "tray.2").font(.headline)
+            ForEach(Array(folder.enumerated()), id: \.offset) { _, name in
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                Text(name).font(.headline)
+            }
+            Text("on \(model.drive(id: selection.drive)?.name ?? "USB drive")").foregroundStyle(.secondary)
+            Spacer()
+            Button("Send Samples…") {
+                model.openSquidExport(ids: model.actionTargets, drive: selection.drive, pool: true, poolFolder: folder.joined(separator: "/"))
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        Divider()
+        LibraryTableView()
     }
 }
 
