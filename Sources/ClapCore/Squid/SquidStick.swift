@@ -88,6 +88,12 @@ public enum SquidStick {
         return entries.first { SquidLayout.setName(fromFolder: $0.lastPathComponent).map { SquidLayout.sameSet($0, name) } ?? false }
     }
 
+    /// Where the Pool folder is, whatever the case of its name.
+    public static func poolURL(volume: URL, fileManager fm: FileManager = .default) -> URL? {
+        let entries = (try? fm.contentsOfDirectory(at: rootURL(volume: volume), includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        return entries.first { $0.lastPathComponent.caseInsensitiveCompare(SquidLayout.poolFolder) == .orderedSame }
+    }
+
     /// Where a bank's folder is, if it exists ("Bank 5" and "bank 05" are the same bank).
     public static func bankURL(set: String?, number: Int, volume: URL, fileManager fm: FileManager = .default) -> URL? {
         let container: URL

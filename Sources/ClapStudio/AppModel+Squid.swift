@@ -46,6 +46,12 @@ struct SquidTarget {
     var poolFolder = ""
 }
 
+/// A sample or folder in the Pool of a stick: the drive and the path from the Pool down.
+struct PoolEntry: Sendable, Equatable {
+    let drive: String
+    let path: [String]
+}
+
 /// A name being edited in place, Finder style.
 enum UsbRename: Equatable {
     case set(drive: String, name: String)

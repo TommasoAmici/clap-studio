@@ -110,6 +110,39 @@ import Testing
         #expect(throws: SquidExportError.self) { try SquidManager.renameBank(set: nil, number: 2, to: "x", volume: volume) }
     }
 
+    @Test func poolSamplesAndFoldersCanBeTrashed() throws {
+        let dir = TestSupport.tempDir()
+        let volume = try stick()
+        let pool = SquidStick.rootURL(volume: volume).appendingPathComponent("Pool")
+        try SquidExporter.exportToPool([try source(dir, "kick"), try source(dir, "snare")], toVolume: volume)
+        try SquidExporter.exportToPool([try source(dir, "hat"), try source(dir, "ride")], subfolder: "Breaks", toVolume: volume)
+
+        try SquidManager.trashPoolEntry(["kick.wav"], volume: volume, trash: trash)
+        #expect(!fm.fileExists(atPath: pool.appendingPathComponent("kick.wav").path), "the sample is gone from the Pool")
+        #expect(fm.fileExists(atPath: pool.appendingPathComponent("snare.wav").path), "the others stay")
+
+        try SquidManager.trashPoolEntry(["Breaks", "hat.wav"], volume: volume, trash: trash)
+        #expect(fm.fileExists(atPath: pool.appendingPathComponent("Breaks/ride.wav").path))
+        #expect(!fm.fileExists(atPath: pool.appendingPathComponent("Breaks/hat.wav").path), "a sample in a folder")
+
+        try SquidManager.trashPoolEntry(["Breaks"], volume: volume, trash: trash)
+        #expect(!fm.fileExists(atPath: pool.appendingPathComponent("Breaks").path), "a whole folder goes with its samples")
+        #expect(fm.fileExists(atPath: pool.path), "the Pool itself stays")
+    }
+
+    @Test func thePoolRefusesToTrashAnythingOutsideIt() throws {
+        let dir = TestSupport.tempDir()
+        let volume = try stick(withBanks: [[try source(dir, "a")]])
+        try SquidExporter.exportToPool([try source(dir, "kick")], toVolume: volume)
+        for path in [[], [".."], ["..", "Bank 1"], ["", "kick.wav"], ["a/b"], ["nope.wav"]] {
+            #expect(throws: SquidExportError.self, "\(path) must not trash anything") {
+                try SquidManager.trashPoolEntry(path, volume: volume, trash: trash)
+            }
+        }
+        #expect(SquidStick.read(volume: volume).set(named: nil)?.banks.count == 1, "the banks are untouched")
+        #expect(fm.fileExists(atPath: SquidStick.rootURL(volume: volume).appendingPathComponent("Pool/kick.wav").path))
+    }
+
     @Test func existingFoldersAreFoundWhateverTheirCase() throws {
         let volume = try stick()
         let alm = SquidStick.rootURL(volume: volume)

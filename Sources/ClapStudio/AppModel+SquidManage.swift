@@ -86,6 +86,29 @@ extension AppModel {
         Task { await changeUsb(driveID) { try SquidManager.trashSample(set: set, number: number, slot: slot, volume: $0) } }
     }
 
+    // MARK: pool
+
+    /// Which stick's Pool a sample is in, and its path from the Pool down ("Breaks", "707.wav"); nil for any other sample.
+    func poolEntry(of sample: SampleRecord) -> PoolEntry? {
+        guard isOnUsb(sample.id),
+              let drive = usbDrives.first(where: { SquidStick.rootURL(volume: $0.url).path == sample.rootPath }),
+              case .pool(let folders) = SquidLayout.location(ofRelativePath: sample.relPath),
+              let file = sample.relPath.split(separator: "/").last else { return nil }
+        return PoolEntry(drive: drive.id, path: folders + [String(file)])
+    }
+
+    /// Moves samples or folders of a stick's Pool to the Trash (the files are only moved, so they can be put back).
+    func trashPoolEntries(_ entries: [PoolEntry]) {
+        Task {
+            for (driveID, group) in Dictionary(grouping: entries, by: \.drive) {
+                let paths = group.map(\.path)
+                _ = await changeUsb(driveID) { volume in
+                    for path in paths { try SquidManager.trashPoolEntry(path, volume: volume) }
+                }
+            }
+        }
+    }
+
     // MARK: levels
 
     /// Brings every sample on the stick to the common loudness, in place (the one place the app changes files on a

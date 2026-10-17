@@ -1,4 +1,4 @@
-- [ ] I want to be able to delete a file from the Pool of a USB stick detected as ALM Salmple
+- [x] I want to be able to delete a file from the Pool of a USB stick detected as ALM Salmple
 - [ ] I want to be able to see folders inside the Pool
   - [ ] they should be visible and expandable/collapsible in the left sidebar
   - [ ] they should be visible and expandable/collapsible in the main window area

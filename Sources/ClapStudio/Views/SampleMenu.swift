@@ -62,6 +62,11 @@ extension AppModel {
         }
         menu.append(.action("Copy To…") { [unowned self] in openExport(ids: ids) })
         menu.append(.divider)
+        let poolEntries = samples.compactMap { poolEntry(of: $0) }
+        if poolEntries.count == samples.count {
+            menu.append(.action("Move to Trash") { [unowned self] in trashPoolEntries(poolEntries) })
+            menu.append(.divider)
+        }
         if samples.allSatisfy(\.hidden) {
             menu.append(.action("Show in Library Again") { [unowned self] in unhide(ids) })
         } else {

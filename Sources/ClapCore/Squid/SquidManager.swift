@@ -111,6 +111,21 @@ public enum SquidManager {
         catch { throw SquidExportError.failed("Could not move the sample to the Trash: \(error.localizedDescription)") }
     }
 
+    // MARK: pool
+
+    /// Moves a sample, or a whole folder with its samples, from the Pool to the Trash. `path` runs from the Pool down
+    /// ("Breaks", "707.wav"); it can never name the Pool itself or anything outside it.
+    public static func trashPoolEntry(_ path: [String], volume: URL, trash: Trash = moveToTrash,
+                                      fileManager fm: FileManager = .default) throws {
+        guard !path.isEmpty, path.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("/") }) else {
+            throw SquidExportError.invalid("That is not a sample or folder inside the Pool.")
+        }
+        guard let pool = SquidStick.poolURL(volume: volume, fileManager: fm) else { throw SquidExportError.missing(SquidLayout.poolFolder) }
+        let url = path.reduce(pool) { $0.appendingPathComponent($1) }
+        guard fm.fileExists(atPath: url.path) else { throw SquidExportError.missing(([SquidLayout.poolFolder] + path).joined(separator: "/")) }
+        do { try trash(url) } catch { throw SquidExportError.failed("Could not move \(url.lastPathComponent) to the Trash: \(error.localizedDescription)") }
+    }
+
     // MARK: helpers
 
     /// A set's folder (or the ALM022 folder for the default set); a new set's folder is made when `create` is set.
