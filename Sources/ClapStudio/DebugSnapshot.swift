@@ -17,6 +17,7 @@ import ClapCore
 ///   CLAP_NO_INDEX=1                do not scan or index at launch (for a synthetic library)
 ///   CLAP_SNAPSHOT_USB=NAME         show the set NAME ("default" for the first one) of the first Squid drive; NAME/2 shows its bank 2;
 ///                                  "pool" shows the Pool and "pool/Breaks/707" one of its folders
+///   CLAP_SNAPSHOT_CLOSE=Breaks/707 with USB: fold that Pool folder shut
 ///   CLAP_SNAPSHOT_DRUMS=1          open the drum machine with the first three samples
 ///   CLAP_SNAPSHOT_LIKE=name        show sounds like the first sample whose name contains this; CLAP_SNAPSHOT_WORDS adds words ("dark, no reverb")
 ///   CLAP_SNAPSHOT_PLACES=1         show the Places tab
@@ -49,6 +50,8 @@ enum DebugSnapshot {
             // "pool" is the Pool, "pool/Breaks/707" a folder of it.
             if parts.first == "pool" { area = parts.count == 2 ? .poolFolder(parts[1].split(separator: "/").map(String.init)) : .pool }
             model.selectSidebar(UsbSelection(drive: drive.id, area: area).tag)
+            // "Breaks/707" folds that Pool folder shut.
+            if let closed = env["CLAP_SNAPSHOT_CLOSE"] { model.togglePoolFolder(drive: drive.id, path: closed.split(separator: "/").map(String.init)) }
             if env["CLAP_SNAPSHOT_RENAME"] == "1", let bank = model.usbContents[drive.id]?.set(named: set)?.banks.first {
                 model.renamingUsb = .bank(drive: drive.id, set: set, number: bank.number)
             }

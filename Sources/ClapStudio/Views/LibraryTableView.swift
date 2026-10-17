@@ -8,9 +8,10 @@ struct LibraryTableView: View {
     var body: some View {
         LibraryList(model: model, revision: model.visibleRevision, selection: model.tableSelection,
                     sortOrder: model.sortOrder, drumTracks: model.drumTracks, segmentMatches: model.segmentMatches,
-                    shuffleSeed: model.shuffleSeed)
+                    shuffleSeed: model.shuffleSeed, pool: model.poolLayout)
             .overlay {
-                if model.visible.isEmpty {
+                // A Pool with folders still has headings to show, even when no sample is in it.
+                if model.visible.isEmpty && model.poolLayout?.folders.isEmpty != false {
                     if model.searchPending {
                         VStack(spacing: 8) {
                             ProgressView()

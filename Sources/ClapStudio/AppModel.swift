@@ -151,6 +151,7 @@ final class AppModel {
     var usbSamples: [SampleRecord] = []                      // analysed, but not part of the library
     var usbSelection: UsbSelection? { didSet { if usbSelection != oldValue { refilter() } } }
     var renamingUsb: UsbRename?                               // the set or bank whose name is being edited in place
+    var closedPoolFolders: Set<String> = []                   // Pool folders folded shut in the list (`closedPoolKey`)
     var showSquidExport = false
     var squidItems: [Int64] = []                              // what the export sheet will send, in order
     var squidTarget = SquidTarget()

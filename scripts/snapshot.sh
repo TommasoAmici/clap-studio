@@ -11,7 +11,7 @@
 #     --drums  open the drum machine with three samples
 #     --width PX  resize the window to this width first (down to its minimum)
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
-#                 "pool" shows the Pool and "pool/Breaks/707" a folder of it
+#                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
 set -e
@@ -32,6 +32,7 @@ while [ $# -gt 0 ]; do
     --drums) export CLAP_SNAPSHOT_DRUMS=1 ;;
     --no-inspector) export CLAP_SNAPSHOT_NO_INSPECTOR=1 ;;
     --width) shift; export CLAP_SNAPSHOT_WIDTH="$1" ;;
+    --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
     --delay) shift; DELAY="$1" ;;
     *) echo "unknown option $1" >&2; exit 2 ;;

@@ -15,6 +15,8 @@ struct LibraryList: NSViewRepresentable {
     let drumTracks: [Int64: Int]
     let segmentMatches: [Int64: SegmentMatch]
     let shuffleSeed: UInt64?
+    /// Set in the Pool of a stick, where folders show as headings that open and close.
+    let pool: PoolLayout?
 
     func makeCoordinator() -> LibraryListCoordinator { LibraryListCoordinator(model: model) }
 
@@ -30,7 +32,7 @@ struct LibraryList: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.update(revision: revision, selection: selection, sortOrder: sortOrder,
-                                   shuffleSeed: shuffleSeed)
+                                   shuffleSeed: shuffleSeed, pool: pool)
     }
 }
 
@@ -104,9 +106,12 @@ final class LibraryNSTableView: NSTableView {
 
 @MainActor
 final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
-    private let model: AppModel
+    let model: AppModel
     private weak var table: LibraryNSTableView?
-    private var rowOfID: [Int64: Int] = [:]
+    var rowOfID: [Int64: Int] = [:]
+    /// The Pool's lines, with folder headings (`.sample` holds an index into `model.visible`); nil for the plain list.
+    var groupedRows: [PoolRow<Int>]?
+    var pool: PoolLayout?
     private var revision = -1
     private var shuffleSeed: UInt64?
     private var changingSelection = false       // our own selection updates must not loop back into the model
@@ -126,6 +131,7 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
         table.allowsColumnReordering = true
         table.allowsColumnResizing = true
         table.allowsTypeSelect = false
+        table.floatsGroupRows = false
         table.rowHeight = 24
         table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
         table.dataSource = self
@@ -155,19 +161,21 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
         table.menuForRows = { [weak self] rows in self?.menu(forRows: rows) }
         table.onKey = { [weak self] event in self?.handle(event) ?? false }
         table.onReclick = { [weak self] row in
-            guard let self, row < self.model.visible.count else { return }
-            self.model.select(self.model.visible[row].id, play: true)
+            guard let self, let sample = self.sample(at: row) else { return }
+            self.model.select(sample.id, play: true)
         }
         return table
     }
 
     // MARK: updating from the model
 
-    func update(revision: Int, selection: Set<Int64>, sortOrder: [KeyPathComparator<SampleRecord>], shuffleSeed: UInt64?) {
+    func update(revision: Int, selection: Set<Int64>, sortOrder: [KeyPathComparator<SampleRecord>], shuffleSeed: UInt64?,
+                pool: PoolLayout?) {
         guard let table else { return }
-        if revision != self.revision {
+        if revision != self.revision || pool != self.pool {
             self.revision = revision
-            rowOfID = Dictionary(model.visible.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+            self.pool = pool
+            rebuildRows()
             table.reloadData()
         } else {
             // Something a row shows changed without the list changing (drum tracks, search matches).
@@ -204,11 +212,11 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
 
     // MARK: data source
 
-    func numberOfRows(in tableView: NSTableView) -> Int { model.visible.count }
+    func numberOfRows(in tableView: NSTableView) -> Int { groupedRows?.count ?? model.visible.count }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard let tableColumn, row < model.visible.count, let spec = LibraryColumn.column(id: tableColumn.identifier.rawValue) else { return nil }
-        let sample = model.visible[row]
+        if let folder = folder(at: row) { return folderView(folder, in: tableView) }
+        guard let tableColumn, let sample = sample(at: row), let spec = LibraryColumn.column(id: tableColumn.identifier.rawValue) else { return nil }
         switch spec.id {
         case LibraryColumn.name:
             let cell = tableView.makeView(withIdentifier: tableColumn.identifier, owner: nil) as? LibraryNameCell ?? LibraryNameCell()
@@ -227,7 +235,7 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard !changingSelection, let table else { return }
-        let ids = table.selectedRowIndexes.compactMap { $0 < model.visible.count ? model.visible[$0].id : nil }
+        let ids = table.selectedRowIndexes.compactMap { sample(at: $0)?.id }
         if ids.count == 1 { model.select(ids[0], play: true); return }
         // Adding to a selection (shift or command click, shift-arrow) plays the sample that was just added.
         let added = Set(ids).subtracting(model.tableSelection)
@@ -247,8 +255,8 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
             default: return nil
             }
         }
-        guard row >= 0, row < model.visible.count, added.contains(model.visible[row].id) else { return nil }
-        return model.visible[row].id
+        guard row >= 0, let id = sample(at: row)?.id, added.contains(id) else { return nil }
+        return id
     }
 
     func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
@@ -260,19 +268,21 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
     // MARK: dragging out to a DAW
 
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
-        guard row < model.visible.count else { return nil }
-        return model.visible[row].url as NSURL
+        return sample(at: row)?.url as NSURL?
     }
 
     func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, willBeginAt screenPoint: NSPoint,
                    forRowIndexes rowIndexes: IndexSet) {
-        for row in rowIndexes where row < model.visible.count { model.registerGrab(model.visible[row].id) }
+        for row in rowIndexes { if let sample = sample(at: row) { model.registerGrab(sample.id) } }
     }
 
     // MARK: menus and keys
 
     private func menu(forRows rows: [Int]) -> NSMenu? {
-        let ids = rows.compactMap { $0 < model.visible.count ? model.visible[$0].id : nil }
+        if rows.count == 1, let folder = folder(at: rows[0]), let pool {
+            return NSMenu(entries: model.poolFolderMenu(drive: pool.drive, path: folder.folder.path))
+        }
+        let ids = rows.compactMap { sample(at: $0)?.id }
         let entries = model.sampleMenu(for: ids)
         return entries.isEmpty ? nil : NSMenu(entries: entries)
     }
