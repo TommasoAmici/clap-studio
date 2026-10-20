@@ -8,26 +8,32 @@ public struct DrumSource: Equatable, Sendable {
     public init(url: URL, trim: SampleTrim? = nil) { self.url = url; self.trim = trim }
 }
 
-/// Plays a `DrumPattern` in a loop on its own audio engine. Steps are scheduled a short time ahead against the
-/// host clock, so timing is set by the audio hardware rather than by when a timer happens to fire.
+/// Plays a `DrumPattern`, and the `MelodyPattern` beside it, in a loop on its own audio engine. Steps are scheduled a
+/// short time ahead against the host clock, so timing is set by the audio hardware rather than by when a timer
+/// happens to fire. The melody rides on the same steps, so it cannot drift from the drums.
 public final class DrumMachine: @unchecked Sendable {
     public static let lookahead = 0.12
     private static let tickInterval = 0.025
 
     /// Called on the main queue as each step begins (for a moving playhead).
     public var onStep: (@Sendable (Int) -> Void)?
+    /// Called on the main queue as each step begins, with its place in the melody's loop (for the melody's playhead).
+    public var onMelodyStep: (@Sendable (Int) -> Void)?
     /// Called on the main queue when playback starts or stops.
     public var onRunningChange: (@Sendable (Bool) -> Void)?
 
     private let cache: AudioBufferCache
     private let engine = AVAudioEngine()
     private let nodes: [AVAudioPlayerNode]
+    private let melodyVoices: MelodyVoices
+    private let melodySounds: MelodySounds
     private let queue = DispatchQueue(label: "clap.drums", qos: .userInteractive)
     private let decodeQueue = DispatchQueue(label: "clap.drums.decode", qos: .userInitiated, attributes: .concurrent)
     private var timer: DispatchSourceTimer?
 
     private let lock = NSLock()
     private var pattern = DrumPattern()
+    private var melody = MelodyPattern()
     private var sources: [Int64: DrumSource] = [:]
     private var ready: [Int64: ReadySound] = [:]        // decoded (and trimmed) audio, by sample id
     private struct ReadySound { let source: DrumSource; let buffer: AVAudioPCMBuffer }
@@ -46,6 +52,8 @@ public final class DrumMachine: @unchecked Sendable {
             made.append(node)
         }
         nodes = made
+        melodyVoices = MelodyVoices(engine: engine, format: cache.format)
+        melodySounds = MelodySounds(cache: cache)
     }
 
     deinit { stop() }
@@ -72,6 +80,14 @@ public final class DrumMachine: @unchecked Sendable {
         }
     }
 
+    /// Replaces the melody (takes effect from the next step, so it can be edited while playing). `sources` says where
+    /// each track's sample is; the tuned sounds the notes need are prepared in the background.
+    public func update(melody new: MelodyPattern, sources newSources: [Int64: DrumSource]) {
+        lock.lock(); melody = new; lock.unlock()
+        melodySounds.update(melody: new, sources: newSources)
+        melodyVoices.setMix(new)
+    }
+
     private func prepare(id: Int64, source: DrumSource) {
         let buffer: AVAudioPCMBuffer?
         if let trim = source.trim {
@@ -93,6 +109,7 @@ public final class DrumMachine: @unchecked Sendable {
                 if !engine.isRunning { engine.prepare(); try engine.start() }
             } catch { return }
             for node in nodes { node.play() }
+            melodyVoices.play()
             lock.lock(); sequencer = DrumSequencer(startTime: Self.nowSeconds() + 0.06); lock.unlock()
             isRunning = true
             let t = DispatchSource.makeTimerSource(queue: queue)
@@ -109,6 +126,7 @@ public final class DrumMachine: @unchecked Sendable {
             guard isRunning else { return }
             timer?.cancel(); timer = nil
             for node in nodes { node.stop() }          // drops anything scheduled but not yet played
+            melodyVoices.stop()
             isRunning = false
             DispatchQueue.main.async { [onRunningChange] in onRunningChange?(false) }
         }
@@ -116,12 +134,12 @@ public final class DrumMachine: @unchecked Sendable {
 
     private func tick() {
         lock.lock()
-        let pattern = self.pattern, ready = self.ready, bpm = _bpm
+        let pattern = self.pattern, melody = self.melody, ready = self.ready, bpm = _bpm
         var seq = sequencer ?? DrumSequencer(startTime: Self.nowSeconds())
         lock.unlock()
 
         let now = Self.nowSeconds()
-        let events = seq.advance(now: now, lookahead: Self.lookahead, bpm: bpm, pattern: pattern)
+        let events = seq.advance(now: now, lookahead: Self.lookahead, bpm: bpm, pattern: pattern, melody: melody)
         lock.lock(); sequencer = seq; lock.unlock()
 
         for event in events {
@@ -131,9 +149,19 @@ public final class DrumMachine: @unchecked Sendable {
                 // .interrupts cuts the previous hit on this track, like a drum machine voice.
                 nodes[index].scheduleBuffer(buffer, at: when, options: .interrupts, completionHandler: nil)
             }
+            for hit in event.notes where melody.tracks.indices.contains(hit.track) {
+                let track = melody.tracks[hit.track]
+                guard let sampleID = track.sampleID,
+                      let tuned = melodySounds.buffer(sampleID: sampleID, semitones: MelodyVoice.semitones(note: hit.pitch, root: track.rootNote)),
+                      let note = MelodyVoice.shaped(tuned, duration: hit.duration, velocity: hit.velocity) else { continue }
+                melodyVoices.schedule(note, track: hit.track, at: when)
+            }
             let delay = max(0, event.time - now)
-            let step = event.step
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.onStep?(step) }
+            let step = event.step, melodyStep = event.melodyStep
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.onStep?(step)
+                self?.onMelodyStep?(melodyStep)
+            }
         }
     }
 
