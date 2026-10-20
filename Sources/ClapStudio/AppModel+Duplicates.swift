@@ -8,10 +8,9 @@ extension AppModel {
         duplicateSearchRunning = true
         duplicateGroups = nil
         let samples = samples
-        let version = store.meta("model_version") ?? ""
         Task {
             let groups = await Task.detached {
-                (try? DuplicateFinder.find(store: store, samples: samples, modelVersion: version)) ?? []
+                DuplicateFinder.find(store: store, samples: samples)
             }.value
             duplicateGroups = groups
             duplicateSearchRunning = false
@@ -31,7 +30,7 @@ extension AppModel {
         let gone = Set(ids)
         duplicateGroups = duplicateGroups?.compactMap { group in
             let rest = group.ids.filter { !gone.contains($0) }
-            return rest.count > 1 ? DuplicateGroup(id: group.id, ids: rest, identical: group.identical) : nil
+            return rest.count > 1 ? DuplicateGroup(id: group.id, ids: rest) : nil
         }
     }
 

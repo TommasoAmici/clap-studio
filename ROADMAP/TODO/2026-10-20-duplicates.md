@@ -1,0 +1,1 @@
+- [x] add a menu item to detect duplicate files (they must match by hash or something like that). Users will deal with duplicates however they prefer, we only want to flag them for now

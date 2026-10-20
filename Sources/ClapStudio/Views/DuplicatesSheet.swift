@@ -1,7 +1,7 @@
 import ClapCore
 import SwiftUI
 
-/// Lists groups of copies. The best copy of each group is kept; the others are ticked to be hidden
+/// Lists groups of identical files. The best copy of each group is kept; the others are ticked to be hidden
 /// (not deleted: hidden samples can be restored from the sidebar).
 struct DuplicatesSheet: View {
     @Environment(AppModel.self) private var model
@@ -36,10 +36,11 @@ struct DuplicatesSheet: View {
     }
 
     private var summary: String {
-        if model.duplicateSearchRunning { return "Comparing sounds…" }
+        if model.duplicateSearchRunning { return "Comparing files…" }
         guard let groups = model.duplicateGroups else { return "" }
         let extras = groups.reduce(0) { $0 + $1.extras.count }
-        return groups.isEmpty ? "No copies found." : "\(groups.count) groups, \(extras) extra copies. The best copy of each is kept."
+        return groups.isEmpty ? "No identical files found."
+            : "\(groups.count) groups, \(extras) extra copies. The best copy of each is kept."
     }
 
     @ViewBuilder private var content: some View {
@@ -54,7 +55,7 @@ struct DuplicatesSheet: View {
                             if let s = model.sampleByID[id] { row(s, keep: id == group.keeper) }
                         }
                     } header: {
-                        Text(group.identical ? "Identical files" : "Same sound")
+                        Text("Identical files")
                     }
                 }
             }

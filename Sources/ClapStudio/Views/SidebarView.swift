@@ -103,7 +103,7 @@ struct SidebarView: View {
                     .disabled(model.snapshot == nil)
                 Button { model.showDuplicates = true } label: { Label("Duplicates", systemImage: "square.on.square") }
                     .labelStyle(.iconOnly)
-                    .help("Find duplicates")
+                    .help("Find identical files")
                     .disabled(model.samples.isEmpty)
             }
             .buttonStyle(.borderless).padding(10)

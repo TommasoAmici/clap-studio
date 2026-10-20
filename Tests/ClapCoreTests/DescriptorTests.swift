@@ -196,33 +196,53 @@ import Testing
         return v.map { $0 / n }
     }
 
-    @Test func groupsIdenticalAndNearCopiesAndPicksBest() throws {
+    @Test func onlyFilesWithTheSameFingerprintAreGroupedAndTheUsedCopyIsFirst() throws {
         let (store, _) = try TestSupport.makeStore()
         let root = try store.addRoot(path: "/tmp/x")
-        let names = ["a.wav", "a copy.wav", "deep/folder/a_remix.wav", "other.wav", "same_bytes.wav", "same_bytes2.wav"]
-        let fingerprints = ["a.wav": "f1", "a copy.wav": "f2", "deep/folder/a_remix.wav": "f3",
-                            "other.wav": "f4", "same_bytes.wav": "f5", "same_bytes2.wav": "f5"]
+        let names = ["a.wav", "backup/a.wav", "deep/folder/a_remix.wav", "other.wav", "b.wav", "b copy.wav", "b again.wav"]
+        let fingerprints = ["a.wav": "f1", "backup/a.wav": "f1", "deep/folder/a_remix.wav": "f2",
+                            "other.wav": "f3", "b.wav": "f4", "b copy.wav": "f4", "b again.wav": "f4"]
         try store.sync(rootID: root.id, scanned: names.map { ScannedFile(relPath: $0, size: 10, mtime: 1) }) { fingerprints[$0] }
-        let vectors = ["a.wav": unit(0), "a copy.wav": unit(0, tilt: 0.05), "deep/folder/a_remix.wav": unit(0, tilt: 0.1),
-                       "other.wav": unit(100), "same_bytes.wav": unit(200), "same_bytes2.wav": unit(300)]
+        // The remix sounds just like a.wav, but its bytes differ, so it must not be flagged.
+        let vectors = ["a.wav": unit(0), "backup/a.wav": unit(0), "deep/folder/a_remix.wav": unit(0, tilt: 0.05),
+                       "other.wav": unit(100), "b.wav": unit(200), "b copy.wav": unit(300), "b again.wav": unit(400)]
         for job in store.pendingJobs(limit: 20) {
             let rel = job.url.path.replacingOccurrences(of: "/tmp/x/", with: "")
             try store.save(results: [.success(id: job.id, duration: 1, sampleRate: 44100, channels: 1,
                                               embedding: vectors[rel]!, fingerprint: fingerprints[rel]!, modelVersion: "m")])
         }
         var samples = store.loadSamples()
-        let a = try #require(samples.first { $0.relPath == "a.wav" })
-        try store.recordGrab(sampleID: a.id)       // the used copy should be kept
+        let used = try #require(samples.first { $0.relPath == "backup/a.wav" })
+        try store.recordGrab(sampleID: used.id)       // the used copy should come first
         samples = store.loadSamples()
+        func id(_ rel: String) -> Int64 { samples.first { $0.relPath == rel }!.id }
 
-        let groups = try DuplicateFinder.find(store: store, samples: samples, modelVersion: "m")
-        #expect(groups.count == 2)
-        let sound = try #require(groups.first { !$0.identical })
-        #expect(Set(sound.ids) == Set(samples.filter { $0.relPath.contains("a") && $0.relPath != "other.wav" && !$0.relPath.hasPrefix("same") }.map(\.id)))
-        #expect(sound.keeper == a.id)
-        let same = try #require(groups.first { $0.identical })
-        #expect(same.ids.count == 2)
-        #expect(!groups.flatMap(\.ids).contains(samples.first { $0.relPath == "other.wav" }!.id))
+        let groups = DuplicateFinder.find(store: store, samples: samples)
+        #expect(groups.count == 2, "one group per fingerprint shared by two or more files")
+        #expect(groups.map(\.ids.count) == [3, 2], "the biggest group is listed first")
+        #expect(Set(groups[0].ids) == [id("b.wav"), id("b copy.wav"), id("b again.wav")])
+        #expect(Set(groups[1].ids) == [id("a.wav"), id("backup/a.wav")])
+        #expect(groups[1].keeper == used.id, "the copy already in use is the one to keep")
+        let flagged = Set(groups.flatMap(\.ids))
+        #expect(!flagged.contains(id("deep/folder/a_remix.wav")), "a similar sound with different bytes is not a duplicate")
+        #expect(!flagged.contains(id("other.wav")))
+    }
+
+    @Test func hiddenAndUnreadableFilesAreNeverFlagged() throws {
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: "/tmp/x")
+        let names = ["a.wav", "a copy.wav", "a hidden.wav"]
+        try store.sync(rootID: root.id, scanned: names.map { ScannedFile(relPath: $0, size: 10, mtime: 1) }) { _ in "same" }
+        for job in store.pendingJobs(limit: 10) {
+            try store.save(results: [.success(id: job.id, duration: 1, sampleRate: 44100, channels: 1,
+                                              embedding: unit(0), fingerprint: "same", modelVersion: "m")])
+        }
+        let hidden = try #require(store.loadSamples().first { $0.relPath == "a hidden.wav" })
+        try store.setHidden([hidden.id], true)
+
+        let groups = DuplicateFinder.find(store: store, samples: store.loadSamples())
+        #expect(groups.count == 1)
+        #expect(!groups[0].ids.contains(hidden.id), "a copy the user already hid is not shown again")
     }
 
     @Test func hidingIsReversibleAndLeavesFinderAlone() throws {
