@@ -125,8 +125,10 @@ final class AppModel {
     }
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumPlaying = false
-    var showMelody = false
-    var melodyPattern = MelodyPattern() { didSet { if melodyPattern != oldValue { pushMelodyPattern() } } }
+    var showMelody = false { didSet { if showMelody != oldValue { storeMelodyPattern() } } }
+    var melodyPattern = MelodyPattern() { didSet { if melodyPattern != oldValue { pushMelodyPattern(); storeMelodyPatternSoon() } } }
+    @ObservationIgnored var melodySourcesReady = false      // the saved melody's sounds have been matched to the library
+    @ObservationIgnored var melodyStoreTask: Task<Void, Never>?
     var selectedMelodyTrack = 0            // the track the piano roll shows
     var selectedMelodyNote: UUID?          // the note Delete removes
     var melodyStep: Int?                   // where the melody is in its loop, nil when stopped
@@ -246,6 +248,7 @@ final class AppModel {
         loadProjectSettings()
         loadDrumGrooves()
         loadDrumPattern()
+        loadMelodyPattern()
         do {
             let store = try LibraryStore(path: try LibraryStore.defaultURL().path)
             self.store = store
@@ -345,6 +348,7 @@ final class AppModel {
         refilter()
         if let id = selectedID, sampleByID[id] == nil { selectedID = nil }
         restoreDrumSounds()
+        restoreMelodySounds()
     }
 
     /// Runs several changes to the filters (a click in the sidebar changes up to eight of them) and filters the list once

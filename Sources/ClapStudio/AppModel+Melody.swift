@@ -69,3 +69,47 @@ extension AppModel {
         selectedMelodyNote = nil
     }
 }
+
+// MARK: remembering the melody
+
+extension AppModel {
+    private static let melodyPatternKey = "melody.pattern", melodyOpenKey = "melody.open"
+
+    /// Brings back the melody (notes, sounds, mix, length) and whether the drawer was open. Run before the library is
+    /// read, so the sounds are matched up later, in `restoreMelodySounds`.
+    func loadMelodyPattern() {
+        let d = UserDefaults.standard
+        let wasOpen = d.bool(forKey: Self.melodyOpenKey)       // read first: assigning the melody stores the (still closed) drawer
+        if let data = d.data(forKey: Self.melodyPatternKey), let saved = try? JSONDecoder().decode(MelodyPattern.self, from: data) {
+            melodyPattern = saved.sanitized()
+        }
+        showMelody = wasOpen && !melodyPattern.tracks.isEmpty
+    }
+
+    func storeMelodyPattern() {
+        melodyStoreTask?.cancel()
+        let d = UserDefaults.standard
+        // Sounds read from a USB stick only exist while it is plugged in, so they are not kept; their notes are.
+        let pattern = melodyPattern.keepingSounds { !usbSampleIDs.contains($0) }
+        if let data = try? JSONEncoder().encode(pattern) { d.set(data, forKey: Self.melodyPatternKey) }
+        d.set(showMelody, forKey: Self.melodyOpenKey)
+    }
+
+    /// Dragging a note changes the melody many times a second, so saving waits until the changes stop.
+    func storeMelodyPatternSoon() {
+        melodyStoreTask?.cancel()
+        melodyStoreTask = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            if !Task.isCancelled { storeMelodyPattern() }
+        }
+    }
+
+    /// Once the library is loaded, lets go of saved sounds that are gone (keeping their notes) and hands the rest to the engine.
+    func restoreMelodySounds() {
+        guard !melodySourcesReady, !sampleByID.isEmpty else { return }
+        melodySourcesReady = true
+        guard !melodyPattern.tracks.isEmpty else { return }
+        let pattern = melodyPattern.keepingSounds { sampleByID[$0] != nil }
+        if pattern != melodyPattern { melodyPattern = pattern } else { pushMelodyPattern() }
+    }
+}

@@ -149,3 +149,21 @@ import Testing
         #expect([60, 62, 64, 65, 67, 69, 71].allSatisfy { !NoteNames.isBlackKey($0) })
     }
 }
+
+@Suite struct MelodyKeepingSoundsTests {
+    @Test func aTrackWhoseSampleIsGoneKeepsItsNotesAndWaitsForANewSound() throws {
+        var p = MelodyPattern()
+        p.addTrack(sampleID: 1, label: "Here", rootNote: 50)
+        p.addTrack(sampleID: 2, label: "Gone", rootNote: 52)
+        p.addTrack(sampleID: nil, label: "Empty")
+        p.addNote(track: 1, pitch: 60, start: 3, length: 2)
+        p.setBars(2)
+
+        let kept = p.keepingSounds { $0 == 1 }
+        #expect(kept.tracks.map(\.sampleID) == [1, nil, nil], "only the sound that is still there stays")
+        #expect(kept.tracks[1].notes == p.tracks[1].notes && kept.tracks[1].label == "Gone" && kept.tracks[1].rootNote == 52,
+                "the notes the user wrote are never thrown away")
+        #expect(kept.bars == 2 && kept.tracks.count == 3)
+        #expect(p.keepingSounds { _ in true } == p, "nothing changes when every sound is available")
+    }
+}

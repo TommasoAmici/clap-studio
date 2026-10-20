@@ -145,6 +145,16 @@ public struct MelodyPattern: Equatable, Sendable, Codable {
         if needed > bars { bars = min(needed, Self.maxBars) }
     }
 
+    /// The same melody with each track's sound dropped when `isAvailable` says its sample is gone (or not worth
+    /// remembering). The notes stay, so the track only waits for a new sound.
+    public func keepingSounds(where isAvailable: (Int64) -> Bool) -> MelodyPattern {
+        var copy = self
+        for t in copy.tracks.indices {
+            if let id = copy.tracks[t].sampleID, !isAvailable(id) { copy.tracks[t].sampleID = nil }
+        }
+        return copy
+    }
+
     // MARK: safety
 
     /// What was saved, made safe to play: a sensible length, no more tracks than fit, and every value in range.
