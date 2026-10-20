@@ -3,7 +3,7 @@ import Testing
 @testable import ClapCore
 
 /// Builds Standard MIDI Files byte by byte, so the reader is checked against the format and not against itself.
-private enum Midi {
+enum Midi {
     static func vlq(_ value: Int) -> [UInt8] {
         var v = value, out = [UInt8(v & 0x7F)]
         v >>= 7
@@ -169,5 +169,35 @@ private enum Midi {
     @Test func aFileWithoutNotesGivesAnEmptyMelodyAndSaysSo() {
         let result = MelodyImport.pattern(from: [], sampleID: 1, bars: 2)
         #expect(result.pattern.tracks.isEmpty && result.notice?.contains("no notes") == true)
+    }
+}
+
+@Suite struct MidiFileNameTests {
+    @Test func midiFilesAreRecognisedByTheirExtension() {
+        for name in ["tune.mid", "Tune.MID", "tune.midi", "my song.Midi"] {
+            #expect(MidiFile.isMidiFile(URL(fileURLWithPath: "/tmp/\(name)")), "\(name) is MIDI")
+        }
+        for name in ["tune.wav", "tune.mid.wav", "mid", "tune.mp3"] {
+            #expect(!MidiFile.isMidiFile(URL(fileURLWithPath: "/tmp/\(name)")), "\(name) is not MIDI")
+        }
+    }
+}
+
+@Suite struct MidiLimitsTests {
+    @Test func aFileThatIsTooLargeIsRefusedBeforeItIsRead() throws {
+        let url = TestSupport.tempDir().appendingPathComponent("big.mid")
+        try Midi.file(tracks: [Midi.event(0, 0x90, 60, 100) + Midi.event(480, 0x80, 60, 0) + Midi.endOfTrack]).write(to: url)
+        #expect(throws: MidiError.tooLarge) { try MidiFile.read(url: url, maxBytes: 20) }
+        #expect(try MidiFile.read(url: url).count == 1, "the normal limit is far above a real song")
+        #expect(MidiError.tooLarge.errorDescription?.contains("too large") == true)
+    }
+
+    @Test func aFloodOfNotesIsCutAtALimitAndSaysSo() {
+        let notes = (0..<(MelodyImport.maxNotesPerTrack + 900)).map { i in
+            MidiNote(pitch: i % 128, start: Double(i / 128) * 0.25, length: 0.25, velocity: 0.5)
+        }
+        let result = MelodyImport.pattern(from: [MidiTrack(name: "Lots", notes: notes)], sampleID: 1, bars: 1)
+        #expect(result.pattern.tracks[0].notes.count == MelodyImport.maxNotesPerTrack, "the app stays responsive however big the file")
+        #expect(result.notice?.contains("\(MelodyImport.maxNotesPerTrack) notes") == true)
     }
 }

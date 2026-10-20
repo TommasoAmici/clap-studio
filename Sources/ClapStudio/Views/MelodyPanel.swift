@@ -15,7 +15,7 @@ struct MelodyPanel: View {
                     trackControls(track, index: model.selectedMelodyTrack)
                     PianoRoll(trackIndex: model.selectedMelodyTrack).frame(height: 168)
                 } else {
-                    Text("Drag a sound here, or use Add to Melody in the library menu, to write a melody with it.")
+                    Text("Drag a sound here, or use Add to Melody in the library menu, to write a melody with it. A MIDI file can be dropped here too.")
                         .font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 60)
                 }
@@ -38,6 +38,8 @@ struct MelodyPanel: View {
             Button { model.addToMelody(model.actionTargets) } label: { Label("Add Selected", systemImage: "plus") }
                 .disabled(model.actionTargets.isEmpty || model.melodyPattern.tracks.count >= MelodyPattern.maxTracks)
                 .help("Give the melody another sound: the selected sample")
+            Button("Open MIDI…") { model.chooseMidiFile() }
+                .help("Replace the melody with the notes of a MIDI file, one track for each track in it. The file's tempo is not used: the melody follows the project tempo.")
             Spacer()
             barsMenu
             Button("Clear Notes") { model.melodyPattern.clearNotes(); model.selectedMelodyNote = nil }

@@ -1,5 +1,5 @@
 - [ ] add a melodic sequencer next to the drum machine
   - [x] separate drawer/tab
-  - [ ] can load midi files
+  - [x] can load midi files
   - [x] lets user draw out a sequence of notes with different pitch and length (think ableton piano roll for example)
   - [x] loads samples and plays them in time with the drum machine

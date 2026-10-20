@@ -21,10 +21,11 @@ public struct MidiTrack: Equatable, Sendable {
 }
 
 public enum MidiError: Error, Equatable, LocalizedError {
-    case notMidi, unsupportedTiming
+    case notMidi, unsupportedTiming, tooLarge
 
     public var errorDescription: String? {
         switch self {
+        case .tooLarge: return "This MIDI file is too large to open here."
         case .notMidi: return "This is not a MIDI file Clap Studio can read."
         case .unsupportedTiming: return "This MIDI file keeps time in frames rather than beats, which Clap Studio cannot place on a grid."
         }
@@ -34,7 +35,17 @@ public enum MidiError: Error, Equatable, LocalizedError {
 /// Reads Standard MIDI Files (formats 0 and 1) for their notes only. Tempo, time signature, controllers and
 /// everything else are skipped: the notes are placed by beats, so they follow the project tempo.
 public enum MidiFile {
-    public static func read(url: URL) throws -> [MidiTrack] { try parse(Data(contentsOf: url)) }
+    /// Real songs are a few hundred kilobytes; anything far beyond this is not a song and is not read.
+    public static let maxBytes = 32 * 1024 * 1024
+
+    public static func read(url: URL, maxBytes: Int = MidiFile.maxBytes) throws -> [MidiTrack] {
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size <= maxBytes else { throw MidiError.tooLarge }
+        return try parse(Data(contentsOf: url))
+    }
+
+    /// True for a file named like a MIDI file (.mid or .midi, in any case).
+    public static func isMidiFile(_ url: URL) -> Bool { ["mid", "midi"].contains(url.pathExtension.lowercased()) }
 
     /// A file that is cut off or damaged part way keeps the notes read before the damage.
     public static func parse(_ data: Data) throws -> [MidiTrack] {

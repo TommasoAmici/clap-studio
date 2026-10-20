@@ -253,10 +253,12 @@ extension AppModel {
         case .drumTrack(let index): dropOnDrumTrack(index, files: urls)
         case .drumInsert(let index): addToDrums(librarySamples(forFiles: urls).map(\.id), at: index)
         case .drums: dropOnDrums(files: urls)
-        case .melody: addToMelody(librarySamples(forFiles: urls).map(\.id))
+        case .melody:
+            if let midi = urls.first(where: MidiFile.isMidiFile) { importMidi(midi) } else { addToMelody(librarySamples(forFiles: urls).map(\.id)) }
         case nil:
-            // Anywhere else, an audio file finds similar sounds.
-            if let file = urls.first(where: { FolderScanner.isSupported($0) }) { findSimilar(toFileAt: file) }
+            // Anywhere else, a MIDI file is opened as the melody and an audio file finds similar sounds.
+            if let midi = urls.first(where: MidiFile.isMidiFile) { importMidi(midi) }
+            else if let file = urls.first(where: { FolderScanner.isSupported($0) }) { findSimilar(toFileAt: file) }
         }
     }
 }
