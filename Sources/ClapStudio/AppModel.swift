@@ -125,6 +125,11 @@ final class AppModel {
     }
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumPlaying = false
+    var showMelody = false
+    var melodyPattern = MelodyPattern() { didSet { if melodyPattern != oldValue { pushMelodyPattern() } } }
+    var selectedMelodyTrack = 0            // the track the piano roll shows
+    var selectedMelodyNote: UUID?          // the note Delete removes
+    var melodyStep: Int?                   // where the melody is in its loop, nil when stopped
     var categoryCounts: [(name: String, count: Int)] = []   // sidebar; only categories that have samples
     var birdsRevision = 0                                   // bumped when birds or places change, to reload the section
     var moodCounts: [(name: String, count: Int)] = []       // sidebar; only moods that have samples

@@ -14,6 +14,8 @@ struct MainToolbar: ToolbarContent {
                         help: "Match preview loudness, so quiet and loud samples can be compared")
             ModelToggle("Drum Machine", systemImage: "square.grid.4x3.fill", isOn: \.showDrums,
                         help: "Show the drum machine")
+            ModelToggle("Melody", systemImage: "pianokeys", isOn: \.showMelody,
+                        help: "Show the melody: a piano roll that plays with the drum machine")
             ModelToggle("Autoplay", systemImage: "speaker.wave.2", isOn: \.autoplay,
                         help: "Play a sample when it is selected")
         }

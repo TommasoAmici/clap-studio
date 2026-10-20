@@ -28,6 +28,7 @@ struct RootView: View {
                     case .places: PlacesPanel()
                     }
                 }
+                MelodyPanel()
                 DrumPanel()
                 StatusBar()
             }

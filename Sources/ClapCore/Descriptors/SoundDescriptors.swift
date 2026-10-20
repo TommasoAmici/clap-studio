@@ -32,10 +32,21 @@ public enum NoteNames {
     static let sharps = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     /// "A4" for 440 Hz.
-    public static func name(forHz hz: Double) -> String? {
+    public static func name(forHz hz: Double) -> String? { midiNote(forHz: hz).map { name(midi: $0) } }
+
+    /// The nearest MIDI note (69 is concert A), or nil for a frequency outside what a sample can sensibly have.
+    public static func midiNote(forHz hz: Double) -> Int? {
         guard hz > 20, hz < 8_000 else { return nil }
         let midi = Int((69 + 12 * log2(hz / 440)).rounded())
-        guard midi >= 0 else { return nil }
-        return "\(sharps[midi % 12])\(midi / 12 - 1)"
+        return midi >= 0 ? midi : nil
     }
+
+    /// "C4" for 60, "C#4" for 61. Notes outside 0...127 are held at the ends.
+    public static func name(midi: Int) -> String {
+        let note = min(max(midi, 0), 127)
+        return "\(sharps[note % 12])\(note / 12 - 1)"
+    }
+
+    /// True for the notes drawn as black keys.
+    public static func isBlackKey(_ midi: Int) -> Bool { [1, 3, 6, 8, 10].contains(((midi % 12) + 12) % 12) }
 }

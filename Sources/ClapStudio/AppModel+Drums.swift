@@ -103,10 +103,13 @@ extension AppModel {
         machine.onStep = { [weak self] step in
             MainActor.assumeIsolated { if self?.drumPlaying == true { self?.drumStep = step } }
         }
+        machine.onMelodyStep = { [weak self] step in
+            MainActor.assumeIsolated { if self?.drumPlaying == true { self?.melodyStep = step } }
+        }
         machine.onRunningChange = { [weak self] running in
             MainActor.assumeIsolated {
                 self?.drumPlaying = running
-                if !running { self?.drumStep = nil }
+                if !running { self?.drumStep = nil; self?.melodyStep = nil }
             }
         }
         return machine
@@ -132,6 +135,7 @@ extension AppModel {
     func toggleDrumPlayback() {
         if drumPlaying { drumMachine.stop(); return }
         pushDrumPattern()
+        pushMelodyPattern()
         drumMachine.bpm = drumTempo
         drumMachine.start()
     }

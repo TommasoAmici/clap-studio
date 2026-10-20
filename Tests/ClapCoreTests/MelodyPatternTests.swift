@@ -128,3 +128,24 @@ import Testing
         #expect(note.pitch == 127 && note.velocity == 1 && note.end <= Double(safe.stepCount))
     }
 }
+
+@Suite struct NoteNameTests {
+    @Test func aFrequencyBecomesTheNearestMidiNote() {
+        #expect(NoteNames.midiNote(forHz: 440) == 69, "concert A")
+        #expect(NoteNames.midiNote(forHz: 261.63) == 60, "middle C")
+        #expect(NoteNames.midiNote(forHz: 450) == 69, "a little sharp is still an A")
+        #expect(NoteNames.midiNote(forHz: 10) == nil && NoteNames.midiNote(forHz: 20_000) == nil, "outside what a sample can sensibly have")
+    }
+
+    @Test func midiNotesHaveTheNamesMusiciansUse() {
+        #expect(NoteNames.name(midi: 60) == "C4" && NoteNames.name(midi: 69) == "A4" && NoteNames.name(midi: 61) == "C#4")
+        #expect(NoteNames.name(midi: 0) == "C-1" && NoteNames.name(midi: 127) == "G9")
+        #expect(NoteNames.name(midi: 300) == "G9" && NoteNames.name(midi: -5) == "C-1", "out of range is held at the ends")
+        #expect(NoteNames.name(forHz: 440) == "A4", "the older name-from-frequency still agrees")
+    }
+
+    @Test func blackKeysAreTheSharps() {
+        #expect([61, 63, 66, 68, 70].allSatisfy { NoteNames.isBlackKey($0) })
+        #expect([60, 62, 64, 65, 67, 69, 71].allSatisfy { !NoteNames.isBlackKey($0) })
+    }
+}

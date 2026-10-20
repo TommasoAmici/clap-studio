@@ -47,6 +47,7 @@ extension AppModel {
         do { try store?.setTrim(trim, sampleID: id) } catch { errorMessage = "Could not save the trim: \(error)"; return }
         trims[id] = trim
         if drumPattern.tracks.contains(where: { $0.sampleID == id }) { pushDrumPattern() }
+        if melodyPattern.tracks.contains(where: { $0.sampleID == id }) { pushMelodyPattern() }
     }
 
     /// Moves the start of the selected sample's trim (creating one that runs to the end of the file if needed).

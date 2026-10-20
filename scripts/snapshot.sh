@@ -9,6 +9,7 @@
 #     --places  show the Places tab
 #     --no-inspector  start with the inspector hidden
 #     --drums  open the drum machine with three samples
+#     --melody  open the melody with two samples and a few notes
 #     --width PX  resize the window to this width first (down to its minimum)
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
 #                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut;
@@ -31,6 +32,7 @@ while [ $# -gt 0 ]; do
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;
     --places) export CLAP_SNAPSHOT_PLACES=1 ;;
     --drums) export CLAP_SNAPSHOT_DRUMS=1 ;;
+    --melody) export CLAP_SNAPSHOT_MELODY=1 ;;
     --no-inspector) export CLAP_SNAPSHOT_NO_INSPECTOR=1 ;;
     --width) shift; export CLAP_SNAPSHOT_WIDTH="$1" ;;
     --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;
