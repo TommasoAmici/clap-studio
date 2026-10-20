@@ -84,6 +84,7 @@ extension View {
 enum DropZone: Hashable {
     case drumTrack(Int)         // a track row: dropping here swaps its sound
     case drums                  // the whole drawer
+    case melody                 // the melody drawer: dropped samples become tracks
     case drumInsert(Int)        // not a frame: the gap before this track (or after the last), worked out from the pointer
 }
 

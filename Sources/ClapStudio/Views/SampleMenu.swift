@@ -20,6 +20,7 @@ extension AppModel {
             menu.append(.action("Build a Kit From This…") { [unowned self] in buildKit(around: first.id) })
         }
         menu.append(.action("Add to Drum Machine") { [unowned self] in addToDrums(ids) })
+        menu.append(.action("Add to Melody") { [unowned self] in addToMelody(ids) })
         if squidEnabled { menu.append(.action("Send to Squid…") { [unowned self] in openSquidExport(ids: ids) }) }
         menu.append(.action("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) })
         menu.append(.divider)

@@ -15,12 +15,14 @@ struct MelodyPanel: View {
                     trackControls(track, index: model.selectedMelodyTrack)
                     PianoRoll(trackIndex: model.selectedMelodyTrack).frame(height: 168)
                 } else {
-                    Text("Add a sound from the library to write a melody with it.")
+                    Text("Drag a sound here, or use Add to Melody in the library menu, to write a melody with it.")
                         .font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 60)
                 }
             }
             .background(.bar)
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: model.dropHover == .melody ? 2 : 0).padding(2))
+            .dropZone(.melody)
         }
     }
 

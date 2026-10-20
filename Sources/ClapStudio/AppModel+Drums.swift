@@ -234,6 +234,8 @@ extension AppModel {
     /// swap or a gap to insert into, and the drawer counts a little beyond its edges (above it, and down through the
     /// status bar), so missing the exact spot still lands a new track at the end.
     func dropZone(at point: CGPoint) -> DropZone? {
+        // The melody drawer sits right above the drum machine, whose reach extends a little over it: the melody wins there.
+        if let melody = dropZones[.melody], melody.contains(point) { return .melody }
         guard let drawer = dropZones[.drums] else { return nil }
         let reach = CGRect(x: drawer.minX, y: drawer.minY - 28, width: drawer.width, height: drawer.height + 28 + 90)
         guard reach.contains(point) else { return nil }
@@ -251,6 +253,7 @@ extension AppModel {
         case .drumTrack(let index): dropOnDrumTrack(index, files: urls)
         case .drumInsert(let index): addToDrums(librarySamples(forFiles: urls).map(\.id), at: index)
         case .drums: dropOnDrums(files: urls)
+        case .melody: addToMelody(librarySamples(forFiles: urls).map(\.id))
         case nil:
             // Anywhere else, an audio file finds similar sounds.
             if let file = urls.first(where: { FolderScanner.isSupported($0) }) { findSimilar(toFileAt: file) }
