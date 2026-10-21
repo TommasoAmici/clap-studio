@@ -90,26 +90,33 @@ extension AppModel {
 // MARK: remembering the melody
 
 extension AppModel {
+    /// The melody itself lives in a file (see `MelodyStore`); the older versions kept it in the preferences under this key.
     private static let melodyPatternKey = "melody.pattern", melodyOpenKey = "melody.open"
+    private static let melodyWriter = DispatchQueue(label: "clap.melody.save", qos: .utility)
 
     /// Brings back the melody (notes, sounds, mix, length) and whether the drawer was open. Run before the library is
     /// read, so the sounds are matched up later, in `restoreMelodySounds`.
     func loadMelodyPattern() {
         let d = UserDefaults.standard
         let wasOpen = d.bool(forKey: Self.melodyOpenKey)       // read first: assigning the melody stores the (still closed) drawer
-        if let data = d.data(forKey: Self.melodyPatternKey), let saved = try? JSONDecoder().decode(MelodyPattern.self, from: data) {
-            melodyPattern = saved.sanitized()
+        if let url = try? MelodyStore.defaultURL(), let saved = MelodyStore.load(from: url) {
+            melodyPattern = saved
+        } else if let data = d.data(forKey: Self.melodyPatternKey), let old = try? JSONDecoder().decode(MelodyPattern.self, from: data) {
+            melodyPattern = old.sanitized()                    // from an earlier version: moves to the file at the next save
         }
         showMelody = wasOpen && !melodyPattern.tracks.isEmpty
     }
 
     func storeMelodyPattern() {
         melodyStoreTask?.cancel()
-        let d = UserDefaults.standard
         // Sounds read from a USB stick only exist while it is plugged in, so they are not kept; their notes are.
         let pattern = melodyPattern.keepingSounds { !usbSampleIDs.contains($0) }
-        if let data = try? JSONEncoder().encode(pattern) { d.set(data, forKey: Self.melodyPatternKey) }
-        d.set(showMelody, forKey: Self.melodyOpenKey)
+        let legacyKey = Self.melodyPatternKey
+        Self.melodyWriter.async {
+            guard let url = try? MelodyStore.defaultURL(), (try? MelodyStore.save(pattern, to: url)) != nil else { return }
+            UserDefaults.standard.removeObject(forKey: legacyKey)      // the file has it now
+        }
+        UserDefaults.standard.set(showMelody, forKey: Self.melodyOpenKey)
     }
 
     /// Dragging a note changes the melody many times a second, so saving waits until the changes stop.
