@@ -69,6 +69,12 @@ extension AppModel {
         return sample.name + (trim.coversWholeFile(duration: sample.duration) ? " · edited" : " · trimmed")
     }
 
+    /// Plays one note of the track being edited with its own sound, as a piano key press.
+    func auditionMelodyKey(_ pitch: Int) {
+        guard currentMelodyTrack?.sampleID != nil else { return }
+        drumMachine.audition(track: selectedMelodyTrack, pitch: pitch)
+    }
+
     /// Deletes the note picked on the piano roll.
     func deleteSelectedMelodyNote() {
         guard let id = selectedMelodyNote else { return }

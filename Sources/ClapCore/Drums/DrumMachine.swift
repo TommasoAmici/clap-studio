@@ -88,6 +88,25 @@ public final class DrumMachine: @unchecked Sendable {
         melodyVoices.setMix(new)
     }
 
+    /// Sounds one note of a melody track right now, like pressing a piano key. Works while stopped or playing.
+    public func audition(track: Int, pitch: Int, seconds: Double = 1.5) {
+        lock.lock(); let melody = self.melody; lock.unlock()
+        guard melody.tracks.indices.contains(track), let sampleID = melody.tracks[track].sampleID else { return }
+        let semitones = MelodyVoice.semitones(note: pitch, root: melody.tracks[track].rootNote)
+        decodeQueue.async { [self] in
+            guard let tuned = melodySounds.sound(sampleID: sampleID, semitones: semitones),
+                  let note = MelodyVoice.shaped(tuned, duration: seconds, velocity: 0.8) else { return }
+            queue.async { [self] in
+                if !engine.isRunning {
+                    engine.prepare()
+                    do { try engine.start() } catch { return }
+                }
+                melodyVoices.play()                       // the players are stopped between playbacks
+                melodyVoices.schedule(note, track: track, at: nil)
+            }
+        }
+    }
+
     private func prepare(id: Int64, source: DrumSource) {
         let buffer: AVAudioPCMBuffer?
         if let trim = source.trim {

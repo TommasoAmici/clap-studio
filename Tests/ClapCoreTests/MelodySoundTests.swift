@@ -93,6 +93,25 @@ import Testing
         #expect(sounds.buffer(sampleID: 1, semitones: 0) == nil, "memory is not held for notes that are gone")
     }
 
+    @Test func aKeyCanBeHeardBeforeAnyNoteUsesIt() throws {
+        let url = TestSupport.tempDir().appendingPathComponent("pad.wav")
+        try writeTestWav(url, seconds: 0.5) { Float(sin(2 * .pi * 220 * $0)) * 0.5 }
+        var melody = MelodyPattern()
+        melody.addTrack(sampleID: 1, label: "Pad", rootNote: 57)          // no notes yet
+        let sounds = MelodySounds(cache: AudioBufferCache(sampleRate: 44100))
+        sounds.update(melody: melody, sources: [1: DrumSource(url: url)])
+
+        let octave = try #require(sounds.sound(sampleID: 1, semitones: 12), "the tuning is made on the spot")
+        #expect(abs(Int(octave.frameLength) - 11025) <= 2, "an octave up is half as long")
+        #expect(sounds.sound(sampleID: 1, semitones: 12) === octave, "pressing the same key again does no new work")
+    }
+
+    @Test func aKeyOfASoundTheMelodyDoesNotKnowIsSilent() {
+        let sounds = MelodySounds(cache: AudioBufferCache(sampleRate: 44100))
+        sounds.update(melody: MelodyPattern(), sources: [:])
+        #expect(sounds.sound(sampleID: 1, semitones: 0) == nil)
+    }
+
     @Test func aTrackWithoutASoundIsSimplySilent() {
         var melody = MelodyPattern()
         melody.addTrack(sampleID: nil, label: "Track 1")

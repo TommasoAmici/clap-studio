@@ -47,6 +47,20 @@ public final class MelodySounds: @unchecked Sendable {
         return ready[Key(sampleID: sampleID, semitones: semitones)]?.buffer
     }
 
+    /// The sample tuned by `semitones`, made now if no note needed it yet (so a piano key can be heard before any note
+    /// is written). This reads the file, so call it off the main thread. nil when the melody does not know the sound.
+    public func sound(sampleID: Int64, semitones: Int) -> AVAudioPCMBuffer? {
+        lock.lock()
+        if let entry = ready[Key(sampleID: sampleID, semitones: semitones)] { lock.unlock(); return entry.buffer }
+        let source = sources[sampleID]
+        lock.unlock()
+        guard let source, let base = Self.read(source, cache: cache) else { return nil }
+        let tuned = MelodyVoice.pitched(base, semitones: semitones)
+        lock.lock(); defer { lock.unlock() }
+        if sources[sampleID] == source { ready[Key(sampleID: sampleID, semitones: semitones)] = Entry(source: source, buffer: tuned) }
+        return tuned
+    }
+
     private func prepare(id: Int64, source: DrumSource, tunings: [Int]) {
         let base = Self.read(source, cache: cache)
         lock.lock()

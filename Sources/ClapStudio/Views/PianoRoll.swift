@@ -13,6 +13,7 @@ struct PianoRoll: View {
     @State private var drag: Drag?
     @State private var gestureBegan = false
     @State private var didMove = false
+    @State private var pressedKey: Int?               // the piano key being held
     @State private var clickedNote: UUID?             // the note under the pointer when it went down, if any
     @State private var lastLength = 2.0               // new notes are as long as the last one drawn
     @FocusState private var focused: Bool
@@ -67,6 +68,28 @@ struct PianoRoll: View {
             }
         }
         .background(.bar)
+        .overlay(alignment: .topLeading) {
+            // The key under the pointer lights up while it is held.
+            if let pressed = pressedKey {
+                Rectangle().fill(Color.accentColor.opacity(0.55))
+                    .frame(height: grid.rowHeight).offset(y: grid.y(ofPitch: pressed)).allowsHitTesting(false)
+            }
+        }
+        .contentShape(Rectangle())
+        .gesture(playingKeys(grid))
+        .help("Click a key to hear it with this track's sound")
+    }
+
+    /// Pressing a key sounds it; sliding to another key while held plays that one too.
+    private func playingKeys(_ grid: PianoRollGrid) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                let pitch = grid.pitch(atY: value.location.y)
+                guard pitch != pressedKey else { return }
+                pressedKey = pitch
+                model.auditionMelodyKey(pitch)
+            }
+            .onEnded { _ in pressedKey = nil }
     }
 
     private func gridView(_ grid: PianoRollGrid, steps: Int) -> some View {

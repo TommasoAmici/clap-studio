@@ -32,8 +32,8 @@ final class MelodyVoices: @unchecked Sendable {
         }
     }
 
-    /// Starts `buffer` on the track's next free player at `time`.
-    func schedule(_ buffer: AVAudioPCMBuffer, track: Int, at time: AVAudioTime) {
+    /// Starts `buffer` on the track's next free player at `time` (right away when nil).
+    func schedule(_ buffer: AVAudioPCMBuffer, track: Int, at time: AVAudioTime?) {
         guard track >= 0, track < MelodyPattern.maxTracks else { return }
         let node = nodes[track * Self.voicesPerTrack + next[track]]
         next[track] = (next[track] + 1) % Self.voicesPerTrack
