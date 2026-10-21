@@ -235,6 +235,9 @@ extension AppModel {
     /// status bar), so missing the exact spot still lands a new track at the end.
     func dropZone(at point: CGPoint) -> DropZone? {
         // The melody drawer sits right above the drum machine, whose reach extends a little over it: the melody wins there.
+        if let tab = dropZones.first(where: { zone, frame in
+            if case .melodyTrack = zone { return frame.contains(point) } else { return false }
+        }) { return tab.key }
         if let melody = dropZones[.melody], melody.contains(point) { return .melody }
         guard let drawer = dropZones[.drums] else { return nil }
         let reach = CGRect(x: drawer.minX, y: drawer.minY - 28, width: drawer.width, height: drawer.height + 28 + 90)
@@ -253,6 +256,8 @@ extension AppModel {
         case .drumTrack(let index): dropOnDrumTrack(index, files: urls)
         case .drumInsert(let index): addToDrums(librarySamples(forFiles: urls).map(\.id), at: index)
         case .drums: dropOnDrums(files: urls)
+        case .melodyTrack(let index):
+            if let midi = urls.first(where: MidiFile.isMidiFile) { importMidi(midi) } else { dropOnMelodyTrack(index, files: urls) }
         case .melody:
             if let midi = urls.first(where: MidiFile.isMidiFile) { importMidi(midi) } else { addToMelody(librarySamples(forFiles: urls).map(\.id)) }
         case nil:

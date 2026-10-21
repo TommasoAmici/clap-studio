@@ -64,9 +64,11 @@ struct MelodyPanel: View {
                     .padding(.horizontal, 7).padding(.vertical, 3)
                     .background(index == model.selectedMelodyTrack ? colour.opacity(0.25) : Color.secondary.opacity(0.12),
                                 in: RoundedRectangle(cornerRadius: 5))
+                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: model.dropHover == .melodyTrack(index) ? 2 : 0))
                 }
                 .buttonStyle(.plain)
-                .help(model.melodySampleName(track))
+                .dropZone(.melodyTrack(index))
+                .help(model.melodySampleName(track) + ". Drop a sample here to swap its sound.")
             }
         }
     }

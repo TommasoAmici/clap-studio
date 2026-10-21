@@ -49,6 +49,13 @@ extension AppModel {
         melodyPattern.tracks[index].label = sample.name
     }
 
+    /// A sample dragged onto a track's tab replaces its sound (the notes stay) and is previewed.
+    func dropOnMelodyTrack(_ index: Int, files urls: [URL]) {
+        guard let sample = librarySamples(forFiles: urls).first else { return }
+        setMelodySample(track: index, to: sample.id)
+        select(sample.id, play: true)
+    }
+
     func removeMelodyTrack(at index: Int) {
         melodyPattern.removeTrack(at: index)
         selectedMelodyTrack = min(selectedMelodyTrack, max(0, melodyPattern.tracks.count - 1))
