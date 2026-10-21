@@ -1,4 +1,4 @@
-- [ ] clicking a note should remove it
+- [x] clicking a note should remove it
 - [ ] drag and drop over a melody "tag" (the area with the colored dot and the sample name), should highlight the tag and on drop replace it
 - [ ] when importing a MIDI file, add an option in the dialog to also set the project tempo
 - [ ] pressing a piano key, should play that note with the currently selected sample

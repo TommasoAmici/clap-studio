@@ -6,13 +6,14 @@ import SwiftUI
 let melodyTrackColors: [Color] = [.accentColor, .orange, .green, .pink]
 
 /// The piano roll of one melody track: a keyboard on the left and a grid of steps. Click to add a note, drag it to
-/// move it, drag its right edge to stretch it, press Delete (or Option-click) to remove it.
+/// move it, drag its right edge to stretch it, click a note again (or press Delete) to remove it.
 struct PianoRoll: View {
     @Environment(AppModel.self) private var model
     let trackIndex: Int
     @State private var drag: Drag?
     @State private var gestureBegan = false
     @State private var didMove = false
+    @State private var clickedNote: UUID?             // the note under the pointer when it went down, if any
     @State private var lastLength = 2.0               // new notes are as long as the last one drawn
     @FocusState private var focused: Bool
 
@@ -138,15 +139,20 @@ struct PianoRoll: View {
                 if abs(value.translation.width) > 3 || abs(value.translation.height) > 3 { didMove = true }
                 if didMove { update(to: value.location, grid: grid) }
             }
-            .onEnded { _ in drag = nil; gestureBegan = false }
+            .onEnded { _ in
+                // A click on a note that was not dragged takes it away.
+                if !didMove, let id = clickedNote { model.removeMelodyNote(id) }
+                drag = nil; gestureBegan = false; clickedNote = nil
+            }
     }
 
     private func begin(at point: CGPoint, grid: PianoRollGrid) {
         focused = true
+        clickedNote = nil
         guard let track = model.currentMelodyTrack else { return }
         if let found = grid.hit(x: point.x, y: point.y, in: track.notes) {
             model.selectedMelodyNote = found.id
-            if NSEvent.modifierFlags.contains(.option) { model.deleteSelectedMelodyNote(); return }
+            clickedNote = found.id
             guard let note = track.notes.first(where: { $0.id == found.id }) else { return }
             drag = found.zone == .end ? .stretch(id: found.id) : .move(id: found.id, grabbedAt: grid.step(atX: point.x) - note.start)
             return

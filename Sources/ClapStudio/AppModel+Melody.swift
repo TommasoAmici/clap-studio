@@ -65,8 +65,12 @@ extension AppModel {
     /// Deletes the note picked on the piano roll.
     func deleteSelectedMelodyNote() {
         guard let id = selectedMelodyNote else { return }
+        removeMelodyNote(id)
+    }
+
+    func removeMelodyNote(_ id: UUID) {
         melodyPattern.removeNote(track: selectedMelodyTrack, id: id)
-        selectedMelodyNote = nil
+        if selectedMelodyNote == id { selectedMelodyNote = nil }
     }
 }
 
