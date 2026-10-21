@@ -93,7 +93,25 @@ import Testing
     @Test func barsAreKeptInRange() {
         var p = MelodyPattern()
         p.setBars(0); #expect(p.bars == 1)
-        p.setBars(10_000); #expect(p.bars == MelodyPattern.maxBars)
+        p.setBars(300); #expect(p.bars == 300)
+        p.setBars(Int.max); #expect(p.bars == MelodyPattern.maxBars)
+    }
+
+    @Test func aWholeTrackOfNotesIsSetInOneGoWithTheSameRules() throws {
+        var p = pattern()
+        let raw = [MelodyNote(pitch: 200, start: 0, length: 4), MelodyNote(pitch: 60, start: 2, length: 4),
+                   MelodyNote(pitch: 60, start: 4, length: 100), MelodyNote(pitch: 62, start: 99, length: 1),
+                   MelodyNote(pitch: 64, start: 1, length: 0, velocity: 3)]
+        p.setNotes(track: 0, raw)
+        let notes = p.tracks[0].notes
+        #expect(notes.count == 3, "the note starting after the end is left out, and the overlapped one is replaced")
+        #expect(notes.map(\.start) == notes.map(\.start).sorted(), "notes come back in time order")
+        #expect(notes.first { $0.pitch == 127 } != nil, "pitch is clamped to the keyboard")
+        let sixty = notes.filter { $0.pitch == 60 }
+        #expect(sixty.count == 1 && sixty[0].start == 4 && sixty[0].end == 16, "a later note replaces the one it overlaps, and stops at the end")
+        let short = try #require(notes.first { $0.pitch == 64 })
+        #expect(short.length == MelodyNote.minLength && short.velocity == 1)
+        p.setNotes(track: 9, raw)                                           // no such track: ignored
     }
 
     @Test func thePatternGrowsToHoldALongerSequence() {
@@ -101,7 +119,8 @@ import Testing
         p.growBars(toFit: 16);  #expect(p.bars == 1, "an exact bar needs no more")
         p.growBars(toFit: 16.5); #expect(p.bars == 2)
         p.growBars(toFit: 5);   #expect(p.bars == 2, "growing never shrinks")
-        p.growBars(toFit: 16 * 100); #expect(p.bars == MelodyPattern.maxBars)
+        p.growBars(toFit: 16 * 100); #expect(p.bars == 100, "a long song gets all its bars")
+        p.growBars(toFit: 16 * Double(MelodyPattern.maxBars + 5)); #expect(p.bars == MelodyPattern.maxBars, "a damaged file cannot ask for more than any song needs")
     }
 
     @Test func savedPatternsComeBackSafeToPlay() throws {
@@ -112,9 +131,9 @@ import Testing
         #expect(again == p, "everything survives a round trip")
 
         // A saved file can hold anything: a length no one could set, then values out of range.
-        let json = try #require(String(data: JSONEncoder().encode(p), encoding: .utf8)).replacingOccurrences(of: "\"bars\":2", with: "\"bars\":999")
+        let json = try #require(String(data: JSONEncoder().encode(p), encoding: .utf8)).replacingOccurrences(of: "\"bars\":2", with: "\"bars\":99999999")
         var bad = try JSONDecoder().decode(MelodyPattern.self, from: Data(json.utf8))
-        #expect(bad.bars == 999, "decoding trusts the file; sanitized() is what makes it safe")
+        #expect(bad.bars == 99_999_999, "decoding trusts the file; sanitized() is what makes it safe")
         bad.tracks[0].volume = .nan
         bad.tracks[0].rootNote = -4
         bad.tracks[0].notes[0].pitch = 400

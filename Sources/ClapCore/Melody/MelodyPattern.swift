@@ -49,8 +49,9 @@ public struct MelodyTrack: Identifiable, Equatable, Sendable, Codable {
 /// Melodies on a piano roll, one or more bars long, played in time with the drum machine.
 public struct MelodyPattern: Equatable, Sendable, Codable {
     public static let maxTracks = 4
-    /// Long enough for a whole song section; longer MIDI files are cut here.
-    public static let maxBars = 64
+    /// Far longer than any song (over 50 hours at 120 BPM). It only stops a damaged file or setting from asking for a
+    /// pattern too big to hold.
+    public static let maxBars = 100_000
     public static let stepsPerBar = DrumPattern.stepCount
 
     public var tracks: [MelodyTrack] = []
@@ -93,6 +94,34 @@ public struct MelodyPattern: Equatable, Sendable, Codable {
         tracks[track].notes.append(note)
         settle(track: track, keeping: note.id)
         return note.id
+    }
+
+    /// Replaces all of a track's notes at once, as when a file is read in, with the rules of `addNote`: notes are kept
+    /// inside the keyboard and the pattern, ones starting after the end are left out, and a note replaces any note of
+    /// the same pitch it overlaps. Unlike adding them one by one, it stays quick for any number of notes.
+    public mutating func setNotes(track: Int, _ notes: [MelodyNote]) {
+        guard tracks.indices.contains(track) else { return }
+        let steps = Double(stepCount)
+        var fitted: [MelodyNote] = []
+        fitted.reserveCapacity(notes.count)
+        for note in notes where note.start.isFinite && note.start < steps {
+            var n = note
+            n.pitch = Self.clamped(note.pitch)
+            n.start = max(0, note.start)
+            n.length = min(max(note.length.isFinite ? note.length : MelodyNote.minLength, MelodyNote.minLength), steps - n.start)
+            n.velocity = n.velocity.isFinite ? min(max(n.velocity, 0), 1) : 0.8
+            fitted.append(n)
+        }
+        // Per pitch, in time order: a note that starts before the last one ends takes its place.
+        fitted.sort { ($0.pitch, $0.start) < ($1.pitch, $1.start) }
+        var kept: [MelodyNote] = []
+        kept.reserveCapacity(fitted.count)
+        for note in fitted {
+            if let last = kept.last, last.pitch == note.pitch, last.end > note.start { kept.removeLast() }
+            kept.append(note)
+        }
+        kept.sort { ($0.start, $0.pitch) < ($1.start, $1.pitch) }
+        tracks[track].notes = kept
     }
 
     public mutating func removeNote(track: Int, id: UUID) {
@@ -141,8 +170,8 @@ public struct MelodyPattern: Equatable, Sendable, Codable {
     /// Makes the pattern long enough for notes that end at `steps`, up to the longest allowed. Never shortens it.
     public mutating func growBars(toFit steps: Double) {
         guard steps.isFinite else { return }
-        let needed = Int((steps / Double(Self.stepsPerBar)).rounded(.up))
-        if needed > bars { bars = min(needed, Self.maxBars) }
+        let needed = min((steps / Double(Self.stepsPerBar)).rounded(.up), Double(Self.maxBars))
+        if needed > Double(bars) { bars = Int(needed) }
     }
 
     /// The same melody with each track's sound dropped when `isAvailable` says its sample is gone (or not worth

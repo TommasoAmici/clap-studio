@@ -153,17 +153,26 @@ enum Midi {
         #expect(MelodyImport.pattern(from: [short], sampleID: 1, bars: 2).pattern.bars == 2)
     }
 
-    @Test func tooManyTracksAndTooLongFilesSayWhatWasLeftOut() {
+    @Test func tooManyTracksSayHowManyWereUsed() {
         let many = (1...6).map { track("T\($0)", notes: [(60, 0, 1)]) }
         let manyResult = MelodyImport.pattern(from: many, sampleID: 1, bars: 1)
         #expect(manyResult.pattern.tracks.count == MelodyPattern.maxTracks)
         #expect(manyResult.notice?.contains("4 of 6") == true, "says how many tracks were used")
+    }
 
+    @Test func aLongSequenceIsKeptWholeHoweverManyBarsItTakes() {
+        let steps = Double(300 * MelodyPattern.stepsPerBar)               // far past the old 64 bars
+        let song = track("Lead", notes: [(60, 0, 1), (62, steps - 4, 2)])
+        let result = MelodyImport.pattern(from: [song], sampleID: 1, bars: 1)
+        #expect(result.pattern.bars == 300 && result.pattern.tracks[0].notes.count == 2, "the whole sequence fits")
+        #expect(result.notice == nil, "nothing was left out")
+    }
+
+    @Test func aDamagedFilePastAnySongIsCutAndSaysSo() {
         let steps = Double(MelodyPattern.maxBars * MelodyPattern.stepsPerBar)
-        let huge = track("Lead", notes: [(60, 0, 1), (62, steps + 8, 1)])
-        let hugeResult = MelodyImport.pattern(from: [huge], sampleID: 1, bars: 1)
-        #expect(hugeResult.pattern.bars == MelodyPattern.maxBars && hugeResult.pattern.tracks[0].notes.count == 1)
-        #expect(hugeResult.notice?.contains("\(MelodyPattern.maxBars) bars") == true, "says where the file was cut")
+        let result = MelodyImport.pattern(from: [track("Lead", notes: [(60, 0, 1), (62, steps + 8, 1)])], sampleID: 1, bars: 1)
+        #expect(result.pattern.bars == MelodyPattern.maxBars && result.pattern.tracks[0].notes.count == 1)
+        #expect(result.notice?.contains("bars") == true, "says where the file was cut")
     }
 
     @Test func aFileWithoutNotesGivesAnEmptyMelodyAndSaysSo() {
@@ -192,12 +201,15 @@ enum Midi {
         #expect(MidiError.tooLarge.errorDescription?.contains("too large") == true)
     }
 
-    @Test func aFloodOfNotesIsCutAtALimitAndSaysSo() {
-        let notes = (0..<(MelodyImport.maxNotesPerTrack + 900)).map { i in
+    @Test func aFloodOfNotesIsAllKeptAndImportsQuickly() {
+        let notes = (0..<50_000).map { i in
             MidiNote(pitch: i % 128, start: Double(i / 128) * 0.25, length: 0.25, velocity: 0.5)
         }
-        let result = MelodyImport.pattern(from: [MidiTrack(name: "Lots", notes: notes)], sampleID: 1, bars: 1)
-        #expect(result.pattern.tracks[0].notes.count == MelodyImport.maxNotesPerTrack, "the app stays responsive however big the file")
-        #expect(result.notice?.contains("\(MelodyImport.maxNotesPerTrack) notes") == true)
+        let clock = ContinuousClock()
+        var result: (pattern: MelodyPattern, notice: String?)?
+        let took = clock.measure { result = MelodyImport.pattern(from: [MidiTrack(name: "Lots", notes: notes)], sampleID: 1, bars: 1) }
+        #expect(result?.pattern.tracks[0].notes.count == 50_000, "no note is dropped for being one too many")
+        #expect(result?.notice == nil)
+        #expect(took < .seconds(3), "adding the notes does not slow down with each one")
     }
 }
