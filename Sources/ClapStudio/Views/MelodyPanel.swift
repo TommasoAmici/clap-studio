@@ -39,7 +39,7 @@ struct MelodyPanel: View {
                 .disabled(model.actionTargets.isEmpty || model.melodyPattern.tracks.count >= MelodyPattern.maxTracks)
                 .help("Give the melody another sound: the selected sample")
             Button("Open MIDI…") { model.chooseMidiFile() }
-                .help("Replace the melody with the notes of a MIDI file, one track for each track in it. The file's tempo is not used: the melody follows the project tempo.")
+                .help("Replace the melody with the notes of a MIDI file, one track for each track in it. The melody follows the project tempo; the file chooser can also set that tempo from the file.")
             Spacer()
             barsMenu
             Button("Clear Notes") { model.melodyPattern.clearNotes(); model.selectedMelodyNote = nil }

@@ -125,6 +125,36 @@ enum Midi {
     }
 }
 
+@Suite struct MidiTempoTests {
+    private let note = Midi.event(0, 0x90, 60, 100) + Midi.event(480, 0x80, 60, 0)
+
+    @Test func theFirstTempoInTheFileIsReadAsBeatsPerMinute() throws {
+        let tempoTrack = Midi.tempo(500_000) + Midi.endOfTrack                    // half a second a beat
+        let song = try MidiFile.parseSong(Midi.file(tracks: [tempoTrack, note + Midi.endOfTrack]))
+        #expect(song.bpm == 120, "500000 microseconds per beat is 120 BPM")
+        #expect(song.tracks.count == 1, "the notes are read as before")
+        #expect(try MidiFile.parseSong(Midi.file(tracks: [Midi.tempo(416_667) + note + Midi.endOfTrack])).bpm == 144, "rounded to a tenth")
+    }
+
+    @Test func aFileWithoutATempoHasNone() throws {
+        #expect(try MidiFile.parseSong(Midi.file(tracks: [note + Midi.endOfTrack])).bpm == nil, "the project tempo is left alone")
+    }
+
+    @Test func theEarliestTempoWinsEvenFromALaterTrack() throws {
+        let later = Midi.event(480, 0x90, 60, 100) + Midi.meta(0, type: 0x51, [0x03, 0xD0, 0x90]) + Midi.endOfTrack      // at tick 480: 250000 us
+        let first = Midi.tempo(600_000) + note + Midi.endOfTrack                                                          // at tick 0: 100 BPM
+        #expect(try MidiFile.parseSong(Midi.file(tracks: [later, first])).bpm == 100)
+    }
+
+    @Test func tempoOutsideWhatThePlayerCanKeepIsHeldInRange() throws {
+        let slow = try MidiFile.parseSong(Midi.file(tracks: [Midi.tempo(6_000_000) + note + Midi.endOfTrack]))
+        let fast = try MidiFile.parseSong(Midi.file(tracks: [Midi.tempo(100_000) + note + Midi.endOfTrack]))
+        let broken = try MidiFile.parseSong(Midi.file(tracks: [Midi.tempo(0) + note + Midi.endOfTrack]))
+        #expect(slow.bpm == 30 && fast.bpm == 300, "10 BPM and 600 BPM are brought to the drum machine's range")
+        #expect(broken.bpm == nil, "a tempo of zero means nothing")
+    }
+}
+
 @Suite struct MelodyImportTests {
     private func track(_ name: String, notes: [(Int, Double, Double)]) -> MidiTrack {
         MidiTrack(name: name, notes: notes.map { MidiNote(pitch: $0.0, start: $0.1, length: $0.2, velocity: 0.5) })
