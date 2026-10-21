@@ -21,6 +21,7 @@ import ClapCore
 ///   CLAP_SNAPSHOT_SEND=Breaks   with USB: open the Send sheet for that Pool folder ("-" for the Pool itself)
 ///   CLAP_SNAPSHOT_DRUMS=1          open the drum machine with the first three samples
 ///   CLAP_SNAPSHOT_MELODY=1         open the melody with the first two samples and a few notes
+///   CLAP_SNAPSHOT_MELODY_BARS=N    with the above: repeat the notes every two bars up to N bars
 ///   CLAP_SNAPSHOT_LIKE=name        show sounds like the first sample whose name contains this; CLAP_SNAPSHOT_WORDS adds words ("dark, no reverb")
 ///   CLAP_SNAPSHOT_PLACES=1         show the Places tab
 ///   CLAP_SNAPSHOT_NO_INSPECTOR=1   start with the inspector hidden
@@ -77,13 +78,19 @@ enum DebugSnapshot {
     /// Two melody tracks from the first two samples with a few bars of notes, so the piano roll has something to show.
     private static func sketchMelody(_ model: AppModel) {
         model.addToMelody(Array(model.visible.prefix(2).map(\.id)))
-        model.melodyPattern.setBars(2)
+        let bars = max(2, Int(ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MELODY_BARS"] ?? "") ?? 2)
+        var pattern = model.melodyPattern
+        pattern.setBars(bars)
         let lead: [(Int, Double, Double)] = [(64, 0, 2), (67, 2, 2), (72, 4, 4), (71, 8, 2), (67, 10, 2), (64, 12, 4),
                                              (65, 16, 2), (69, 18, 2), (74, 20, 4), (72, 24, 4), (67, 28, 4)]
-        for n in lead { model.melodyPattern.addNote(track: 0, pitch: n.0, start: n.1, length: n.2, velocity: 0.85) }
-        if model.melodyPattern.tracks.count > 1 {
-            for (i, pitch) in [48, 48, 43, 41].enumerated() { model.melodyPattern.addNote(track: 1, pitch: pitch, start: Double(i * 8), length: 6) }
+        for section in 0..<(bars / 2) {
+            let shift = Double(section * 32)
+            for n in lead { pattern.addNote(track: 0, pitch: n.0, start: n.1 + shift, length: n.2, velocity: 0.85) }
+            if pattern.tracks.count > 1 {
+                for (i, pitch) in [48, 48, 43, 41].enumerated() { pattern.addNote(track: 1, pitch: pitch, start: Double(i * 8) + shift, length: 6) }
+            }
         }
+        model.melodyPattern = pattern
         model.selectedMelodyTrack = 0
     }
 

@@ -16,6 +16,8 @@ struct PianoRoll: View {
     @State private var pressedKey: Int?               // the piano key being held
     @State private var clickedNote: UUID?             // the note under the pointer when it went down, if any
     @State private var lastLength = 2.0               // new notes are as long as the last one drawn
+    @State private var scroll = 0.0                   // the step at the left edge of the grid, for melodies wider than the roll
+    @State private var gestureScroll = 0.0            // `scroll` when the current click or drag began
     @FocusState private var focused: Bool
 
     private static let keyboardWidth: CGFloat = 46
@@ -29,22 +31,32 @@ struct PianoRoll: View {
 
     var body: some View {
         GeometryReader { geo in
-            let steps = model.melodyPattern.stepCount
-            let grid = PianoRollGrid(stepWidth: max(Self.minStepWidth, (geo.size.width - Self.keyboardWidth) / Double(steps)),
-                                     rowHeight: Self.rowHeight)
-            // The keyboard sits inside the vertical scroll beside the grid, so the two always line up. Only the grid
-            // scrolls sideways, which is needed just for melodies longer than a few bars.
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    HStack(alignment: .top, spacing: 0) {
-                        keyboard(grid).frame(width: Self.keyboardWidth, height: grid.height)
-                        ScrollView(.horizontal) { gridView(grid, steps: steps) }.frame(height: grid.height)
+            let width = max(0, geo.size.width - Self.keyboardWidth)
+            let total = Double(model.melodyPattern.stepCount)
+            let grid = PianoRollGrid(stepWidth: max(Self.minStepWidth, width / total), rowHeight: Self.rowHeight)
+            let maxScroll = max(0, total - width / grid.stepWidth)
+            let left = min(max(0, scroll), maxScroll)
+            VStack(spacing: 0) {
+                // The keyboard sits inside the vertical scroll beside the grid, so the two always line up.
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) {
+                        HStack(alignment: .top, spacing: 0) {
+                            keyboard(grid).frame(width: Self.keyboardWidth, height: grid.height)
+                            gridView(grid, width: width, left: left, maxScroll: maxScroll)
+                        }
+                        .overlay(alignment: .topLeading) { rowAnchors(grid) }
                     }
-                    .overlay(alignment: .topLeading) { rowAnchors(grid) }
+                    .onAppear { reveal(proxy, grid) }
+                    .onChange(of: trackIndex) { reveal(proxy, grid) }
                 }
-                .onAppear { reveal(proxy, grid) }
-                .onChange(of: trackIndex) { reveal(proxy, grid) }
+                // A melody longer than the roll is shown a window at a time: this slider, or a sideways scroll, moves it.
+                if maxScroll > 0 {
+                    Slider(value: Binding(get: { left }, set: { scroll = $0 }), in: 0...maxScroll)
+                        .controlSize(.mini).padding(.leading, Self.keyboardWidth).padding(.trailing, 8)
+                        .help("Move along the melody")
+                }
             }
+            .background(SidewaysScroll { points in scroll = min(max(0, left - points / grid.stepWidth), maxScroll) })
         }
         .focusable().focused($focused).focusEffectDisabled()
         .onKeyPress(keys: [.delete, .deleteForward]) { _ in model.deleteSelectedMelodyNote(); return .handled }
@@ -92,46 +104,28 @@ struct PianoRoll: View {
             .onEnded { _ in pressedKey = nil }
     }
 
-    private func gridView(_ grid: PianoRollGrid, steps: Int) -> some View {
+    /// Only the bars inside the roll are built, however long the melody is. One gesture covers them all, in the
+    /// grid's own coordinates (the left edge of the window is step `left`).
+    private func gridView(_ grid: PianoRollGrid, width: Double, left: Double, maxScroll: Double) -> some View {
         let pattern = model.melodyPattern
-        let track = pattern.tracks.indices.contains(trackIndex) ? pattern.tracks[trackIndex] : nil
-        let selected = model.selectedMelodyNote, playhead = model.melodyStep
-        let colour = melodyTrackColors[trackIndex % melodyTrackColors.count]
-        return Canvas { context, size in
-            for pitch in 0..<PianoRollGrid.rows {
-                let row = CGRect(x: 0, y: grid.y(ofPitch: pitch), width: size.width, height: grid.rowHeight)
-                if NoteNames.isBlackKey(pitch) { context.fill(Path(row), with: .color(.black.opacity(0.14))) }
-                if pitch % 12 == 0 { context.fill(Path(CGRect(x: 0, y: row.maxY - 0.5, width: size.width, height: 0.5)), with: .color(.secondary.opacity(0.5))) }
-            }
-            for step in 0...steps {
-                let strength = step % 16 == 0 ? 0.55 : step % 4 == 0 ? 0.3 : 0.12
-                let x = grid.x(ofStep: Double(step))
-                context.fill(Path(CGRect(x: x, y: 0, width: 0.5, height: size.height)), with: .color(.secondary.opacity(strength)))
-            }
-            // The other tracks, faintly, to write against.
-            for (index, other) in pattern.tracks.enumerated() where index != trackIndex {
-                for note in other.notes { fill(note, grid: grid, in: &context, colour: melodyTrackColors[index % melodyTrackColors.count].opacity(0.28)) }
-            }
-            for note in track?.notes ?? [] {
-                fill(note, grid: grid, in: &context, colour: colour.opacity(0.35 + 0.65 * Double(note.velocity)))
-                if note.id == selected {
-                    let f = grid.frame(of: note)
-                    context.stroke(Path(roundedRect: CGRect(x: f.x, y: f.y, width: f.width, height: f.height), cornerRadius: 2),
-                                   with: .color(.white), lineWidth: 1.5)
-                }
-            }
-            if let playhead {
-                context.fill(Path(CGRect(x: grid.x(ofStep: Double(playhead)), y: 0, width: 1.5, height: size.height)), with: .color(.white.opacity(0.85)))
+        let barSteps = Double(MelodyPattern.stepsPerBar)
+        let first = min(Int(left / barSteps), pattern.bars - 1)
+        let last = max(first, min(Int((left + width / grid.stepWidth) / barSteps), pattern.bars - 1))
+        let selected = model.selectedMelodyNote
+        return HStack(spacing: 0) {
+            ForEach(first...last, id: \.self) { bar in
+                PianoRollBar(bar: bar, isLast: bar == pattern.bars - 1, grid: grid, pattern: pattern,
+                             trackIndex: trackIndex, selected: selected)
+                    .equatable()
+                    .frame(width: grid.x(ofStep: barSteps), height: grid.height)
             }
         }
-        .frame(width: grid.x(ofStep: Double(steps)), height: grid.height)
+        .offset(x: -grid.x(ofStep: left - Double(first) * barSteps))
+        .frame(width: width, height: grid.height, alignment: .leading)
+        .clipped()
+        .overlay(alignment: .topLeading) { PlayheadLine(grid: grid, left: left, width: width, scroll: $scroll, maxScroll: maxScroll) }
         .contentShape(Rectangle())
-        .gesture(drawing(grid))
-    }
-
-    private func fill(_ note: MelodyNote, grid: PianoRollGrid, in context: inout GraphicsContext, colour: Color) {
-        let f = grid.frame(of: note)
-        context.fill(Path(roundedRect: CGRect(x: f.x, y: f.y + 0.5, width: max(2, f.width - 0.5), height: f.height - 1), cornerRadius: 2), with: .color(colour))
+        .gesture(drawing(grid, left: left))
     }
 
     /// Invisible markers, one per row, so the roll can scroll to the notes it holds.
@@ -154,13 +148,21 @@ struct PianoRoll: View {
 
     // MARK: editing
 
-    private func drawing(_ grid: PianoRollGrid) -> some Gesture {
+    /// Points in the gesture are measured from the window's left edge; the grid works from the start of the melody.
+    private func inGrid(_ point: CGPoint, _ grid: PianoRollGrid) -> CGPoint {
+        CGPoint(x: point.x + grid.x(ofStep: gestureScroll), y: point.y)
+    }
+
+    private func drawing(_ grid: PianoRollGrid, left: Double) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
-                if drag == nil && !gestureBegan { gestureBegan = true; didMove = false; begin(at: value.startLocation, grid: grid) }
+                if drag == nil && !gestureBegan {
+                    gestureBegan = true; didMove = false; gestureScroll = left
+                    begin(at: inGrid(value.startLocation, grid), grid: grid)
+                }
                 // A click is not a drag: nothing moves or stretches until the pointer has really travelled.
                 if abs(value.translation.width) > 3 || abs(value.translation.height) > 3 { didMove = true }
-                if didMove { update(to: value.location, grid: grid) }
+                if didMove { update(to: inGrid(value.location, grid), grid: grid) }
             }
             .onEnded { _ in
                 // A click on a note that was not dragged takes it away.
