@@ -91,6 +91,8 @@ This skips the optional model checks; it does not verify those models or change 
 
 `scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`.
 
+`scripts/media-kit.sh` regenerates the website and social images in [`media/`](media/README.md): Library, Map, Drum Machine and Melody, each in light and dark appearance at 3200 × 2000 pixels. It creates 384 original synthetic samples in a temporary library, uses a separate demo app preference domain, and removes the temporary files when finished. No personal samples or neural models are needed. Pass an output folder to preview a new set elsewhere.
+
 ## Similarity model
 
 Three embedders sit behind one protocol:

@@ -289,7 +289,11 @@ final class AppModel {
             let skipIndexing = false
             #endif
             if !roots.isEmpty, !skipIndexing { startIndexing() }
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MEDIA"] != "1" { watchUsbDrives() }
+            #else
             watchUsbDrives()
+            #endif
         } catch {
             errorMessage = "Could not open the library database: \(error)"
         }

@@ -15,6 +15,11 @@
 #     --melody  open the melody with two samples and a few notes
 #     --melody-bars N  with --melody: repeat the notes up to N bars (to check a long melody draws)
 #     --width PX  resize the window to this width first (down to its minimum)
+#     --height PX  resize the window to this height in points
+#     --scale N  render at N pixels per point (1–4), independent of the display
+#     --appearance light|dark  force this app's appearance without changing macOS settings
+#     --media  reset the drawers and choose suitable sounds from a seeded media library
+# Set CLAP_SNAPSHOT_EXECUTABLE to an already-built debug executable to skip compilation.
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
 #                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut;
 #                 --send Breaks opens the Send sheet for that Pool folder ("-" for the Pool)
@@ -43,6 +48,12 @@ while [ $# -gt 0 ]; do
     --melody-bars) shift; export CLAP_SNAPSHOT_MELODY_BARS="$1" ;;
     --no-inspector) export CLAP_SNAPSHOT_NO_INSPECTOR=1 ;;
     --width) shift; export CLAP_SNAPSHOT_WIDTH="$1" ;;
+    --height) shift; export CLAP_SNAPSHOT_HEIGHT="$1" ;;
+    --scale) shift; export CLAP_SNAPSHOT_SCALE="$1" ;;
+    --appearance) shift
+      case "$1" in light|dark) export CLAP_SNAPSHOT_APPEARANCE="$1" ;;
+        *) echo "appearance must be light or dark" >&2; exit 2 ;; esac ;;
+    --media) export CLAP_SNAPSHOT_MEDIA=1 ;;
     --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;
     --send) shift; export CLAP_SNAPSHOT_SEND="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
@@ -51,9 +62,14 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-"$SWIFT" build --product ClapStudio >/dev/null
+if [ -n "${CLAP_SNAPSHOT_EXECUTABLE:-}" ]; then
+  EXECUTABLE="$CLAP_SNAPSHOT_EXECUTABLE"
+else
+  "$SWIFT" build --product ClapStudio >/dev/null
+  EXECUTABLE="$("$SWIFT" build --show-bin-path)/ClapStudio"
+fi
 rm -f "$OUT"
-CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$("$SWIFT" build --show-bin-path)/ClapStudio" >/dev/null 2>&1 &
+CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$EXECUTABLE" >/dev/null 2>&1 &
 PID=$!
 # The app quits itself after writing the image; wait a little longer than its delay, then make sure it is gone.
 i=0
