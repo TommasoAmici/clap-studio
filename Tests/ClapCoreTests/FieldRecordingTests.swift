@@ -3,6 +3,32 @@ import Testing
 @testable import ClapCore
 
 @Suite struct FieldRecordingTests {
+    @Test func regularSampleChoiceSurvivesReindexingAndCanBeUndone() async throws {
+        let dir = TestSupport.tempDir()
+        try writeTestWav(dir.appendingPathComponent("long.wav"), seconds: 31) {
+            Float(sin(2 * .pi * 440 * $0)) * 0.3
+        }
+        let store = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        let root = try store.addRoot(path: dir.path)
+        try store.sync(rootID: root.id, scanned: FolderScanner.scan(root: dir)) { _ in nil }
+        let pipeline = IndexingPipeline(store: store, embedder: HandcraftedEmbedder(), workers: 1)
+        _ = await pipeline.run(onProgress: { _ in })
+        let id = try #require(store.loadSamples().first).id
+        try store.setManualCategory(sampleID: id, FieldRecording.categoryName)
+        try store.setRegularSamples([(id: id, regular: true, category: nil)])
+        #expect(store.sample(id: id)?.isFieldRecording == false, "the explicit choice wins over length")
+        #expect(store.pendingCount() == 1, "the sound must be read again as a single sample")
+        _ = await pipeline.run(onProgress: { _ in })
+        #expect(store.segmentCount(sampleID: id) == 0)
+        #expect(try store.markFieldRecordingsStale() == 0, "rescanning keeps the choice")
+        let reopened = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
+        #expect(reopened.sample(id: id)?.isRegularSample == true, "the choice survives relaunch")
+        try store.setRegularSamples([(id: id, regular: false, category: FieldRecording.categoryName)])
+        _ = await pipeline.run(onProgress: { _ in })
+        #expect(store.sample(id: id)?.isFieldRecording == true)
+        #expect(store.segmentCount(sampleID: id) > 0, "undo restores segmented processing")
+    }
+
     @Test func thresholdIsThirtySeconds() {
         #expect(!FieldRecording.isFieldRecording(duration: 29.9))
         #expect(FieldRecording.isFieldRecording(duration: 30))

@@ -40,6 +40,8 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var keyName: String? = nil
     public var category: String? = nil
     public var categoryManual: String? = nil
+    /// The user chose to process this file as one sound, even when it is long.
+    public var isRegularSample = false
     public var favorite: Bool = false
     public var hidden: Bool = false
     /// The user's own labels, sorted.
@@ -56,7 +58,9 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     /// The user's BPM correction wins over the detected one.
     /// Long recordings are analysed in segments (see `FieldRecording`).
     /// Long files, and any file the user has put in the Field recording category.
-    public var isFieldRecording: Bool { FieldRecording.isFieldRecording(duration: duration, manualCategory: categoryManual) }
+    public var isFieldRecording: Bool {
+        FieldRecording.isFieldRecording(duration: duration, manualCategory: categoryManual, regularSample: isRegularSample)
+    }
 
     public var effectiveBPM: Double? { bpmManual ?? bpm }
     public var effectiveCategory: String? { categoryManual ?? category }
@@ -96,6 +100,7 @@ public struct IndexJob: Sendable {
     public var isFieldRecording = false
     /// The file is on a temporary root (a USB stick), where a category stored in the file is the sample's category.
     public var readsCategoryTag = false
+    public var isRegularSample = false
 }
 
 /// One audible stretch of a field recording and its embedding.

@@ -28,9 +28,11 @@ struct FieldLocationSection: View {
                         .buttonStyle(.borderless).help("Use the library's place instead")
                 }
             }
+            #if NON_COMMERCIAL
             if place == nil, model.defaultLocation == nil, model.birdsAvailable {
                 Text("Pick a place to rule out birds that do not live there.").font(.caption2).foregroundStyle(.secondary)
             }
+            #endif
         }
         .font(.caption)
         .task(id: "\(sample.id)|\(model.birdsRevision)|\(model.placesRevision)") { place = model.recordingLocation(sample.id) }

@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 13
+    static let currentVersion = 14
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -19,7 +19,13 @@ enum Schema {
         if version < 11 { try v11(db) }
         if version < 12 { try v12(db) }
         if version < 13 { try v13(db) }
+        if version < 14 { try v14(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
+    }
+
+    /// An explicit exception to automatic field-recording detection.
+    private static func v14(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE samples ADD COLUMN regular_sample INTEGER NOT NULL DEFAULT 0")
     }
 
     private static func v1(_ db: SQLiteDB) throws {

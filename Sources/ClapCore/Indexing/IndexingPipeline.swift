@@ -93,7 +93,7 @@ public final class IndexingPipeline: @unchecked Sendable {
                          embedder: EmbeddingProvider, isCancelled: @Sendable () -> Bool = { false }) -> IndexResult? {
         do {
             let info = try AudioDecoder.fileInfo(url: job.url)
-            if job.isFieldRecording || FieldRecording.isFieldRecording(duration: info.duration) {
+            if job.isFieldRecording || FieldRecording.isFieldRecording(duration: info.duration, regularSample: job.isRegularSample) {
                 return try embedFieldRecording(job, info: info, extractor: extractor, analyzer: analyzer,
                                                embedder: embedder, isCancelled: isCancelled)
             }

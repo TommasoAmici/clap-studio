@@ -11,14 +11,14 @@ public enum FieldRecording {
     /// Name of the automatic category.
     public static let categoryName = "Field recording"
 
-    public static func isFieldRecording(duration: Double, manualCategory: String? = nil) -> Bool {
-        duration >= minimumSeconds || manualCategory == categoryName
+    public static func isFieldRecording(duration: Double, manualCategory: String? = nil, regularSample: Bool = false) -> Bool {
+        manualCategory == categoryName || (!regularSample && duration >= minimumSeconds)
     }
 
     /// The same rule as SQL, for a row of `samples` (with the table's alias, if the query has one).
     static func sqlIs(_ alias: String = "") -> String {
         let p = alias.isEmpty ? "" : alias + "."
-        return "(COALESCE(\(p)duration, 0) >= \(minimumSeconds) OR COALESCE(\(p)category_manual, '') = '\(categoryName)')"
+        return "((\(p)regular_sample = 0 AND COALESCE(\(p)duration, 0) >= \(minimumSeconds)) OR COALESCE(\(p)category_manual, '') = '\(categoryName)')"
     }
 
     /// Length-weighted mean of the segment embeddings, L2-normalised. Long events count for more.

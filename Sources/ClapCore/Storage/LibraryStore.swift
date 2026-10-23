@@ -189,12 +189,12 @@ public final class LibraryStore: @unchecked Sendable {
 
     public func pendingJobs(limit: Int) -> [IndexJob] {
         (try? db.query("""
-            SELECT s.id, r.path, s.rel_path, s.category_manual, r.transient FROM samples s JOIN roots r ON r.id = s.root_id
+            SELECT s.id, r.path, s.rel_path, s.category_manual, r.transient, s.regular_sample FROM samples s JOIN roots r ON r.id = s.root_id
             WHERE s.status = 'pending' ORDER BY s.id LIMIT ?
             """, [.int(Int64(limit))]) {
             IndexJob(id: $0.int(0), url: URL(fileURLWithPath: $0.text(1)).appendingPathComponent($0.text(2)),
                      isFieldRecording: !$0.isNull(3) && $0.text(3) == FieldRecording.categoryName,
-                     readsCategoryTag: $0.int(4) != 0)
+                     readsCategoryTag: $0.int(4) != 0, isRegularSample: $0.int(5) != 0)
         }) ?? []
     }
 
@@ -252,7 +252,7 @@ public final class LibraryStore: @unchecked Sendable {
                    (SELECT group_concat(tag, char(31)) FROM sample_tags t WHERE t.sample_id = s.id),
                    (SELECT group_concat(mood, char(31)) FROM sample_moods m WHERE m.sample_id = s.id),
                    (SELECT group_concat(sound, char(31)) FROM (SELECT DISTINCT sound FROM segment_sounds n WHERE n.sample_id = s.id)),
-                   s.moods_manual
+                   s.moods_manual, s.regular_sample
             FROM samples s JOIN roots r ON r.id = s.root_id
             WHERE s.status IN ('ok', 'pending') \(extraFilter)
             """, params) {
@@ -275,6 +275,7 @@ public final class LibraryStore: @unchecked Sendable {
             record.moodsAuto = $0.isNull(29) ? [] : SoundMoods.sorted($0.text(29).split(separator: "\u{1F}").map(String.init))
             record.moodsManual = $0.isNull(31) ? nil : SoundMoods.sorted($0.text(31).split(separator: "\u{1F}").map(String.init))
             record.moods = record.moodsManual ?? record.moodsAuto
+            record.isRegularSample = $0.int(32) != 0
             return record
         }) ?? []
     }

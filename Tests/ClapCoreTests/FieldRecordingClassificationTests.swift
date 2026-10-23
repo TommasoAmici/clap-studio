@@ -36,6 +36,15 @@ import Testing
         #expect(byName["kick"]?.effectiveCategory == "Kick")
         #expect(byName["long"]?.effectiveCategory == "Field recording")
         #expect(SoundCategories.symbol(for: "Field recording") == "leaf")
+
+        let longID = try #require(byName["long"]).id
+        try store.setRegularSamples([(id: longID, regular: true, category: nil)])
+        try store.save(results: [.success(id: longID, duration: 300, sampleRate: 44100, channels: 1,
+                                          embedding: Self.fake("kick"), fingerprint: nil,
+                                          modelVersion: ClapEmbedder.versionTag)])
+        try store.categorize(with: categorizer)
+        #expect(store.sample(id: longID)?.effectiveCategory == "Kick",
+                "a regular sample is classified by its sound, even when it is long")
     }
 
     @Test func fieldRecordingMoodsAreTheUnionOfItsSegmentsAndJudgedAgainstRegularSamples() throws {

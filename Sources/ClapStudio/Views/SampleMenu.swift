@@ -40,6 +40,9 @@ extension AppModel {
             categoryItems.append(.action("Use Automatic") { [unowned self] in setCategory(ids, nil) })
         }
         menu.append(.submenu("Set Category", categoryItems))
+        if samples.contains(where: \.isFieldRecording) {
+            menu.append(.action("Treat as Regular Sample") { [unowned self] in treatAsRegularSamples(ids) })
+        }
         var moodItems: [SampleMenuEntry] = []
         let present = SoundMoods.names.filter { name in samples.contains { $0.moods.contains(name) } }
         moodItems.append(.submenu("Add", SoundMoods.names.map { name in

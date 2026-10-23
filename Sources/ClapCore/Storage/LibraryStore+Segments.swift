@@ -2,6 +2,22 @@ import Foundation
 
 /// Persistence of the segments of field recordings.
 extension LibraryStore {
+    /// Changes how selected files are read and queues just those files for fresh analysis.
+    public func setRegularSamples(_ values: [(id: Int64, regular: Bool, category: String?)]) throws {
+        try db.transaction {
+            for value in values {
+                try db.run("""
+                    UPDATE samples SET regular_sample = ?, category_manual = ?, category = NULL,
+                        category_version = NULL, status = CASE WHEN status = 'missing' THEN status ELSE 'pending' END
+                    WHERE id = ?
+                    """, [.int(value.regular ? 1 : 0), value.category.map(SQLValue.text) ?? .null, .int(value.id)])
+                try writeSegments(value.id, [])
+                try db.run("DELETE FROM sample_moods WHERE sample_id = ?", [.int(value.id)])
+            }
+            try db.run("DELETE FROM meta WHERE key IN ('mood_state', 'sounds_state')")
+        }
+    }
+
     /// Replaces a sample's segments. Must run inside a transaction. A sample without segments is not a field
     /// recording (any more), so its `segment_version` goes back to 0.
     func writeSegments(_ id: Int64, _ segments: [SegmentEmbedding]) throws {
