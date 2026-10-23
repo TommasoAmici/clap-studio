@@ -16,6 +16,25 @@ import Testing
         return v.map { $0 / n }
     }
 
+    @Test func shortRecordingKeepsItsAutomaticSoundCategory() throws {
+        let (store, _) = try TestSupport.makeStore()
+        let root = try store.addRoot(path: "/tmp/x")
+        try store.sync(rootID: root.id, scanned: [ScannedFile(relPath: "kick.wav", size: 1, mtime: 1)]) { _ in nil }
+        let id = try #require(store.pendingJobs(limit: 1).first).id
+        try store.setManualCategory(sampleID: id, FieldRecording.categoryName)
+        try store.save(results: [.success(id: id, duration: 2, sampleRate: 44100, channels: 1,
+                                          embedding: Self.fake("kick"), fingerprint: nil,
+                                          modelVersion: ClapEmbedder.versionTag)])
+        let categorizer = try Categorizer(embed: { Self.fake($0) }, categories: [("Kick", ["a kick"]), ("Snare", ["a snare"])])
+        try store.categorize(with: categorizer)
+        #expect(store.sample(id: id)?.category == "Kick",
+                "a manual recording label must not replace the automatic sound category")
+        try store.setManualCategory(sampleID: id, nil)
+        #expect(store.sample(id: id)?.effectiveCategory == "Kick",
+                "taking a short sound out of field recordings restores its automatic category")
+        #expect(store.sample(id: id)?.isFieldRecording == false)
+    }
+
     @Test func longFilesAreFieldRecordingsWhateverTheySoundLike() throws {
         #expect(SoundCategories.names.last == "Field recording")
         #expect(!SoundCategories.all.map(\.name).contains("Field recording"))

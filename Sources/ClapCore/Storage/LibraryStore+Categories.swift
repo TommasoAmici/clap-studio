@@ -16,10 +16,11 @@ extension LibraryStore {
     @discardableResult
     public func categorize(with categorizer: Categorizer) throws -> Int {
         var pending: [(id: Int64, result: Categorizer.Result)] = []
-        let long = Set(try db.query("SELECT id FROM samples WHERE \(FieldRecording.sqlIs())") { $0.int(0) })
+        let long = Set(try db.query("SELECT id FROM samples WHERE duration >= ? AND regular_sample = 0",
+                                    [.double(FieldRecording.minimumSeconds)]) { $0.int(0) })
         try forEachEmbeddingChunk(modelVersion: ClapEmbedder.versionTag) { ids, flat, count in
             let results = categorizer.classify(flat: flat, count: count)
-            // Field recordings follow the length rule and the user's choice.
+            // A manual recording label stays separate, so clearing it restores the sound's automatic category.
             pending += zip(ids, results).map { id, result in
                 (id: id, result: long.contains(id) ? Categorizer.Result(category: SoundCategories.fieldRecording, confidence: 1) : result)
             }

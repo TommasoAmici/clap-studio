@@ -4,3 +4,4 @@ to mark the selection as `NOT Field recording` and to reprocess as a regular sam
 Please name the menu item appropriately.
 
 - [x] Add an undoable “Treat as Regular Sample” action and reprocess the selection.
+- [x] Keep a short sound’s automatic category when its manual recording label is cleared.
