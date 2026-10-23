@@ -125,6 +125,7 @@ final class AppModel {
     }
     var drumStep: Int?                     // step currently sounding, nil when stopped
     var drumBar = 0                        // zero-based bar shown in the drum grid
+    @ObservationIgnored var midiImportTask: Task<Void, Never>?
     var drumPlaying = false
     var showMelody = false { didSet { if showMelody != oldValue { storeMelodyPattern() } } }
     var melodyPattern = MelodyPattern() { didSet { if melodyPattern != oldValue { pushMelodyPattern(); storeMelodyPatternSoon() } } }

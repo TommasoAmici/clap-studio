@@ -37,6 +37,8 @@ struct ClapStudioApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Add Folder…") { model.chooseFolder() }.keyboardShortcut("o")
                 Button("Open MIDI File…") { model.chooseMidiFile() }.keyboardShortcut("o", modifiers: [.command, .shift])
+                Button("Open Drum MIDI File…") { model.chooseMidiFile(forDrums: true) }
+                    .keyboardShortcut("o", modifiers: [.command, .option])
                 Button("Rescan Library") { model.startIndexing() }.keyboardShortcut("r", modifiers: [.command, .shift])
                     .disabled(model.isIndexing || model.roots.isEmpty)
                 Button("Shuffle Library") { model.shuffleList() }.keyboardShortcut("r")

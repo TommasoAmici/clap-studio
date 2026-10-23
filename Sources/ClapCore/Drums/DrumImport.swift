@@ -2,6 +2,11 @@ import Foundation
 
 /// One row per MIDI track, with note starts snapped to sixteenth steps.
 public enum DrumImport {
+    /// Reads the file's own tracks, including a format-zero track with several MIDI channels.
+    public static func read(url: URL) throws -> MidiSong {
+        try MidiFile.readSong(url: url, splitChannels: false)
+    }
+
     public static func pattern(from tracks: [MidiTrack], existing: DrumPattern = DrumPattern(),
                                selectedSampleID: Int64?) -> (pattern: DrumPattern, notice: String?) {
         let used = Array(tracks.prefix(DrumPattern.maxTracks))

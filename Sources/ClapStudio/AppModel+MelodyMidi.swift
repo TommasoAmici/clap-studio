@@ -3,40 +3,48 @@ import ClapCore
 import Foundation
 import UniformTypeIdentifiers
 
-/// Bringing a MIDI file into the melody. The file is only read; its notes become melody tracks.
+/// Bringing MIDI files into either sequencer. The file is only read.
 extension AppModel {
     /// Whether the Open panel's "set the project tempo" box starts ticked: as the user last left it, ticked at first.
     private static let midiSetsTempoKey = "melody.midiSetsTempo"
 
-    func chooseMidiFile() {
+    func chooseMidiFile(forDrums: Bool = false) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = ["mid", "midi"].compactMap { UTType(filenameExtension: $0) }
         panel.prompt = "Open"
-        panel.message = "Choose a MIDI file. Its notes become melody tracks. The file is only read, never changed."
+        panel.message = forDrums
+            ? "Choose a MIDI file. Each track becomes a drum row, with note starts snapped to sixteenth steps. The file is only read, never changed."
+            : "Choose a MIDI file. Its notes become melody tracks. The file is only read, never changed."
         let setsTempo = NSButton(checkboxWithTitle: "Also set the project tempo to the tempo in the file", target: nil, action: nil)
-        setsTempo.state = (UserDefaults.standard.object(forKey: Self.midiSetsTempoKey) as? Bool ?? true) ? .on : .off
+        let tempoKey = forDrums ? "drum.midiSetsTempo" : Self.midiSetsTempoKey
+        setsTempo.state = (UserDefaults.standard.object(forKey: tempoKey) as? Bool ?? true) ? .on : .off
         setsTempo.sizeToFit()
         panel.accessoryView = setsTempo
         if panel.runModal() == .OK, let url = panel.url {
-            UserDefaults.standard.set(setsTempo.state == .on, forKey: Self.midiSetsTempoKey)
-            importMidi(url, setTempo: setsTempo.state == .on)
+            UserDefaults.standard.set(setsTempo.state == .on, forKey: tempoKey)
+            importMidi(url, setTempo: setsTempo.state == .on, forDrums: forDrums)
         }
     }
 
     /// Reads the file off the main thread, then replaces the melody with its notes. A file dropped on the window
     /// leaves the project tempo alone; the Open panel can ask for it to be set from the file.
-    func importMidi(_ url: URL, setTempo: Bool = false) {
-        Task {
-            let result = await Task.detached { Result { try MidiFile.readSong(url: url) } }.value
+    func importMidi(_ url: URL, setTempo: Bool = false, forDrums: Bool = false) {
+        midiImportTask?.cancel()
+        midiImportTask = Task {
+            let result = await Task.detached {
+                Result { try forDrums ? DrumImport.read(url: url) : MidiFile.readSong(url: url) }
+            }.value
+            guard !Task.isCancelled else { return }
             switch result {
             case .failure(let error):
                 let why = (error as? LocalizedError)?.errorDescription ?? "It could not be read."
                 errorMessage = "Could not open \(url.lastPathComponent). \(why) The file was not changed."
             case .success(let song):
-                applyMidi(song, named: url.lastPathComponent, setTempo: setTempo)
+                if forDrums { applyDrumMidi(song, named: url.lastPathComponent, setTempo: setTempo) }
+                else { applyMidi(song, named: url.lastPathComponent, setTempo: setTempo) }
             }
         }
     }

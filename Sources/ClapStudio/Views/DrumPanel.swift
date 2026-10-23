@@ -52,6 +52,8 @@ struct DrumPanel: View {
                 .textFieldStyle(.roundedBorder).frame(width: 65)
                 .help("Number of 4/4 bars. Shortening removes steps past the end.")
             Text(model.drumPattern.bars == 1 ? "bar" : "bars").foregroundStyle(.secondary)
+            Button("Open MIDI…") { model.chooseMidiFile(forDrums: true) }
+                .help("Replace this beat with a MIDI file: one drum row per file track, snapped to sixteenth steps")
             Spacer()
             Button { model.drumBar = max(0, model.drumBar - 1) } label: { Image(systemName: "chevron.left") }
                 .disabled(model.drumBar == 0).help("Previous bar")
@@ -214,9 +216,10 @@ private struct DrumTrackRow: View {
                 .frame(width: 110, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .help(model.sampleByID[track.sampleID] == nil
+            .help(track.sampleID == DrumTrack.unassignedSampleID ? "Drop a sample here, or use the selected sample, to hear this track." : model.sampleByID[track.sampleID] == nil
                   ? "This sample is no longer in the library. Drop another sample here to replace it."
                   : "Preview this sound")
+            .disabled(track.sampleID == DrumTrack.unassignedSampleID)
             // Always laid out, so the steps line up on every row; hidden when the kit offers no other sound.
             let hasAlternatives = track.alternatives.count > 1
             HStack(spacing: 2) {

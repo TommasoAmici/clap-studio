@@ -3,6 +3,25 @@ import Testing
 @testable import ClapCore
 
 @Suite struct DrumImportTests {
+    @Test func openingAMidiFileReadsItsTracksAndTempoWithoutChangingTheFile() throws {
+        let dir = TestSupport.tempDir()
+        let file = dir.appendingPathComponent("beat.mid")
+        let first = Midi.name("Kick") + Midi.tempo(500_000)
+            + Midi.event(0, 0x99, 36, 100) + Midi.event(120, 0x89, 36, 0) + Midi.endOfTrack
+        let second = Midi.name("Hat") + Midi.event(1920, 0x99, 42, 100)
+            + Midi.event(120, 0x89, 42, 0) + Midi.endOfTrack
+        let original = Midi.file(tracks: [first, second])
+        try original.write(to: file)
+        let song = try DrumImport.read(url: file)
+        let pattern = DrumImport.pattern(from: song.tracks, selectedSampleID: nil).pattern
+        #expect(song.bpm == 120 && pattern.bars == 2)
+        #expect(pattern.tracks.map(\.label) == ["Kick", "Hat"])
+        #expect(pattern.tracks[1].hits[16])
+        #expect(try Data(contentsOf: file) == original, "the MIDI file is only read")
+        try Data("not midi".utf8).write(to: file)
+        #expect(throws: MidiError.notMidi) { try DrumImport.read(url: file) }
+    }
+
     @Test func eachMidiTrackBecomesARowAndStartsSnapToSixteenths() {
         let tracks = [
             MidiTrack(name: "Kick", notes: [

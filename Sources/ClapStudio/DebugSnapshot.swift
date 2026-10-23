@@ -44,6 +44,12 @@ enum DebugSnapshot {
                 model.drumBar = min(max(bar - 1, 0), model.drumPattern.bars - 1)
             }
         }
+        if let midi = env["CLAP_SNAPSHOT_DRUM_MIDI"],
+           let song = try? await Task.detached(operation: { try DrumImport.read(url: URL(fileURLWithPath: midi)) }).value {
+            model.drumPattern = DrumPattern()
+            model.select(model.visible.first?.id, play: false)
+            model.applyDrumMidi(song, named: URL(fileURLWithPath: midi).lastPathComponent, setTempo: false)
+        }
         if env["CLAP_SNAPSHOT_MELODY"] == "1" { sketchMelody(model) }
         if let like = env["CLAP_SNAPSHOT_LIKE"], let sample = model.samples.first(where: { $0.name.contains(like) }) {
             model.showSimilar(to: sample.id)

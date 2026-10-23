@@ -100,7 +100,7 @@ extension AppModel {
         drumSourcesReady = true
         guard !drumPattern.tracks.isEmpty else { return }
         var pattern = drumPattern
-        pattern.tracks.removeAll { sampleByID[$0.sampleID] == nil }
+        pattern.tracks.removeAll { $0.sampleID != DrumTrack.unassignedSampleID && sampleByID[$0.sampleID] == nil }
         if pattern != drumPattern { drumPattern = pattern } else { pushDrumPattern() }
         if pattern.tracks.isEmpty { showDrums = false }
     }
@@ -231,6 +231,7 @@ extension AppModel {
     }
 
     func drumSampleName(_ track: DrumTrack) -> String {
+        if track.sampleID == DrumTrack.unassignedSampleID { return "No sound yet" }
         guard let sample = sampleByID[track.sampleID] else { return "Missing sample" }
         guard let trim = activeTrim(for: sample) else { return sample.name }
         return sample.name + (trim.coversWholeFile(duration: sample.duration) ? " · edited" : " · trimmed")
@@ -260,6 +261,14 @@ extension AppModel {
     }
 
     func handleDrop(_ urls: [URL], on zone: DropZone?) {
+        if let midi = urls.first(where: MidiFile.isMidiFile) {
+            switch zone {
+            case .drumTrack, .drumInsert, .drums:
+                importMidi(midi, forDrums: true)
+                return
+            default: break
+            }
+        }
         switch zone {
         case .drumTrack(let index): dropOnDrumTrack(index, files: urls)
         case .drumInsert(let index): addToDrums(librarySamples(forFiles: urls).map(\.id), at: index)
