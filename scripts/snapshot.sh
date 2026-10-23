@@ -1,7 +1,9 @@
 #!/bin/sh
-# Renders the running app's window to a PNG (toolbar included) with no screen capture permission, whatever Space
-# the window is on. Builds a debug app, launches it, waits for the library to load and quits.
+# Renders the app's window to a PNG (toolbar included), whatever Space the window is on. Most views need no
+# screen capture permission; --update uses existing access to capture native alert contents.
+# Builds a debug app, launches it, waits for the library to load and quits.
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
+#     --update  show the update prompt using a local example release (no network; needs existing screen capture access)
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
 #     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
@@ -28,6 +30,7 @@ case "${1:-}" in ""|--*) ;; *) OUT="$1"; shift ;; esac
 DELAY=9
 while [ $# -gt 0 ]; do
   case "$1" in
+    --update) export CLAP_SNAPSHOT_UPDATE=1 ;;
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
     --edit) export CLAP_SNAPSHOT_EDIT=1 ;;
