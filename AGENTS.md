@@ -59,10 +59,10 @@ Each file holds one concern. When a file nears 400 lines, split it along a featu
   filesystem scans) off the main actor with `Task.detached`, then publish results back on the main actor. Pass
   cancellation via `CancelToken` or task cancellation, and cancel the previous task before starting a replacement
   (search-as-you-type, refine, rescan).
-- Performance: libraries reach 50k rows. Recompute derived lists in one place (`refilter()`, wrapped in
+- Performance: libraries reach 100k rows. Recompute derived lists in one place (`refilter()`, wrapped in
   `batchFilterChanges` for multi-property changes), keep view bodies free of sorting and filtering, and use revision
   counters (`visibleRevision`, `mapVersion`) for views that cannot diff large arrays. Use vDSP/BLAS for numeric loops.
-  Measure scale changes with `swift run -c release ClapBench`.
+  Measure scale changes with `scripts/bench.sh`.
 - Platform feel: follow the macOS Human Interface Guidelines. Every action reachable from the menu bar or a context
   menu, keyboard shortcuts in `.commands`, native controls (`Table`, `Inspector`, `NavigationSplitView`, toolbar items)
   over custom ones, SF Symbols for icons, and system colours and materials so light and dark mode both work. Drop to

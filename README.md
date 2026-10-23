@@ -62,7 +62,7 @@ scripts/build.sh          # debug build
 scripts/test.sh           # unit + end-to-end tests
 scripts/bundle.sh         # builds build/ClapStudio.app (ad-hoc signed)
 open build/ClapStudio.app
-scripts/bench.sh 50000 2048  # optional scale benchmark
+scripts/bench.sh 100000 2048  # optional scale benchmark (also the default)
 ```
 
 Always use these scripts for builds and tests. They use the compiler found by `xcrun`, so an unrelated Swift on your shell's PATH cannot take over; `scripts/env.sh` selects the SDK and `scripts/test.sh` supplies the Testing plugin path. `DEVELOPER_DIR=/path/to/Xcode.app scripts/setup.sh --check` checks another Xcode without changing the system selection. An explicit `SDKROOT` is honoured; unset it if it names an old or missing SDK. The local configuration checked here is Apple Swift 6.4 with the macOS 26.5 SDK.
@@ -105,7 +105,7 @@ Pipeline (CLAP: 10 s window at 48 kHz, repeat-padded; CNN14: 4 s at 32 kHz): sta
 
 Standardising (`SamplePreprocessor`, shared by indexing and query-by-example through `EmbeddingInput`): leading and trailing silence cut (loops keep theirs), onset at a fixed 5 ms pre-roll, one gain to -18 dBFS RMS with peaks at most -1 dBFS, quiet files boosted at most 30 dB. Loudness, length, tempo and pitch are measured on the original file, so the level and length aspects stay real; only the embedding sees the standardised sound. Changing this re-embeds the library.
 
-At 50k samples x 2048 dims (M4 Pro): PCA 2.5 s, layout about 1 s, similarity query under 1 ms.
+The scale target is 100,000 samples. `scripts/bench.sh` defaults to 100,000 samples x 2,048 embedding dimensions and measures adding and rescanning rows, reopening the library and cached map, streaming embeddings, PCA, clustering, the full map layout, similarity search and hover lookups. It creates its own temporary library and removes it afterwards. The generated data measures library and analysis costs; audio decoding and model inference are covered separately by the end-to-end tests. Timings depend on the computer and the sounds; a full map rebuild does more work than opening a cached map. One run on an M4 Pro with 48 GB of memory took 0.28 s to load the cached map, 4.25 s to fit PCA and 5.10 s to rebuild the map. Similarity queries averaged 0.48 ms over the 128-dimensional projection and 6.74 ms over all 2,048 dimensions.
 
 ## Layout
 
