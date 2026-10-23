@@ -41,6 +41,22 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
   labels = pd.read_csv("labels.csv")       # train on labels["category"]; group by "fingerprint" to split duplicates apart
   ```
 
+## Updates
+
+The app bundle checks GitHub for a newer release when you open it and while it
+is running, at most once a day.
+When one is available, a pop-up offers **Open Release** to read what changed and
+download the app, **Later**, or **Skip This Update**. Skipping applies to that
+release only; a later build can still be offered. **Clap Studio > Check for
+Updates…** checks immediately, including a release you skipped. Downloads and
+installation are your choice; your samples and library are kept.
+
+Checks read only the public releases of `TommasoAmici/clap-studio`; no samples or
+library information are sent. The repository must be public for checks to work.
+While it is private or you are offline, automatic checks stay quiet and a manual
+check explains why it could not finish. Unbundled development builds have no
+release version and do not check automatically.
+
 ## Persistence
 
 All expensive results are stored in `~/Library/Application Support/ClapStudio/library.sqlite` (override with `CLAP_DATA_DIR`): file index, embeddings (and the segments of field recordings), PCA, clusters, map coordinates, usage and cues. Relaunching loads them straight from disk; only new or changed files are processed, in batches, so an interrupted index resumes. Moved or renamed files are matched by a content fingerprint and keep their embedding, usage and cues.
@@ -89,7 +105,7 @@ CLAP_MODELS_DIR="$CLAP_TEST_MODELS_DIR" scripts/test.sh
 
 This skips the optional model checks; it does not verify those models or change the installed ones. `sh scripts/test-setup.sh` checks the setup diagnostics with fake developer tools, including missing tools, an old compiler, missing SDK/plugins and a Swift shadowing the selected compiler on PATH.
 
-`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`.
+`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; capturing this native macOS alert needs existing screen capture permission.
 
 ## Similarity model
 

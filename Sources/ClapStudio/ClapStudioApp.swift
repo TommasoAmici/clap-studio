@@ -17,9 +17,16 @@ struct ClapStudioApp: App {
             RootView()
                 .environment(model)
                 .frame(minWidth: 1250, minHeight: 680)
-                .task { if model.store == nil { model.bootstrap() } }
+                .task {
+                    if model.store == nil { model.bootstrap() }
+                    model.startUpdateChecks()
+                }
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { model.checkForUpdates(manual: true) }
+                    .disabled(model.isCheckingUpdates)
+            }
             SidebarCommands()
             InspectorCommands()
             CommandGroup(after: .undoRedo) {

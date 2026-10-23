@@ -1,6 +1,7 @@
 #if DEBUG
 import AppKit
 import ClapCore
+import CoreGraphics
 
 /// Development aid: renders the app's window (title bar and toolbar included) to a PNG without needing screen
 /// capture permission or the window to be on the current Space. Run it with `scripts/snapshot.sh`.
@@ -8,6 +9,7 @@ import ClapCore
 /// Environment (set by the script):
 ///   CLAP_SNAPSHOT=/path/out.png    write the image, then quit
 ///   CLAP_SNAPSHOT_DELAY=9          seconds to wait for the library to load (default 9)
+///   CLAP_SNAPSHOT_UPDATE=1         show an example update prompt without contacting GitHub
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
 ///   CLAP_SNAPSHOT_EDIT=1           with SELECT: give the selected sample a sample edit (changes the library: use a copy)
@@ -82,6 +84,13 @@ enum DebugSnapshot {
             frame.size.width = width
             window.setFrame(frame, display: true)
         }
+        if env["CLAP_SNAPSHOT_UPDATE"] == "1", let window = NSApp.windows.first(where: \.isVisible),
+           let installed = ReleaseVersion(version: "0.0.0", build: "0") {
+            let fixture = Data(#"{"tag_name":"v99.0.0-build.1","html_url":"https://github.com/TommasoAmici/clap-studio/releases/tag/v99.0.0-build.1","draft":false,"prerelease":false}"#.utf8)
+            if let update = try? ReleaseChecker.update(data: fixture, statusCode: 200, installed: installed) {
+                model.showUpdatePrompt(update, on: window)
+            }
+        }
         try? await Task.sleep(for: .seconds(3))
         if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
         NSApp.terminate(nil)
@@ -138,10 +147,35 @@ enum DebugSnapshot {
     /// The frame view holds the toolbar as well as the content.
     private static func windowImage() -> Data? {
         // A sheet is a window of its own: when one is open, it is what gets drawn.
-        guard let main = NSApp.windows.first(where: \.isVisible), let window = Optional(main.attachedSheet ?? main), let view = window.contentView?.superview,
+        guard let main = NSApp.windows.first(where: \.isVisible) else { return nil }
+        let window = main.attachedSheet ?? main
+        // Native alert text and buttons can be absent from bitmap caching, leaving only the background.
+        if ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_UPDATE"] == "1" {
+            return nativeWindowImage(window)
+        }
+        guard let view = window.contentView?.superview,
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
         view.cacheDisplay(in: view.bounds, to: rep)
         return rep.representation(using: .png, properties: [:])
+    }
+
+    /// Uses existing screen capture permission for the native alert; never asks for new access.
+    private static func nativeWindowImage(_ window: NSWindow) -> Data? {
+        guard CGPreflightScreenCaptureAccess() else {
+            NSLog("The native update prompt snapshot needs existing macOS screen capture access.")
+            return nil
+        }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("clap-alert-\(UUID()).png")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-o", "-l", String(window.windowNumber), file.path]
+        do {
+            try capture.run()
+            capture.waitUntilExit()
+            guard capture.terminationStatus == 0 else { return nil }
+            return try Data(contentsOf: file)
+        } catch { return nil }
     }
 }
 #endif

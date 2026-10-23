@@ -224,6 +224,12 @@ final class AppModel {
     var clusterInfo: [ClusterInfo] = []
     var hoverRow: Int?
 
+    // MARK: updates
+    var isCheckingUpdates = false
+    @ObservationIgnored var updateAlert: NSAlert?
+    @ObservationIgnored var updateCheckTask: Task<Void, Never>?
+    @ObservationIgnored var updateScheduleTask: Task<Void, Never>?
+
     // MARK: status
     var isIndexing = false
     var isListeningForBirds = false
