@@ -7,7 +7,7 @@ public struct Neighbor: Sendable, Hashable {
 }
 
 /// In-memory cosine index over L2-normalised vectors. Brute force with one
-/// matrix-vector product, which takes a few milliseconds even at 50k rows.
+/// matrix-vector product over every row, including libraries of 100k samples.
 public final class VectorIndex: @unchecked Sendable {
     public let ids: [Int64]
     public let dim: Int

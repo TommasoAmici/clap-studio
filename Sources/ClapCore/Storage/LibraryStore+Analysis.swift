@@ -22,6 +22,15 @@ extension LibraryStore {
     /// Samples that take part in the similarity map. Temporary roots (a USB stick) are left out.
     static let embeddedFilter = "status = 'ok' AND model_version = ? AND embedding IS NOT NULL AND root_id IN (SELECT id FROM roots WHERE transient = 0)"
 
+    /// The width of the first stored embedding, without reading the whole library.
+    public func embeddedDimension(modelVersion: String) -> Int? {
+        guard let width = try? db.scalarInt("""
+            SELECT length(embedding) / 2 FROM samples
+            WHERE \(Self.embeddedFilter) ORDER BY id LIMIT 1
+            """, [.text(modelVersion)]), width > 0 else { return nil }
+        return Int(width)
+    }
+
     public func embeddedCount(modelVersion: String) -> Int {
         Int((try? db.scalarInt("SELECT COUNT(*) FROM samples WHERE \(Self.embeddedFilter)",
                                [.text(modelVersion)])) ?? 0)

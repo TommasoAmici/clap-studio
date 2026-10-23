@@ -92,7 +92,7 @@ fragment float4 fmain(VOut in [[stage_in]], float2 pc [[point_coord]]) {
 }
 """
 
-/// Draws all dots as GPU point sprites (50k dots at 60 fps) plus a small highlight pass.
+/// Draws the library as GPU point sprites plus a small highlight pass.
 final class MapRenderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
     private let queue: MTLCommandQueue

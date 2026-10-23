@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-/// Uniform grid over 2D points for hover hit-testing at 50k+ dots (constant-time lookups).
+/// Uniform grid over 2D points for hover hit-testing among 100k+ dots.
 public struct SpatialGrid: Sendable {
     public let count: Int
     public let minX: Float, minY: Float, maxX: Float, maxY: Float

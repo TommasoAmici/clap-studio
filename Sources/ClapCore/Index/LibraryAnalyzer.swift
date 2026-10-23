@@ -71,8 +71,9 @@ public final class LibraryAnalyzer: @unchecked Sendable {
     private func computeAll(modelVersion: String, embedded: Int, clusterCount: Int,
                             status: @escaping @Sendable (String) -> Void) throws {
         status("Fitting projection")
-        var dim = 0
-        _ = try store.forEachEmbeddingChunk(modelVersion: modelVersion, chunkSize: 1) { _, flat, _ in dim = flat.count }
+        guard let dim = store.embeddedDimension(modelVersion: modelVersion) else {
+            throw DBError.sql("No stored embeddings were found for analysis")
+        }
         let pca = try PCAModel.fit(dim: dim, maxComponents: 128) { body in
             try store.forEachEmbeddingChunk(modelVersion: modelVersion) { _, flat, rows in body(flat, rows) }
         }

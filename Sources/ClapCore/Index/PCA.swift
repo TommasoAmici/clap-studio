@@ -1,7 +1,7 @@
 import Accelerate
 import Foundation
 
-/// PCA fitted by streaming over chunks, so 50k x 2048 embeddings never sit in memory at once.
+/// PCA fitted by streaming over chunks, so 100k x 2048 embeddings never sit in memory at once.
 public struct PCAModel: Sendable {
     public let dim: Int
     public let k: Int
