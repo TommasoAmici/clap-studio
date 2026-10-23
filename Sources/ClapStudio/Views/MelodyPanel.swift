@@ -55,20 +55,7 @@ struct MelodyPanel: View {
     private var trackTabs: some View {
         HStack(spacing: 4) {
             ForEach(Array(model.melodyPattern.tracks.enumerated()), id: \.element.id) { index, track in
-                let colour = melodyTrackColors[index % melodyTrackColors.count]
-                Button { model.selectedMelodyTrack = index; model.selectedMelodyNote = nil } label: {
-                    HStack(spacing: 4) {
-                        Circle().fill(colour).frame(width: 7, height: 7)
-                        Text(track.label).lineLimit(1).frame(maxWidth: 110)
-                    }
-                    .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(index == model.selectedMelodyTrack ? colour.opacity(0.25) : Color.secondary.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 5))
-                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: model.dropHover == .melodyTrack(index) ? 2 : 0))
-                }
-                .buttonStyle(.plain)
-                .dropZone(.melodyTrack(index))
-                .help(model.melodySampleName(track) + ". Drop a sample here to swap its sound.")
+                MelodyTrackTab(index: index, track: track)
             }
         }
     }
@@ -119,5 +106,41 @@ struct MelodyPanel: View {
                 .foregroundStyle(on ? Color.black : Color.secondary)
         }
         .buttonStyle(.plain).help(help)
+    }
+}
+
+/// A track's sound and a remove button that appears while the pointer is over the tab.
+private struct MelodyTrackTab: View {
+    @Environment(AppModel.self) private var model
+    @State private var hovering = false
+    let index: Int
+    let track: MelodyTrack
+
+    var body: some View {
+        let colour = melodyTrackColors[index % melodyTrackColors.count]
+        HStack(spacing: 4) {
+            Button { model.selectedMelodyTrack = index; model.selectedMelodyNote = nil } label: {
+                HStack(spacing: 4) {
+                    Circle().fill(colour).frame(width: 7, height: 7)
+                    Text(track.label).lineLimit(1).frame(maxWidth: 110)
+                }
+                .contentShape(Rectangle())
+            }
+            .help(model.melodySampleName(track) + ". Drop a sample here to swap its sound.")
+            Button { model.removeMelodyTrack(at: index) } label: {
+                Image(systemName: "xmark").font(.caption2).frame(width: 14, height: 14)
+            }
+            .opacity(hovering ? 1 : 0)
+            .help("Remove this melody track")
+            .accessibilityLabel("Remove \(track.label) from the melody")
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 7).padding(.vertical, 3)
+        .background(index == model.selectedMelodyTrack ? colour.opacity(0.25) : Color.secondary.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 5))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: model.dropHover == .melodyTrack(index) ? 2 : 0))
+        .onHover { hovering = $0 }
+        .dropZone(.melodyTrack(index))
+        .contextMenu { Button("Remove Melody Track") { model.removeMelodyTrack(at: index) } }
     }
 }

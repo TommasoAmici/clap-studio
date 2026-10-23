@@ -57,7 +57,9 @@ extension AppModel {
     }
 
     func removeMelodyTrack(at index: Int) {
+        guard melodyPattern.tracks.indices.contains(index) else { return }
         melodyPattern.removeTrack(at: index)
+        if index < selectedMelodyTrack { selectedMelodyTrack -= 1 }
         selectedMelodyTrack = min(selectedMelodyTrack, max(0, melodyPattern.tracks.count - 1))
         selectedMelodyNote = nil
     }
