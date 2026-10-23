@@ -63,11 +63,7 @@ enum MediaLibrary {
             let family = families.firstIndex(of: sample.folder)!
             let variation = Int(sample.name.suffix(2))! - 1
             let measured = descriptors[sample.name]!
-            let angle = Double(family) * 2 * .pi / Double(families.count)
-            let offset = Double(variation) * 2.39996323
-            let radius = 0.07 + 0.21 * sqrt(Double(variation) / 48)
-            let x = Float(0.65 * cos(angle) + radius * cos(offset))
-            let y = Float(0.65 * sin(angle) + radius * sin(offset))
+            let (x, y) = MediaLayout.point(family: family, variation: variation)
             // Deliberately fixed demonstration coordinates, not a claim of model classification.
             let unit = simd_normalize(SIMD4(x, y, Float(family) / 8, Float(variation) / 48))
             let vector = [unit.x, unit.y, unit.z, unit.w]

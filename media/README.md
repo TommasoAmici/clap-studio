@@ -13,7 +13,8 @@ views in about two minutes. The first build takes longer.
 The script makes a fresh temporary library with 384 original synthesised sounds,
 then removes it after capturing. No purchased samples, personal library data or
 neural models are needed. Sound names, tags, collections and map coordinates are
-demonstration data; the map is arranged to show the sound families clearly.
+demonstration data. The sound map uses repeatable, irregular clouds with a few
+sounds between families, rather than geometric rings.
 The app's ordinary controls, waveforms and measured sound properties are real.
 
 The capture forces only the demo app's appearance and uses a separate preference
