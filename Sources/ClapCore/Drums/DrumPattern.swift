@@ -44,16 +44,41 @@ public struct DrumTrack: Identifiable, Equatable, Sendable, Codable {
     }
 }
 
-/// A one-bar, 16-step pattern over a few tracks.
+/// A pattern over a few tracks, with sixteen steps in each 4/4 bar.
 public struct DrumPattern: Equatable, Sendable, Codable {
     public static let stepCount = 16
     public static let maxTracks = 8
+    /// A limit for damaged files and settings, far beyond the length of a song.
+    public static let maxBars = 100_000
 
     public var tracks: [DrumTrack] = []
+    public private(set) var bars = 1
+    public var totalSteps: Int { bars * Self.stepCount }
     /// How far odd steps are pushed late, as a fraction of a step (0 straight, about 0.33 triplet feel).
     public var swing: Double = 0
 
-    public init(tracks: [DrumTrack] = [], swing: Double = 0) { self.tracks = tracks; self.swing = swing }
+    public init(tracks: [DrumTrack] = [], swing: Double = 0, bars: Int = 1) {
+        self.tracks = tracks; self.swing = swing
+        self.bars = min(max(bars, 1), Self.maxBars)
+    }
+
+    private enum CodingKeys: String, CodingKey { case tracks, swing, bars }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tracks = try c.decode([DrumTrack].self, forKey: .tracks)
+        swing = try c.decode(Double.self, forKey: .swing)
+        bars = min(max(try c.decodeIfPresent(Int.self, forKey: .bars) ?? 1, 1), Self.maxBars)
+    }
+
+    /// Growing leaves new bars empty; shortening removes hits past the end.
+    public mutating func setBars(_ count: Int) {
+        bars = min(max(count, 1), Self.maxBars)
+        for index in tracks.indices {
+            let old = tracks[index].hits
+            tracks[index].hits = (0..<totalSteps).map { old.indices.contains($0) && old[$0] }
+        }
+    }
 
     /// What each track is called on screen: its label, numbered ("Kick #1", "Kick #2") when several share it.
     public var displayLabels: [String] {
@@ -66,13 +91,13 @@ public struct DrumPattern: Equatable, Sendable, Codable {
         }
     }
 
-    /// What was saved, made safe to play: every track has exactly one bar of steps, a volume in range, and there are
+    /// What was saved, made safe to play: every track has the pattern's length, a volume in range, and there are
     /// no more tracks than fit.
     public func sanitized() -> DrumPattern {
         var copy = self
         copy.tracks = Array(tracks.prefix(Self.maxTracks)).map { track in
             var t = track
-            t.hits = (0..<Self.stepCount).map { track.hits.indices.contains($0) && track.hits[$0] }
+            t.hits = (0..<totalSteps).map { track.hits.indices.contains($0) && track.hits[$0] }
             t.volume = min(max(track.volume.isFinite ? track.volume : 0.9, 0), 1)
             t.history = Array(track.history.suffix(DrumTrack.historyLimit))
             return t
@@ -84,7 +109,7 @@ public struct DrumPattern: Equatable, Sendable, Codable {
     public var isFull: Bool { tracks.count >= Self.maxTracks }
 
     public mutating func toggle(track: Int, step: Int) {
-        guard tracks.indices.contains(track), (0..<Self.stepCount).contains(step) else { return }
+        guard tracks.indices.contains(track), tracks[track].hits.indices.contains(step) else { return }
         tracks[track].hits[step].toggle()
     }
 
@@ -103,6 +128,7 @@ public struct DrumPattern: Equatable, Sendable, Codable {
                 hits = DrumStarter.hits(for: category)
             }
         }
+        hits = (0..<totalSteps).map { hits[$0 % Self.stepCount] }
         let track = DrumTrack(sampleID: sampleID, label: label, hits: hits, alternatives: alternatives)
         tracks.insert(track, at: min(max(index ?? tracks.count, 0), tracks.count))
         return true
@@ -125,7 +151,7 @@ public struct DrumPattern: Equatable, Sendable, Codable {
     }
 
     public mutating func clearHits() {
-        for i in tracks.indices { tracks[i].hits = Array(repeating: false, count: Self.stepCount) }
+        for i in tracks.indices { tracks[i].hits = Array(repeating: false, count: totalSteps) }
     }
 
     public mutating func removeTrack(at index: Int) {

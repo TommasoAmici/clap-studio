@@ -54,10 +54,11 @@ public struct DrumEvent: Equatable, Sendable {
 /// schedule them exactly. Pure logic: the engine only maps events to sounds, so timing can be tested without audio.
 /// Drums and melody share one step counter, so they stay together however long the melody is.
 public struct DrumSequencer: Sendable {
-    /// Which step of the bar is next (0...15).
-    public var step: Int { tick % DrumPattern.stepCount }
+    /// Which step of the drum pattern is next.
+    public var step: Int { tick % drumLength }
     public private(set) var nextTime: Double
     private var tick = 0
+    private var drumLength = DrumPattern.stepCount
 
     public init(startTime: Double) { nextTime = startTime }
 
@@ -67,20 +68,19 @@ public struct DrumSequencer: Sendable {
                                  melody: MelodyPattern = MelodyPattern()) -> [DrumEvent] {
         if nextTime < now - 0.05 { nextTime = now + 0.02 }
         let soloed = pattern.tracks.contains { $0.solo } || melody.tracks.contains { $0.solo }
-        let loop = max(DrumPattern.stepCount, melody.stepCount)
+        drumLength = pattern.totalSteps
         var events: [DrumEvent] = []
         while nextTime < now + lookahead {
-            tick %= loop                                    // a shorter melody can leave the counter past its end
             let hits = pattern.tracks.indices.filter { i in
                 let track = pattern.tracks[i]
-                return track.hits[step] && !track.muted && (!soloed || track.solo)
+                return track.hits.indices.contains(step) && track.hits[step] && !track.muted && (!soloed || track.solo)
             }
             var event = DrumEvent(time: nextTime, step: step, tracks: hits)
-            event.melodyStep = tick
-            event.notes = notes(startingAt: tick, stepTime: nextTime, bpm: bpm, swing: pattern.swing, melody: melody, soloed: soloed)
+            event.melodyStep = tick % melody.stepCount
+            event.notes = notes(startingAt: event.melodyStep, stepTime: nextTime, bpm: bpm, swing: pattern.swing, melody: melody, soloed: soloed)
             events.append(event)
             nextTime += DrumTiming.interval(afterStep: step, bpm: bpm, swing: pattern.swing)
-            tick = (tick + 1) % loop
+            tick += 1
         }
         return events
     }

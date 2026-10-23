@@ -1,7 +1,7 @@
 import ClapCore
 import SwiftUI
 
-/// A drawer with a 16-step sequencer for auditioning samples together at the project tempo.
+/// A drawer showing one bar of the drum pattern at the project tempo.
 struct DrumPanel: View {
     @Environment(AppModel.self) private var model
     @State private var naming = false
@@ -12,6 +12,7 @@ struct DrumPanel: View {
             VStack(spacing: 0) {
                 Divider()
                 header
+                barControls
                 if model.drumPattern.tracks.isEmpty {
                     Text("Add sounds from the library or the kit builder to start a pattern.")
                         .font(.callout).foregroundStyle(.secondary)
@@ -35,7 +36,31 @@ struct DrumPanel: View {
             }
             .background(.bar)
             .dropZone(.drums)
+            .onChange(of: model.drumStep) { _, step in
+                if let step { model.drumBar = step / DrumPattern.stepCount }
+            }
+            .onChange(of: model.drumPattern.bars) { _, bars in
+                model.drumBar = min(model.drumBar, bars - 1)
+            }
         }
+    }
+
+    private var barControls: some View {
+        HStack(spacing: 8) {
+            Text("Length").foregroundStyle(.secondary)
+            TextField("Bars", value: Binding(get: { model.drumPattern.bars }, set: { model.drumPattern.setBars($0) }), format: .number)
+                .textFieldStyle(.roundedBorder).frame(width: 65)
+                .help("Number of 4/4 bars. Shortening removes steps past the end.")
+            Text(model.drumPattern.bars == 1 ? "bar" : "bars").foregroundStyle(.secondary)
+            Spacer()
+            Button { model.drumBar = max(0, model.drumBar - 1) } label: { Image(systemName: "chevron.left") }
+                .disabled(model.drumBar == 0).help("Previous bar")
+            Text("Bar \(model.drumBar + 1) of \(model.drumPattern.bars)").monospacedDigit()
+            Button { model.drumBar = min(model.drumPattern.bars - 1, model.drumBar + 1) } label: { Image(systemName: "chevron.right") }
+                .disabled(model.drumBar >= model.drumPattern.bars - 1).help("Next bar")
+        }
+        .font(.caption).controlSize(.small)
+        .padding(.horizontal, 16).padding(.bottom, 6)
     }
 
     /// Ready-made grooves, the user's own, and saving the pattern on screen as a new one.
@@ -243,8 +268,8 @@ private struct DrumTrackRow: View {
             ForEach(0..<4, id: \.self) { group in
                 HStack(spacing: 3) {
                     ForEach(0..<4, id: \.self) { n in
-                        let step = group * 4 + n
-                        StepCell(on: track.hits[step], playing: model.drumStep == step, beat: n == 0)
+                        let step = model.drumBar * DrumPattern.stepCount + group * 4 + n
+                        StepCell(on: track.hits.indices.contains(step) && track.hits[step], playing: model.drumStep == step, beat: n == 0)
                             .onTapGesture { model.drumPattern.toggle(track: index, step: step) }
                     }
                 }

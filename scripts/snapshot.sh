@@ -9,6 +9,8 @@
 #     --places  show the Places tab
 #     --no-inspector  start with the inspector hidden
 #     --drums  open the drum machine with three samples
+#     --drum-bars N  with --drums: set the pattern's length
+#     --drum-bar N   with --drums: show this bar (counting from 1)
 #     --melody  open the melody with two samples and a few notes
 #     --melody-bars N  with --melody: repeat the notes up to N bars (to check a long melody draws)
 #     --width PX  resize the window to this width first (down to its minimum)
@@ -33,6 +35,8 @@ while [ $# -gt 0 ]; do
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;
     --places) export CLAP_SNAPSHOT_PLACES=1 ;;
     --drums) export CLAP_SNAPSHOT_DRUMS=1 ;;
+    --drum-bars) shift; export CLAP_SNAPSHOT_DRUM_BARS="$1" ;;
+    --drum-bar) shift; export CLAP_SNAPSHOT_DRUM_BAR="$1" ;;
     --melody) export CLAP_SNAPSHOT_MELODY=1 ;;
     --melody-bars) shift; export CLAP_SNAPSHOT_MELODY_BARS="$1" ;;
     --no-inspector) export CLAP_SNAPSHOT_NO_INSPECTOR=1 ;;

@@ -68,7 +68,7 @@ struct MelodyPanel: View {
             ForEach(choices, id: \.self) { Text($0 == 1 ? "1 bar" : "\($0) bars").tag($0) }
         }
         .fixedSize()
-        .help("How long the melody is before it starts again. The drums keep looping every bar. Shortening it removes the notes past the end.")
+        .help("How long the melody is before it starts again. The drums keep looping at their own length. Shortening it removes the notes past the end.")
     }
 
     private func trackControls(_ track: MelodyTrack, index: Int) -> some View {

@@ -37,7 +37,13 @@ enum DebugSnapshot {
         try? await Task.sleep(for: .seconds(delay - 3))
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }
         if env["CLAP_SNAPSHOT_PLACES"] == "1" { model.viewMode = .places }
-        if env["CLAP_SNAPSHOT_DRUMS"] == "1" { model.addToDrums(Array(model.visible.prefix(3).map(\.id))) }
+        if env["CLAP_SNAPSHOT_DRUMS"] == "1" {
+            model.addToDrums(Array(model.visible.prefix(3).map(\.id)))
+            if let bars = env["CLAP_SNAPSHOT_DRUM_BARS"].flatMap(Int.init) { model.drumPattern.setBars(bars) }
+            if let bar = env["CLAP_SNAPSHOT_DRUM_BAR"].flatMap(Int.init) {
+                model.drumBar = min(max(bar - 1, 0), model.drumPattern.bars - 1)
+            }
+        }
         if env["CLAP_SNAPSHOT_MELODY"] == "1" { sketchMelody(model) }
         if let like = env["CLAP_SNAPSHOT_LIKE"], let sample = model.samples.first(where: { $0.name.contains(like) }) {
             model.showSimilar(to: sample.id)

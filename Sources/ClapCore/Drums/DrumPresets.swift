@@ -160,7 +160,8 @@ extension DrumPattern {
         for index in tracks.indices {
             let label = tracks[index].label
             let role = DrumPreset.role(for: label)
-            tracks[index].hits = preset.hits(for: label, occurrence: seen[role, default: 0])
+            let bar = preset.hits(for: label, occurrence: seen[role, default: 0])
+            tracks[index].hits = (0..<totalSteps).map { bar[$0 % Self.stepCount] }
             seen[role, default: 0] += 1
         }
         swing = preset.swing

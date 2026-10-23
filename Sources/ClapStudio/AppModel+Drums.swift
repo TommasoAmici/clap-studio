@@ -65,13 +65,16 @@ extension AppModel {
     // MARK: remembering the pattern
 
     private static let drumPatternKey = "drum.pattern", drumOpenKey = "drum.open"
+    private static let drumWriter = DispatchQueue(label: "clap.drums.save", qos: .utility)
 
     /// Brings back the pattern (sounds, steps, mix, swing) and whether the drawer was open. Run before the library is
     /// read, so the sounds are matched up later, in `restoreDrumSounds`.
     func loadDrumPattern() {
         let d = UserDefaults.standard
         let wasOpen = d.bool(forKey: Self.drumOpenKey)       // read first: assigning the pattern stores the (still closed) drawer
-        if let data = d.data(forKey: Self.drumPatternKey), let saved = try? JSONDecoder().decode(DrumPattern.self, from: data) {
+        if let url = try? DrumStore.defaultURL(), let saved = DrumStore.load(from: url) {
+            drumPattern = saved
+        } else if let data = d.data(forKey: Self.drumPatternKey), let saved = try? JSONDecoder().decode(DrumPattern.self, from: data) {
             drumPattern = saved.sanitized()
         }
         showDrums = wasOpen && !drumPattern.tracks.isEmpty
@@ -82,7 +85,12 @@ extension AppModel {
         // Sounds read from a USB stick only exist while it is plugged in, so they are not kept.
         var pattern = drumPattern
         pattern.tracks.removeAll { usbSampleIDs.contains($0.sampleID) }
-        if let data = try? JSONEncoder().encode(pattern) { d.set(data, forKey: Self.drumPatternKey) }
+        let saved = pattern
+        let legacyKey = Self.drumPatternKey
+        Self.drumWriter.async {
+            guard let url = try? DrumStore.defaultURL(), (try? DrumStore.save(saved, to: url)) != nil else { return }
+            UserDefaults.standard.removeObject(forKey: legacyKey)
+        }
         d.set(showDrums, forKey: Self.drumOpenKey)
     }
 
