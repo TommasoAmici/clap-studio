@@ -43,7 +43,7 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 
 ## Persistence
 
-All expensive results are stored in `~/Library/Application Support/ClapStudio/library.sqlite` (override with `CLAP_DATA_DIR`): file index, embeddings (and the segments of field recordings), PCA, clusters, map coordinates, usage and cues. Relaunching loads them straight from disk; only new or changed files are processed, in batches, so an interrupted index resumes. Moved or renamed files are matched by a content fingerprint and keep their embedding, usage and cues.
+All expensive results are stored in `~/Library/Application Support/ClapStudio/library.sqlite` (override with `CLAP_DATA_DIR`): file index, embeddings (and the segments of field recordings), PCA, clusters, map coordinates, usage and cues. Relaunching loads them straight from disk; only new or changed files are processed, in batches, so an interrupted index resumes. Moved or renamed files are matched by a content fingerprint and keep their embedding, usage and cues. Storage, cached map loading, similarity search, projection, clustering and map selection are tested with 100,000 samples; analysis reads embeddings in 4,096-row batches.
 
 ## Build and run
 
