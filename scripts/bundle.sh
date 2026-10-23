@@ -7,16 +7,16 @@
 set -e
 . "$(dirname "$0")/env.sh"
 cd "$ROOT"
-swift build -c release --product ClapStudio
+"$SWIFT" build -c release --product ClapStudio
 
 APP="build/ClapStudio.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$(swift build -c release --show-bin-path)/ClapStudio" "$APP/Contents/MacOS/ClapStudio"
+cp "$("$SWIFT" build -c release --show-bin-path)/ClapStudio" "$APP/Contents/MacOS/ClapStudio"
 
 # Bundle whichever Core ML models have been exported (tools/export_clap.py, tools/export_model.py,
 # tools/export_birdnet.py).
-MODELS="$HOME/Library/Application Support/ClapStudio/Models"
+MODELS="${CLAP_MODELS_DIR:-$HOME/Library/Application Support/ClapStudio/Models}"
 ITEMS="CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.json clap_merges.txt"
 [ "$NON_COMMERCIAL" = "0" ] || ITEMS="$ITEMS BirdNET.mlpackage BirdNETLocation.mlpackage birdnet_labels.txt"
 for item in $ITEMS; do
@@ -28,10 +28,10 @@ done
 # App icon: render clap.icon (Icon Composer) to an .icns; no Xcode needed.
 ICONSET="build/AppIcon.iconset"
 rm -rf "$ICONSET"
-swift scripts/render-icon.swift clap.icon "$ICONSET" >/dev/null
+"$SWIFT" scripts/render-icon.swift clap.icon "$ICONSET" >/dev/null
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns" && rm -rf "$ICONSET"
 # The dark appearance of the icon, which the app shows in the Dock while macOS is in dark mode (needs Icon Composer).
-if swift scripts/render-icon.swift clap.icon "$ICONSET" Dark >/dev/null 2>&1; then
+if "$SWIFT" scripts/render-icon.swift clap.icon "$ICONSET" Dark >/dev/null 2>&1; then
   iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIconDark.icns"
   echo "Bundled the dark icon"
 fi

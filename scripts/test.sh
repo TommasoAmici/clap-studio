@@ -4,4 +4,4 @@
 set -e
 . "$(dirname "$0")/env.sh"
 cd "$ROOT"
-exec swift test -Xswiftc -plugin-path -Xswiftc "$TESTING_PLUGINS" "$@"
+exec "$SWIFT" test -Xswiftc -plugin-path -Xswiftc "$TESTING_PLUGINS" "$@"

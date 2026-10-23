@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Convert LAION-CLAP (laion/clap-htsat-unfused) to Core ML for Clap Studio.
 
-    mise exec uv@latest -- uv pip install --python tools/.venv/bin/python \\
-        --default-index https://pypi.org/simple -r tools/requirements.txt
+    scripts/setup.sh --model-tools
     tools/.venv/bin/python tools/export_clap.py
 
 Output, in ~/Library/Application Support/ClapStudio/Models/:

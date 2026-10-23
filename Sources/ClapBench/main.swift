@@ -2,7 +2,7 @@ import ClapCore
 import Foundation
 
 // Developer benchmark: how long do PCA, clustering, layout and search take at library scale?
-// Usage: swift run -c release ClapBench [sampleCount] [embeddingDim]
+// Usage: scripts/bench.sh [sampleCount] [embeddingDim]
 let n = CommandLine.arguments.count > 1 ? Int(CommandLine.arguments[1]) ?? 50_000 : 50_000
 let dim = CommandLine.arguments.count > 2 ? Int(CommandLine.arguments[2]) ?? 2048 : 2048
 

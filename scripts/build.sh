@@ -3,4 +3,4 @@
 set -e
 . "$(dirname "$0")/env.sh"
 cd "$ROOT"
-exec swift build "$@"
+exec "$SWIFT" build "$@"

@@ -11,7 +11,7 @@
 # ///
 """Convert BirdNET V2.4 (bird species detector) to Core ML for Clap Studio.
 
-    mise exec uv@latest -- uv run --python 3.12 --default-index https://pypi.org/simple tools/export_birdnet.py
+    mise exec -- uv run --python "$(mise which python)" --default-index https://pypi.org/simple tools/export_birdnet.py
 
 Output, in ~/Library/Application Support/ClapStudio/Models/ (or --out):
     BirdNET.mlpackage          3 s of 48 kHz mono audio (1, 144000) -> 6522 species logits (apply a sigmoid)

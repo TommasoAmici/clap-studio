@@ -51,9 +51,9 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-swift build --product ClapStudio >/dev/null
+"$SWIFT" build --product ClapStudio >/dev/null
 rm -f "$OUT"
-CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$(swift build --show-bin-path)/ClapStudio" >/dev/null 2>&1 &
+CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$("$SWIFT" build --show-bin-path)/ClapStudio" >/dev/null 2>&1 &
 PID=$!
 # The app quits itself after writing the image; wait a little longer than its delay, then make sure it is gone.
 i=0
