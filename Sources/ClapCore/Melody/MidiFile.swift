@@ -54,10 +54,10 @@ public enum MidiFile {
         try readSong(url: url, maxBytes: maxBytes).tracks
     }
 
-    public static func readSong(url: URL, maxBytes: Int = MidiFile.maxBytes) throws -> MidiSong {
+    public static func readSong(url: URL, maxBytes: Int = MidiFile.maxBytes, splitChannels: Bool = true) throws -> MidiSong {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= maxBytes else { throw MidiError.tooLarge }
-        return try parseSong(Data(contentsOf: url))
+        return try parseSong(Data(contentsOf: url), splitChannels: splitChannels)
     }
 
     /// True for a file named like a MIDI file (.mid or .midi, in any case).
@@ -66,7 +66,8 @@ public enum MidiFile {
     /// A file that is cut off or damaged part way keeps the notes read before the damage.
     public static func parse(_ data: Data) throws -> [MidiTrack] { try parseSong(data).tracks }
 
-    public static func parseSong(_ data: Data) throws -> MidiSong {
+    /// Set `splitChannels` to false to keep format-zero files as one physical track, as the drum grid does.
+    public static func parseSong(_ data: Data, splitChannels: Bool = true) throws -> MidiSong {
         var reader = ByteReader(Array(data))
         guard reader.take(4) == Array("MThd".utf8), let headerLength = reader.u32(), headerLength >= 6,
               let format = reader.u16(), reader.u16() != nil, let division = reader.u16() else { throw MidiError.notMidi }
@@ -82,7 +83,7 @@ public enum MidiFile {
             let (name, notes, tempo) = readTrack(body, stepsPerTick: stepsPerTick)
             if let tempo, firstTempo == nil || tempo.tick < firstTempo!.tick { firstTempo = tempo }
             guard !notes.isEmpty else { continue }
-            if format == 0 {
+            if format == 0 && splitChannels {
                 let channels = Dictionary(grouping: notes, by: \.channel)
                 for channel in channels.keys.sorted() {
                     tracks.append(MidiTrack(name: "Channel \(channel + 1)", notes: sorted(channels[channel]!.map(\.note))))

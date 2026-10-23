@@ -2,6 +2,8 @@ import Foundation
 
 /// One row of the sequencer: a sample and the steps it plays on.
 public struct DrumTrack: Identifiable, Equatable, Sendable, Codable {
+    /// An imported row can hold its rhythm while it waits for the user to choose a sound.
+    public static let unassignedSampleID: Int64 = 0
     public let id: UUID
     public var sampleID: Int64
     public var label: String
