@@ -56,7 +56,9 @@ extension AppModel {
     /// Waits until an existing chooser or sheet is closed so it is never displaced by a background check.
     private func presentUpdate(_ update: ReleaseUpdate) async {
         while !Task.isCancelled {
-            if NSApp.isActive, let window = NSApp.keyWindow ?? NSApp.mainWindow, window.attachedSheet == nil {
+            if NSApp.isActive, NSApp.modalWindow == nil,
+               let window = NSApp.mainWindow ?? NSApp.keyWindow,
+               window.sheetParent == nil, !window.isSheet, window.attachedSheet == nil {
                 await withCheckedContinuation { continuation in
                     showUpdatePrompt(update, on: window) { continuation.resume() }
                 }

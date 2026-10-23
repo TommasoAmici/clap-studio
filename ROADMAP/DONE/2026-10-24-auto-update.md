@@ -32,9 +32,12 @@ bundle, starts one hourly timer that checks when a day has elapsed, and cancels
 a previous request before a manual replacement. `updates.lastCheck` records
 attempts so an unavailable server is not polled repeatedly. `updates.skippedTag`
 remembers an exact release, including its build; the manual menu ignores it.
-The native prompt waits for an active window and for any existing sheet to close,
-and the menu stays disabled until the check or prompt finishes. No download or
-installation is automatic. See the README's Updates section for the user flow.
+The native prompt waits for an active normal window, no app-modal window, and
+no attached sheet on its parent. Prefer the main window over the key window:
+a chooser itself can become key and have no attached sheet, so both `isSheet`
+and `sheetParent` must also rule it out as a prompt parent. The menu stays
+disabled until the check or prompt finishes. No download or installation is
+automatic. See the README's Updates section for the user flow.
 
 `scripts/snapshot.sh --update` uses a local example release through
 `CLAP_SNAPSHOT_UPDATE=1`. The fixture exists only in the debug snapshot code and
