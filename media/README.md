@@ -1,6 +1,7 @@
 # Clap Studio media kit
 
-Eight PNGs show the Library, Map, Drum Machine and Melody in light and dark
+Ten PNGs show the Library, Map, Drum Machine, Melody, and drums with melody
+together in light and dark
 appearance. Each full window is rendered at 3200 × 2000 pixels, including its
 toolbar and inspector.
 
