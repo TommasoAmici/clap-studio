@@ -3,8 +3,8 @@ import AppKit
 import ClapCore
 import CoreGraphics
 
-/// Development aid: renders the app's window (title bar and toolbar included) to a PNG without needing screen
-/// capture permission or the window to be on the current Space. Run it with `scripts/snapshot.sh`.
+/// Development aid: renders the app's window, toolbar included, to a PNG with `scripts/snapshot.sh`.
+/// Most modes need no screen capture permission; the native update prompt uses existing access.
 ///
 /// Environment (set by the script):
 ///   CLAP_SNAPSHOT=/path/out.png    write the image, then quit
@@ -28,6 +28,10 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_PLACES=1         show the Places tab
 ///   CLAP_SNAPSHOT_NO_INSPECTOR=1   start with the inspector hidden
 ///   CLAP_SNAPSHOT_WIDTH=1100       resize the window to this width first (it cannot go below the window's minimum)
+///   CLAP_SNAPSHOT_HEIGHT=1000      height in points
+///   CLAP_SNAPSHOT_SCALE=2          pixels per point, independent of the display
+///   CLAP_SNAPSHOT_APPEARANCE=dark  light or dark, for this app only
+///   CLAP_SNAPSHOT_MEDIA=1          use a fresh musical sketch for media captures
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
@@ -35,12 +39,28 @@ enum DebugSnapshot {
         let env = ProcessInfo.processInfo.environment
         if let tags = env["CLAP_PERF"] { await perf(model: model, tags: tags.split(separator: ",").map(String.init), env: env); return }
         guard let path = env["CLAP_SNAPSHOT"] else { return }
+        if let appearance = env["CLAP_SNAPSHOT_APPEARANCE"] {
+            NSApp.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
+        }
         let delay = Double(env["CLAP_SNAPSHOT_DELAY"] ?? "") ?? 9
         try? await Task.sleep(for: .seconds(delay - 3))
+        let media = env["CLAP_SNAPSHOT_MEDIA"] == "1"
+        if media {
+            model.showDrums = false
+            model.showMelody = false
+            model.drumPattern = DrumPattern()
+            model.melodyPattern = MelodyPattern()
+            model.project.bpm = 124
+            model.mapColorMode = .category
+            model.shuffleSeed = 2026
+        }
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }
         if env["CLAP_SNAPSHOT_PLACES"] == "1" { model.viewMode = .places }
         if env["CLAP_SNAPSHOT_DRUMS"] == "1" {
-            model.addToDrums(Array(model.visible.prefix(3).map(\.id)))
+            let sounds = media ? ["Kick", "Snare", "Hi-hat", "Percussion"].compactMap { category in
+                model.samples.first { $0.effectiveCategory == category }?.id
+            } : Array(model.visible.prefix(3).map(\.id))
+            model.addToDrums(sounds)
             if let bars = env["CLAP_SNAPSHOT_DRUM_BARS"].flatMap(Int.init) { model.drumPattern.setBars(bars) }
             if let bar = env["CLAP_SNAPSHOT_DRUM_BAR"].flatMap(Int.init) {
                 model.drumBar = min(max(bar - 1, 0), model.drumPattern.bars - 1)
@@ -52,7 +72,7 @@ enum DebugSnapshot {
             model.select(model.visible.first?.id, play: false)
             model.applyDrumMidi(song, named: URL(fileURLWithPath: midi).lastPathComponent, setTempo: false)
         }
-        if env["CLAP_SNAPSHOT_MELODY"] == "1" { sketchMelody(model) }
+        if env["CLAP_SNAPSHOT_MELODY"] == "1" { sketchMelody(model, media: media) }
         if let like = env["CLAP_SNAPSHOT_LIKE"], let sample = model.samples.first(where: { $0.name.contains(like) }) {
             model.showSimilar(to: sample.id)
             if let words = env["CLAP_SNAPSHOT_WORDS"] { try? await Task.sleep(for: .seconds(1)); model.refinementText = words; try? await Task.sleep(for: .seconds(3)) }
@@ -79,9 +99,10 @@ enum DebugSnapshot {
                 model.renamingUsb = .bank(drive: drive.id, set: set, number: bank.number)
             }
         }
-        if let width = Double(env["CLAP_SNAPSHOT_WIDTH"] ?? ""), let window = NSApp.windows.first(where: \.isVisible) {
+        if let window = NSApp.windows.first(where: \.isVisible) {
             var frame = window.frame
-            frame.size.width = width
+            if let width = Double(env["CLAP_SNAPSHOT_WIDTH"] ?? "") { frame.size.width = width }
+            if let height = Double(env["CLAP_SNAPSHOT_HEIGHT"] ?? "") { frame.size.height = height }
             window.setFrame(frame, display: true)
         }
         if env["CLAP_SNAPSHOT_UPDATE"] == "1", let window = NSApp.windows.first(where: \.isVisible),
@@ -97,8 +118,11 @@ enum DebugSnapshot {
     }
 
     /// Two melody tracks from the first two samples with a few bars of notes, so the piano roll has something to show.
-    private static func sketchMelody(_ model: AppModel) {
-        model.addToMelody(Array(model.visible.prefix(2).map(\.id)))
+    private static func sketchMelody(_ model: AppModel, media: Bool) {
+        let sounds = media ? ["Keys", "Bass"].compactMap { category in
+            model.samples.first { $0.effectiveCategory == category }?.id
+        } : Array(model.visible.prefix(2).map(\.id))
+        model.addToMelody(sounds)
         let bars = max(2, Int(ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MELODY_BARS"] ?? "") ?? 2)
         var pattern = model.melodyPattern
         pattern.setBars(bars)
@@ -153,8 +177,25 @@ enum DebugSnapshot {
         if ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_UPDATE"] == "1" {
             return nativeWindowImage(window)
         }
-        guard let view = window.contentView?.superview,
-              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
+        guard let view = window.contentView?.superview else { return nil }
+        let rep: NSBitmapImageRep
+        if let scale = Double(ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_SCALE"] ?? ""),
+           scale >= 1, scale <= 4 {
+            guard let scaled = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                               pixelsWide: Int(view.bounds.width * scale),
+                                               pixelsHigh: Int(view.bounds.height * scale),
+                                               bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                               isPlanar: false, colorSpaceName: .deviceRGB,
+                                               bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+            scaled.size = view.bounds.size
+            rep = scaled
+        } else {
+            guard let native = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
+            rep = native
+        }
+        let scale = Double(rep.pixelsWide) / view.bounds.width
+        guard let overlays = snapshotMetalViews(in: view, scale: scale) else { return nil }
+        defer { overlays.forEach { $0.removeFromSuperview() } }
         view.cacheDisplay(in: view.bounds, to: rep)
         return rep.representation(using: .png, properties: [:])
     }
@@ -176,6 +217,28 @@ enum DebugSnapshot {
             guard capture.terminationStatus == 0 else { return nil }
             return try Data(contentsOf: file)
         } catch { return nil }
+    }
+
+    /// Keep the map in its own view so SwiftUI's controls and legend stay above its captured pixels.
+    private static func snapshotMetalViews(in view: NSView, scale: Double) -> [NSImageView]? {
+        if let map = view as? MapMTKView {
+            guard let image = map.renderer?.snapshotImage(size: map.bounds.size, scale: scale,
+                                                         backingScale: Double(map.window?.backingScaleFactor ?? 2)) else { return nil }
+            let overlay = NSImageView(frame: map.bounds)
+            overlay.image = image
+            overlay.imageScaling = .scaleAxesIndependently
+            map.addSubview(overlay)
+            return [overlay]
+        }
+        var overlays: [NSImageView] = []
+        for child in view.subviews {
+            guard let captured = snapshotMetalViews(in: child, scale: scale) else {
+                overlays.forEach { $0.removeFromSuperview() }
+                return nil
+            }
+            overlays += captured
+        }
+        return overlays
     }
 }
 #endif

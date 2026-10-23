@@ -191,9 +191,17 @@ final class MapRenderer: NSObject, MTKViewDelegate {
     func draw(in view: MTKView) {
         guard let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
               let cmd = queue.makeCommandBuffer(), let enc = cmd.makeRenderCommandEncoder(descriptor: pass) else { return }
+        encodeDots(enc)
+        enc.endEncoding()
+        cmd.present(drawable)
+        cmd.commit()
+    }
+
+    private func encodeDots(_ enc: MTLRenderCommandEncoder, pointScale: Float = 1) {
         if let positions, let clusters, let visibility, pointCount > 0 {
             var u = uniformsProvider()
             u.light = isLight ? 1 : 0
+            u.pointSize *= pointScale
             enc.setRenderPipelineState(normalPipeline)
             enc.setVertexBuffer(positions, offset: 0, index: 0)
             enc.setVertexBuffer(clusters, offset: 0, index: 1)
@@ -208,8 +216,49 @@ final class MapRenderer: NSObject, MTKViewDelegate {
                 enc.drawPrimitives(type: .point, vertexStart: 0, vertexCount: highlightCount)
             }
         }
-        enc.endEncoding()
-        cmd.present(drawable)
-        cmd.commit()
     }
+
+    #if DEBUG
+    /// AppKit's bitmap cache cannot read a Metal layer, so snapshots use the same pipelines offscreen.
+    func snapshotImage(size: NSSize, scale: Double, backingScale: Double) -> NSImage? {
+        let width = Int(size.width * scale), height = Int(size.height * scale)
+        guard width > 0, height > 0 else { return nil }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                                  width: width, height: height, mipmapped: false)
+        descriptor.storageMode = .private
+        descriptor.usage = [.renderTarget]
+        let bytesPerRow = ((width * 4 + 255) / 256) * 256
+        guard let texture = device.makeTexture(descriptor: descriptor),
+              let pixels = device.makeBuffer(length: bytesPerRow * height, options: .storageModeShared),
+              let command = queue.makeCommandBuffer() else { return nil }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = texture
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].storeAction = .store
+        let background = MapTheme.background(light: isLight).usingColorSpace(.sRGB)!
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: background.redComponent,
+                                                          green: background.greenComponent,
+                                                          blue: background.blueComponent, alpha: 1)
+        guard let encoder = command.makeRenderCommandEncoder(descriptor: pass) else { return nil }
+        encodeDots(encoder, pointScale: Float(scale / max(backingScale, 1)))
+        encoder.endEncoding()
+        guard let blit = command.makeBlitCommandEncoder() else { return nil }
+        blit.copy(from: texture, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(),
+                  sourceSize: MTLSize(width: width, height: height, depth: 1),
+                  to: pixels, destinationOffset: 0, destinationBytesPerRow: bytesPerRow,
+                  destinationBytesPerImage: bytesPerRow * height)
+        blit.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+        guard command.status == .completed,
+              let provider = CGDataProvider(data: Data(bytes: pixels.contents(), count: pixels.length) as CFData),
+              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
+                                  bytesPerRow: bytesPerRow, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: [.byteOrder32Little,
+                                               CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue)],
+                                  provider: provider, decode: nil, shouldInterpolate: false,
+                                  intent: .defaultIntent) else { return nil }
+        return NSImage(cgImage: image, size: size)
+    }
+    #endif
 }

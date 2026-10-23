@@ -23,6 +23,7 @@ let package = Package(
         ),
         .executableTarget(name: "ClapStudio", dependencies: ["ClapCore"], swiftSettings: flags),
         .executableTarget(name: "ClapBench", dependencies: ["ClapCore"]),
+        .executableTarget(name: "ClapMediaSeed", dependencies: ["ClapCore"]),
         .testTarget(name: "ClapCoreTests", dependencies: ["ClapCore"], swiftSettings: flags),
     ]
 )
