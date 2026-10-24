@@ -50,8 +50,8 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 
 ## Updates
 
-The app bundle checks GitHub for a newer release when you open it and while it
-is running, at most once a day.
+The app bundle checks GitHub for a newer release every time you open it and, while it
+is running, once a day.
 When one is available, a pop-up offers **Open Release** to read what changed and
 download the app, **Later**, or **Skip This Update**. Skipping applies to that
 release only; a later build can still be offered. **Clap Studio > Check for

@@ -2,16 +2,17 @@ import AppKit
 import ClapCore
 
 extension AppModel {
-    /// Release builds check quietly once a day; development snapshots never contact GitHub.
+    /// Release builds check quietly on launch and once a day; development snapshots never contact GitHub.
     func startUpdateChecks() {
         guard updateScheduleTask == nil, installedReleaseVersion != nil else { return }
         #if DEBUG
         guard ProcessInfo.processInfo.environment["CLAP_SNAPSHOT"] == nil else { return }
         #endif
         updateScheduleTask = Task { [weak self] in
+            self?.checkForUpdates(manual: false, onLaunch: true)
             while !Task.isCancelled {
-                self?.checkForUpdates(manual: false)
                 do { try await Task.sleep(for: .seconds(3600)) } catch { return }
+                self?.checkForUpdates(manual: false)
             }
         }
     }
@@ -21,13 +22,13 @@ extension AppModel {
                        build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
     }
 
-    func checkForUpdates(manual: Bool) {
+    func checkForUpdates(manual: Bool, onLaunch: Bool = false) {
         guard let installed = installedReleaseVersion else {
             if manual { errorMessage = "To check for updates, open the Clap Studio app bundle. This development build has no release version." }
             return
         }
         let defaults = UserDefaults.standard
-        guard manual || (!isCheckingUpdates && UpdateSchedule.shouldCheck(now: Date(), lastCheck: defaults.object(forKey: "updates.lastCheck") as? Date)) else { return }
+        guard manual || (!isCheckingUpdates && UpdateSchedule.shouldCheck(now: Date(), lastCheck: defaults.object(forKey: "updates.lastCheck") as? Date, onLaunch: onLaunch)) else { return }
         updateCheckTask?.cancel()
         isCheckingUpdates = true
         defaults.set(Date(), forKey: "updates.lastCheck")

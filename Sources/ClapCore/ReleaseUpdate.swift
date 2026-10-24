@@ -101,7 +101,8 @@ public enum ReleaseChecker {
 }
 
 public enum UpdateSchedule {
-    public static func shouldCheck(now: Date, lastCheck: Date?) -> Bool {
+    public static func shouldCheck(now: Date, lastCheck: Date?, onLaunch: Bool = false) -> Bool {
+        if onLaunch { return true }
         guard let lastCheck else { return true }
         let elapsed = now.timeIntervalSince(lastCheck)
         return elapsed >= 86_400 || elapsed < 0
