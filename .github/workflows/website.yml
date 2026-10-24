@@ -49,6 +49,8 @@ jobs:
         run: scripts/test-website.sh
 
       - name: Build the website
+        env:
+          WEBSITE_URL: ${{ vars.WEBSITE_URL }}
         run: scripts/website.sh
 
       - name: Prepare SSH config

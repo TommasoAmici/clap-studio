@@ -30,6 +30,26 @@ from a checkout that skipped it. App CI does not need to build the website.
 The website needs no Node packages, backend, API key, external font, tracking
 script or cookie.
 
+## Link previews
+
+`og-image.png` is a 1200 × 630 share card using the app icon and sound map.
+Open Graph and Twitter metadata use it for large link previews. The export
+includes the image alongside the page.
+
+Set `WEBSITE_URL` to the public website address when exporting so preview
+images have an absolute URL, including any subfolder:
+
+```sh
+WEBSITE_URL=https://your-domain/ scripts/website.sh
+```
+
+Local previews work without that setting. To regenerate the card after
+changing the app icon or screenshots, download the media and run:
+
+```sh
+swift scripts/render-og-image.swift
+```
+
 ## VPS deployment
 
 The [Website workflow](../.github/workflows/website.yml) follows the
@@ -49,6 +69,10 @@ Actions**, using the same values as the Salmple repository:
 - `SSH_PORT`: the SSH port.
 - `SSH_KNOWN_HOSTS`: the trusted host-key entry, including the port when needed.
 - `SSH_KEY`: the account's private SSH key.
+
+Under **Settings → Secrets and variables → Actions → Variables**, set
+`WEBSITE_URL` to the site's public address so deployed link previews point to
+the correct image.
 
 On the VPS, create `/var/www/html/clap-studio/`, give the SSH account permission
 to write there, and configure your web server to serve that directory for the
