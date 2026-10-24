@@ -119,8 +119,7 @@ struct DrumPanel: View {
     }
 
     private var header: some View {
-        @Bindable var model = model
-        return HStack(spacing: 10) {
+        HStack(spacing: 10) {
             Button { model.toggleDrumPlayback() } label: {
                 Image(systemName: model.drumPlaying ? "stop.fill" : "play.fill").frame(width: 16)
             }
@@ -129,13 +128,6 @@ struct DrumPanel: View {
             Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
             grooveMenu
             shuffleControls
-            HStack(spacing: 4) {
-                TextField("BPM", value: $model.project.bpm, format: .number.precision(.fractionLength(0...1)),
-                          prompt: Text(String(format: "%.0f", DrumTiming.defaultBPM)))
-                    .textFieldStyle(.roundedBorder).frame(width: 60).monospacedDigit()
-                Text("BPM").foregroundStyle(.secondary).lineLimit(1).fixedSize()
-            }
-            .help("The project tempo")
             HStack(spacing: 4) {
                 Text("Swing").foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 Slider(value: Binding(get: { DrumTiming.swingPercent(model.drumPattern.swing) },

@@ -5,7 +5,7 @@
 - [ ] let's move the bar length input and `Clear steps` button so they match the UI of the Melody sequencer. They should be in the same position in both drawers so it's more intuitive for users
 - [ ] the dropdown `close/medium/wide` is a bit unclear to me, can you make it more intuitive?
 - [ ] the dropdown `close/medium/wide` shows an empty selection instead of any of the values it contains
-- [ ] get rid of the BPM input, the user should just use the global project BPM in the top toolbar
+- [x] get rid of the BPM input, the user should just use the global project BPM in the top toolbar
 
 ## Implementation context
 
@@ -24,3 +24,5 @@
   in 87 suites). Builds add no warnings beyond the existing CLT linker paths.
 - Drum MIDI import stays available through File > Open Drum MIDI File… and
   dropping a MIDI file on the drawer. Only the drawer button was removed.
+- The drawer no longer has a second project BPM field. The top toolbar remains
+  the tempo control; groove and MIDI tempo changes still set the same project.
