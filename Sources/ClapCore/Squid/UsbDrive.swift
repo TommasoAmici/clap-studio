@@ -9,6 +9,11 @@ public struct UsbDrive: Identifiable, Equatable, Sendable {
     public let available: Int64?
     public var id: String { url.path }
 
+    public init(url: URL, name: String, formatDescription: String, capacity: Int64?, available: Int64?) {
+        self.url = url; self.name = name; self.formatDescription = formatDescription
+        self.capacity = capacity; self.available = available
+    }
+
     public var isFAT32: Bool {
         let f = formatDescription.uppercased()
         return f.contains("FAT32") || (f.contains("FAT") && !f.contains("EXFAT") && !f.contains("FAT16") && !f.contains("FAT12"))

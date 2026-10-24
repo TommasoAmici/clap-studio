@@ -31,7 +31,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_HEIGHT=1000      height in points
 ///   CLAP_SNAPSHOT_SCALE=2          pixels per point, independent of the display
 ///   CLAP_SNAPSHOT_APPEARANCE=dark  light or dark, for this app only
-///   CLAP_SNAPSHOT_MEDIA=1          use a fresh musical sketch for media captures
+///   CLAP_SNAPSHOT_MEDIA=1          use a fresh musical sketch; with USB, use the seeded scratch demonstration stick
 ///   CLAP_SNAPSHOT_ANIMATE=1        record one two-bar playback loop as a silent GIF
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
@@ -54,6 +54,8 @@ enum DebugSnapshot {
             model.project.bpm = 124
             model.mapColorMode = .category
             model.shuffleSeed = 2026
+            do { try await DebugSnapshotSquid.prepare(model: model, env: env) }
+            catch { NSLog("Could not prepare the Squid media view: %@", error.localizedDescription); NSApp.terminate(nil); return }
         }
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }
         if env["CLAP_SNAPSHOT_PLACES"] == "1" { model.viewMode = .places }
@@ -89,6 +91,7 @@ enum DebugSnapshot {
             // "pool" is the Pool, "pool/Breaks/707" a folder of it.
             if parts.first == "pool" { area = parts.count == 2 ? .poolFolder(parts[1].split(separator: "/").map(String.init)) : .pool }
             model.selectSidebar(UsbSelection(drive: drive.id, area: area).tag)
+            if env["CLAP_SNAPSHOT_SELECT"] == "1" { model.select(model.visible.first?.id, play: false) }
             // "Breaks/707" folds that Pool folder shut.
             if let closed = env["CLAP_SNAPSHOT_CLOSE"] { model.togglePoolFolder(drive: drive.id, path: closed.split(separator: "/").map(String.init)) }
             // Opens the Send sheet for the Pool folder NAME ("-" for the Pool itself) with the first two samples shown.
@@ -114,6 +117,7 @@ enum DebugSnapshot {
             }
         }
         try? await Task.sleep(for: .seconds(3))
+        if media && env["CLAP_SNAPSHOT_USB"] != nil { DebugSnapshotSquid.revealSidebar() }
         let placesOverlay = env["CLAP_SNAPSHOT_PLACES"] == "1" ? await DebugSnapshotPlaces.overlay(model: model, media: media) : nil
         guard env["CLAP_SNAPSHOT_PLACES"] != "1" || placesOverlay != nil else { NSApp.terminate(nil); return }
         defer { placesOverlay?.removeFromSuperview() }
@@ -121,6 +125,7 @@ enum DebugSnapshot {
             do { try await DebugSnapshotAnimation.write(model: model, to: URL(fileURLWithPath: path)) }
             catch { NSLog("Could not record playback: %@", error.localizedDescription) }
         } else if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
+        else { NSLog("SNAPSHOT no window image, visible windows %d", NSApp.windows.filter(\.isVisible).count) }
         NSApp.terminate(nil)
     }
 
@@ -177,9 +182,10 @@ enum DebugSnapshot {
 
     /// The frame view holds the toolbar as well as the content.
     static func windowImage() -> Data? {
-        // A sheet is a window of its own: when one is open, it is what gets drawn.
+        // A sheet is a separate window. Media captures keep the main window around it for website context.
         guard let main = NSApp.windows.first(where: \.isVisible) else { return nil }
-        let window = main.attachedSheet ?? main
+        let composeSheet = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MEDIA"] == "1" && main.attachedSheet != nil
+        let window = composeSheet ? main : (main.attachedSheet ?? main)
         // Native alert text and buttons can be absent from bitmap caching, leaving only the background.
         if ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_UPDATE"] == "1" {
             return nativeWindowImage(window)
@@ -204,6 +210,16 @@ enum DebugSnapshot {
         guard let overlays = snapshotMetalViews(in: view, scale: scale) else { return nil }
         defer { overlays.forEach { $0.removeFromSuperview() } }
         view.cacheDisplay(in: view.bounds, to: rep)
+        if composeSheet, let sheet = main.attachedSheet, let sheetView = sheet.contentView?.superview,
+           let sheetRep = sheetView.bitmapImageRepForCachingDisplay(in: sheetView.bounds),
+           let context = NSGraphicsContext(bitmapImageRep: rep) {
+            sheetView.cacheDisplay(in: sheetView.bounds, to: sheetRep)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = context
+            sheetRep.draw(in: NSRect(x: sheet.frame.minX - main.frame.minX, y: sheet.frame.minY - main.frame.minY,
+                                    width: sheetView.bounds.width, height: sheetView.bounds.height))
+            NSGraphicsContext.restoreGraphicsState()
+        }
         return rep.representation(using: .png, properties: [:])
     }
 

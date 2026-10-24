@@ -110,6 +110,7 @@ enum MediaLibrary {
             throw NSError(domain: "ClapMediaSeed", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "The demonstration library was not fully seeded."])
         }
+        try MediaSquid.seed(in: directory, samples: records)
         print("Seeded \(records.count) original sounds in \(directory.path)")
     }
 
