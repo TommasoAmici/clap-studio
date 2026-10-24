@@ -113,6 +113,9 @@ enum DebugSnapshot {
             }
         }
         try? await Task.sleep(for: .seconds(3))
+        let placesOverlay = env["CLAP_SNAPSHOT_PLACES"] == "1" ? await DebugSnapshotPlaces.overlay(model: model, media: media) : nil
+        guard env["CLAP_SNAPSHOT_PLACES"] != "1" || placesOverlay != nil else { NSApp.terminate(nil); return }
+        defer { placesOverlay?.removeFromSuperview() }
         if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
         NSApp.terminate(nil)
     }

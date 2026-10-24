@@ -4,7 +4,7 @@ import Foundation
 enum MediaLayout {
     static func point(family: Int, variation: Int) -> (Float, Float) {
         let centers: [(Double, Double)] = [(-0.66, -0.26), (-0.28, -0.44), (-0.55, 0.22),
-            (-0.06, -0.04), (0.03, 0.52), (0.37, 0.03), (0.58, 0.37), (0.52, -0.39)]
+            (-0.06, -0.04), (0.03, 0.52), (0.37, 0.03), (0.58, 0.37), (0.52, -0.39), (-0.87, 0.60)]
         var state = UInt64(family * 1000 + variation + 2026)
         func unit() -> Double {
             state = state &* 6_364_136_223_846_793_005 &+ 1

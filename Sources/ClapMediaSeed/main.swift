@@ -54,29 +54,38 @@ enum MediaLibrary {
                 descriptors.merge(measuredSounds) { _, new in new }
             }
         }
+        let fieldDescriptors = try await Task.detached { try MediaFieldSounds.seed(in: samples) }.value
+        descriptors.merge(fieldDescriptors) { _, new in new }
         let files = FolderScanner.scan(root: samples).sorted { $0.relPath < $1.relPath }
         try store.sync(rootID: root.id, scanned: files) { path in
             FileFingerprint.compute(url: samples.appendingPathComponent(path))
         }
         var coordinates: [CoordRow] = []
         for sample in store.loadSamples() {
-            let family = families.firstIndex(of: sample.folder)!
-            let variation = Int(sample.name.suffix(2))! - 1
+            let field = sample.folder == "Field Recordings"
+            let site = field ? MediaFieldSounds.sites.firstIndex { sample.name.hasPrefix($0.0) } : nil
+            let family = field ? families.count : families.firstIndex(of: sample.folder)!
+            let variation = (site ?? 0) * 3 + Int(sample.name.suffix(2))! - 1
             let measured = descriptors[sample.name]!
             let (x, y) = MediaLayout.point(family: family, variation: variation)
             // Deliberately fixed demonstration coordinates, not a claim of model classification.
             let unit = simd_normalize(SIMD4(x, y, Float(family) / 8, Float(variation) / 48))
             let vector = [unit.x, unit.y, unit.z, unit.w]
             try store.save(results: [.success(id: sample.id, duration: sample.duration == 0
-                                              ? duration(family) : sample.duration,
+                                              ? (field ? 8 : duration(family)) : sample.duration,
                                               sampleRate: rate, channels: 1, embedding: vector,
                                               fingerprint: nil, modelVersion: version,
-                                              descriptors: measured)])
-            try store.setManualCategory(sampleID: sample.id, families[family])
+                                              descriptors: measured,
+                                              segments: field ? [SegmentEmbedding(start: 0, end: 8, embedding: vector)] : [])])
+            try store.setManualCategory(sampleID: sample.id, field ? FieldRecording.categoryName : families[family])
+            if let site {
+                let place = MediaFieldSounds.sites[site]
+                try store.setLocation(GeoPoint(latitude: place.1, longitude: place.2), sampleIDs: [sample.id])
+            }
             if variation % 8 == 0 { try store.setFavorite([sample.id], true) }
-            try store.addTag(family < 4 ? "drum machine" : "analog", to: [sample.id])
+            try store.addTag(field ? "outdoors" : (family < 4 ? "drum machine" : "analog"), to: [sample.id])
             if variation % 3 == 0 { try store.addTag("warm", to: [sample.id]) }
-            if family >= 4 && variation % 6 == 0 {
+            if !field && family >= 4 && variation % 6 == 0 {
                 try store.setManualMoods([(id: sample.id, moods: ["Dreamy", "Groovy"])])
             }
             for use in 0..<(variation % 5) {
@@ -87,16 +96,17 @@ enum MediaLibrary {
         }
         try store.saveCoords(coordinates)
         try store.setMeta("model_version", version)
-        try store.setMeta("cluster_k", String(families.count))
+        try store.setMeta("cluster_k", String(families.count + 1))
         let records = store.loadSamples()
         for (name, categories) in [("Late Night", ["Bass", "Keys", "Pad"]),
-                                    ("Drum Sketches", ["Kick", "Snare", "Hi-hat", "Percussion"])] {
+                                    ("Drum Sketches", ["Kick", "Snare", "Hi-hat", "Percussion"]),
+                                    ("Field Journeys", [FieldRecording.categoryName])] {
             let collection = try store.createCollection(name: name, at: Date(timeIntervalSince1970: 1_780_000_000))
             try store.addToCollection(id: collection.id,
                                       sampleIDs: records.filter { categories.contains($0.effectiveCategory ?? "") }.prefix(24).map(\.id))
         }
-        guard records.count == 384, records.allSatisfy({ $0.status == .ok && $0.duration > 0 }),
-              LibraryAnalyzer(store: store).loadSnapshot(modelVersion: version)?.index.count == 384 else {
+        guard records.count == 420, records.allSatisfy({ $0.status == .ok && $0.duration > 0 }),
+              LibraryAnalyzer(store: store).loadSnapshot(modelVersion: version)?.index.count == 420 else {
             throw NSError(domain: "ClapMediaSeed", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "The demonstration library was not fully seeded."])
         }
