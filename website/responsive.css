@@ -1,0 +1,155 @@
+@media (min-width: 1700px) {
+  .hero-layout { min-height: 650px; }
+}
+@media (max-width: 1100px) {
+  .site-header { gap: 20px; }
+  .site-header nav { gap: 18px; }
+  .hero-layout { min-height: 540px; }
+  .hero h1 { font-size: 8.4vw; }
+  .hero-actions { gap: 13px; }
+  .hero-actions .button { font-size: 12px; gap: 15px; padding: 13px 16px; }
+  .hero-actions .text-link { font-size: 12px; gap: 12px; }
+  .hero-window { width: 112%; margin-left: 0; }
+  .hero-description { max-width: 330px; }
+  .hero-art { padding-top: 55px; }
+  .hero-note { font-size: 9px; gap: 5px; padding-right: 0; }
+  .sticker { right: 7%; padding: 18px; }
+  .explore-layout { gap: 35px; grid-template-columns: 1.25fr .75fr; }
+  .feature-list { gap: 25px; }
+  .feature-list h3 { font-size: 21px; }
+  .feature-list p { font-size: 13px; }
+  .squid-bank-layout { gap: 5%; grid-template-columns: 1.5fr .7fr; }
+  .squid-bank-copy h3 { font-size: 27px; }
+  .squid-bank-copy p { font-size: 13px; }
+  .squid-heading { gap: 35px; }
+  .squid-heading > p { font-size: 16px; }
+}
+@media (max-width: 800px) {
+  html { scroll-padding-top: 25px; }
+  .section-pad { padding: 60px 6vw; }
+  .site-header { flex-wrap: wrap; padding: 20px 6vw 16px; gap: 19px; }
+  .site-header .wordmark { font-size: 27px; }
+  .site-header nav { order: 3; width: 100%; justify-content: space-between; gap: 12px; padding-top: 13px; border-top: 1px solid #191b1730; }
+  .site-header nav a { font-size: 12px; }
+  .header-download { gap: 13px; font-size: 11px; min-height: 40px; padding: 9px 14px; }
+  .hero { padding-top: 25px; padding-bottom: 25px; }
+  .hero-topline { padding-bottom: 35px; font-size: 9px; }
+  .hero-topline span:last-child { display: none; }
+  .hero-layout { grid-template-columns: 1fr; gap: 0; min-height: 0; }
+  .hero-copy { padding-bottom: 0; }
+  .hero h1 { font-size: clamp(77px, 12.8vw, 110px); }
+  .hero-intro { font-size: 25px; margin-top: 24px; }
+  .hero-description { max-width: 430px; font-size: 14px; }
+  .hero-actions { gap: 22px; margin-top: 25px; }
+  .hero-actions .button { font-size: 13px; padding: 14px 19px; }
+  .hero-actions .text-link { font-size: 13px; }
+  .hero-art { max-width: 620px; padding-top: 77px; padding-bottom: 16px; }
+  .hero-window { width: 100%; margin: 0; }
+  .orbit-one { width: 100%; height: 250px; top: 50px; left: 0; }
+  .orbit-two { width: 230px; height: 350px; top: 40px; left: 35%; }
+  .sticker { top: 34px; right: 5%; padding: 15px 19px; font-size: 11px; }
+  .sticker span { font-size: 35px; }
+  .hero-note { font-size: 10px; justify-content: flex-start; margin-top: 27px; }
+  .hero-bottom { font-size: 9px; padding-top: 19px; gap: 12px; }
+  .ticker { padding: 14px 0; }
+  .ticker div { font-size: 32px; }
+  .section-heading, .music-heading { grid-template-columns: 1fr; gap: 24px; margin-bottom: 37px; }
+  .section-heading .section-number { margin: 0; }
+  .section-heading > p, .music-heading > p { max-width: 560px; font-size: 16px; }
+  .section-heading h2, .music-heading h2 { font-size: clamp(56px, 9vw, 75px); }
+  .explore-layout { grid-template-columns: 1fr; gap: 45px; }
+  .feature-list { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .feature-list article { padding-left: 0; padding-top: 35px; }
+  .feature-symbol { top: 0; }
+  .feature-list h3 { font-size: 20px; }
+  .fact-strip { margin-top: 40px; }
+  .fact-strip strong { font-size: 42px; }
+  .fact-strip p:last-child strong { font-size: 25px; }
+  .fact-strip span { font-size: 10px; }
+  .gallery-bar { flex-wrap: wrap; gap: 15px; }
+  .gallery-controls button { padding: 9px 16px; }
+  .music-notes { gap: 30px; }
+  .music-notes h3 { font-size: 21px; }
+  .music-notes p { font-size: 13px; }
+  .squid-topline { font-size: 9px; }
+  .squid-heading { flex-direction: column; align-items: flex-start; gap: 25px; margin-bottom: 30px; }
+  .squid h2 { font-size: clamp(61px, 10.5vw, 83px); }
+  .squid-heading > p { font-size: 16px; }
+  .squid-bank-layout { grid-template-columns: 1fr; gap: 35px; }
+  .squid-bank-copy { padding-top: 0; padding-left: 85px; max-width: 570px; }
+  .squid-eight { top: -9px; left: -3px; font-size: 114px; }
+  .squid-bank-copy h3 { font-size: 28px; }
+  .squid-bank-copy h3 br { display: none; }
+  .squid-bank-copy p { font-size: 14px; }
+  .squid-details { gap: 28px; margin-top: 45px; }
+  .detail-heading h3 { font-size: 27px; }
+  .squid-details article > p { font-size: 13px; min-height: 80px; }
+  .squid-bottom { flex-wrap: wrap; justify-content: flex-start; font-size: 9px; gap: 15px 25px; margin-top: 38px; }
+  .download h2 { font-size: clamp(57px, 10.4vw, 84px); }
+  .download-facts { gap: 13px 20px; font-size: 9px; }
+  .site-footer { grid-template-columns: 1fr 1fr; padding: 35px 6vw; }
+  .site-footer .wordmark { font-size: 28px; }
+  .site-footer > p { grid-column: 1; }
+  .site-footer > div { grid-column: 2; grid-row: 1 / 3; align-self: start; }
+  .footer-mark { display: none; }
+}
+@media (max-width: 520px) {
+  .brand-mark { width: 25px; height: 25px; }
+  .site-header .wordmark { gap: 8px; font-size: 24px; }
+  .header-download { padding: 9px 12px; gap: 7px; font-size: 10px; }
+  .hero h1 { font-size: 12.9vw; }
+  .hero-intro { font-size: 22px; }
+  .hero-description { font-size: 14px; }
+  .hero-actions { gap: 15px; }
+  .hero-actions .button { font-size: 11px; gap: 13px; padding: 13px 17px; }
+  .hero-actions .text-link { font-size: 11px; gap: 9px; }
+  .hero-art { padding-top: 66px; }
+  .sticker { top: 27px; right: 3%; padding: 11px 15px; font-size: 9px; box-shadow: 3px 3px 0 #191b17; }
+  .sticker span { font-size: 27px; }
+  .orbit-one { top: 38px; height: 170px; }
+  .orbit-two { width: 150px; height: 260px; top: 35px; }
+  .window-caption { font-size: 9px; padding: 10px 12px; }
+  .app-window { border-radius: 8px; }
+  .hero-note { font-size: 8px; margin-top: 22px; }
+  .hero-note span { font-size: 25px; }
+  .hero-bottom { font-size: 7px; gap: 9px; }
+  .section-pad { padding: 47px 6vw; }
+  .hero { padding-top: 25px; padding-bottom: 22px; }
+  .section-number { font-size: 9px; }
+  .section-heading h2, .music-heading h2 { font-size: 12vw; }
+  .section-heading > p, .music-heading > p { font-size: 15px; }
+  .feature-list { grid-template-columns: 1fr; gap: 26px; }
+  .feature-list article { padding-top: 0; padding-left: 36px; }
+  .feature-list h3 { font-size: 23px; }
+  .feature-list p { font-size: 14px; }
+  .fact-strip { grid-template-columns: 1fr 1fr; gap: 29px 20px; }
+  .fact-strip strong { font-size: 46px; }
+  .fact-strip span { font-size: 11px; }
+  .fact-strip p:last-child strong { font-size: 27px; }
+  .gallery-bar .mono { font-size: 9px; }
+  .gallery-controls { width: 100%; justify-content: space-between; }
+  .gallery-controls button { flex: 1; }
+  .music-window { box-shadow: 6px 8px 0 #271050; }
+  .gallery-description { font-size: 12px; margin-top: 20px; min-height: 36px; }
+  .music-notes { grid-template-columns: 1fr; gap: 27px; margin-top: 30px; }
+  .music-notes h3 { font-size: 24px; margin: 9px 0 8px; }
+  .music-notes p { font-size: 14px; }
+  .music-notes article > span { font-size: 9px; }
+  .squid-topline { flex-direction: column; gap: 8px; }
+  .squid h2 { font-size: 12.7vw; }
+  .squid-bank-copy { padding-left: 65px; }
+  .squid-eight { font-size: 92px; }
+  .squid-bank-copy h3 { font-size: 25px; }
+  .squid .app-window { box-shadow: 5px 6px 0 #191b1725; }
+  .squid-details { grid-template-columns: 1fr; gap: 37px; margin-top: 38px; }
+  .squid-details article > p { font-size: 14px; min-height: 0; }
+  .detail-heading h3 { font-size: 28px; }
+  .squid-bottom { font-size: 8px; }
+  .download h2 { font-size: 11.6vw; }
+  .download > p:first-of-type { font-size: 25px; }
+  .download .button { font-size: 13px; gap: 21px; }
+  .download-facts { flex-direction: column; gap: 9px; }
+  .site-footer { column-gap: 20px; row-gap: 20px; }
+  .site-footer .wordmark { font-size: 25px; }
+  .site-footer > p, .site-footer > div a { font-size: 10px; }
+}

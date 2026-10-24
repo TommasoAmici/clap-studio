@@ -109,6 +109,8 @@ This skips the optional model checks; it does not verify those models or change 
 
 `scripts/media-kit.sh` regenerates the website and social images in [`media/`](media/README.md): Library, Map, Drum Machine, Melody, drums with melody together, Places, and Squid Salmple banks, Pool and Send sheet, each in light and dark appearance at 3200 × 2000 pixels. Two silent looping GIFs show drums and melody playing together at 1600 × 1000 pixels. It creates 420 original synthetic samples in a temporary library, including 36 ambience sounds at demonstration places around the world, and copies 54 of them to a demonstration Squid stick inside the same temporary folder. No connected USB drive is needed or used for these captures. A separate demo app preference domain keeps its settings apart, and the temporary files are removed when finished. No personal samples or neural models are needed. Pass an output folder to preview a new set elsewhere.
 
+The static landing page lives in [`website/`](website/README.md), with screenshots that follow the browser's light or dark appearance, a Drums/Melody/Together preview, and a section for ALM Squid Salmple banks, Pool folders and export. Run `scripts/website.sh` to make a self-contained `build/website` folder ready for a static host, or serve the repository root and open `/website/` to preview the source. It needs no package install or runtime service.
+
 ## Similarity model
 
 Three embedders sit behind one protocol:
