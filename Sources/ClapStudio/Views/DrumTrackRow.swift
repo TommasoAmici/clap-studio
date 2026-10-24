@@ -89,4 +89,3 @@ struct DrumTrackRow: View {
         .buttonStyle(.plain).help(help)
     }
 }
-

@@ -105,14 +105,16 @@ struct DrumPanel: View {
             Button { model.shuffleDrumKit() } label: { Label("Shuffle Kit", systemImage: "dice") }
                 .disabled(!model.canShuffleDrums)
                 .help("Swap every unlocked track for a similar sound from the library. Lock the tracks you want to keep.")
+            Text("Sound variety").font(.caption).foregroundStyle(.secondary).fixedSize()
+                .padding(.leading, 6)
             Menu {
-                Picker("Variation", selection: $model.drumVariation) {
-                    ForEach(DrumVariation.allCases) { Text($0.rawValue).tag($0) }
+                Picker("Sound variety", selection: $model.drumVariation) {
+                    ForEach(DrumVariation.allCases) { Text($0.soundVarietyTitle).tag($0) }
                 }
                 .pickerStyle(.inline).labelsHidden()
             } label: { EmptyView() }
                 .menuIndicator(.visible).fixedSize()
-                .help("How far a swap may reach from the sound it replaces: \(model.drumVariation.rawValue)")
+                .help("Similar stays close to the current sound. Balanced offers more options, and Adventurous reaches further. All keep the same instrument and one-shot or loop, following What counts as similar.")
         }
     }
 
@@ -156,7 +158,16 @@ struct DrumPanel: View {
         .controlSize(.small)
         .padding(.horizontal, 12).padding(.bottom, 6)
     }
+}
 
+private extension DrumVariation {
+    var soundVarietyTitle: String {
+        switch self {
+        case .close: return "Similar"
+        case .medium: return "Balanced"
+        case .wide: return "Adventurous"
+        }
+    }
 }
 
 /// The drum machine's buttons. They live in the status bar while the drum machine is open.
