@@ -13,7 +13,7 @@ struct DrumPanel: View {
             VStack(spacing: 0) {
                 Divider()
                 header
-                barControls
+                patternControls
                 if model.drumPattern.tracks.isEmpty {
                     Text("Add sounds from the library or the kit builder to start a pattern.")
                         .font(.callout).foregroundStyle(.secondary)
@@ -51,17 +51,15 @@ struct DrumPanel: View {
         }
     }
 
-    private var barControls: some View {
-        HStack(spacing: 8) {
+    private var lengthControl: some View {
+        HStack(spacing: 4) {
             Text("Length").foregroundStyle(.secondary)
             TextField("Bars", value: Binding(get: { model.drumPattern.bars }, set: { model.drumPattern.setBars($0) }), format: .number)
-                .textFieldStyle(.roundedBorder).frame(width: 65)
+                .textFieldStyle(.roundedBorder).frame(width: 50)
                 .help("Number of 4/4 bars. Shortening removes steps past the end.")
             Text(model.drumPattern.bars == 1 ? "bar" : "bars").foregroundStyle(.secondary)
-            Spacer()
         }
-        .font(.caption).controlSize(.small)
-        .padding(.horizontal, 16).padding(.bottom, 6)
+        .fixedSize()
     }
 
     /// Ready-made grooves, the user's own, and saving the pattern on screen as a new one.
@@ -126,6 +124,19 @@ struct DrumPanel: View {
             .disabled(model.drumPattern.tracks.isEmpty)
             .help(model.drumPlaying ? "Stop the pattern" : "Play the pattern in a loop")
             Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
+            Spacer()
+            lengthControl
+            Button("Clear Steps") { model.drumPattern.clearHits() }
+                .disabled(model.drumPattern.tracks.isEmpty)
+            Button { model.showDrums = false; model.drumMachine.stop() } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.borderless).help("Close the drum machine")
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+    }
+
+    private var patternControls: some View {
+        HStack(spacing: 10) {
             grooveMenu
             shuffleControls
             HStack(spacing: 4) {
@@ -140,13 +151,12 @@ struct DrumPanel: View {
             }
             .help("50% is straight. Higher pushes every second step late, lower pulls it early. Double-click the value to reset.")
             Spacer()
-            VolumeControl()      // while the drum machine is open the volume sits here; its buttons are in the status bar
-            Button { model.showDrums = false; model.drumMachine.stop() } label: { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.borderless).help("Close the drum machine")
+            VolumeControl()
         }
         .controlSize(.small)
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .padding(.horizontal, 12).padding(.bottom, 6)
     }
+
 }
 
 /// The drum machine's buttons. They live in the status bar while the drum machine is open.
@@ -162,8 +172,6 @@ struct DrumActions: View {
                     .disabled(model.drumPattern.tracks.isEmpty)
                     .help("Send these sounds to a Squid Salmple USB stick")
             }
-            Button("Clear Steps") { model.drumPattern.clearHits() }
-                .disabled(model.drumPattern.tracks.isEmpty)
             Button("Remove All") { model.drumMachine.stop(); model.drumPattern = DrumPattern(swing: model.drumPattern.swing) }
                 .disabled(model.drumPattern.tracks.isEmpty)
         }
