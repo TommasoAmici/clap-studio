@@ -27,9 +27,34 @@ can show, and changes their paths for the output folder. It refuses missing
 images and Git LFS pointers: download the media first when building a website
 from a checkout that skipped it. App CI does not need to build the website.
 
-Upload the contents of that output folder when you choose a host. The website
-needs no Node packages, backend, API key, external font, tracking script or
-cookie. No hosting or deployment is configured here.
+The website needs no Node packages, backend, API key, external font, tracking
+script or cookie.
+
+## VPS deployment
+
+The [Website workflow](../.github/workflows/website.yml) follows the
+[Salmple deployment](https://github.com/TommasoAmici/salmple): build the static
+folder, then copy it over SSH with `rsync`. Changes to the website, PNG
+screenshots, export scripts or workflow run the export checks on pull requests
+and deploy after a push to `main`. **Run workflow** on `main` can deploy again
+without another commit. Running it on another branch only checks the build.
+This job downloads PNG screenshots through Git LFS; the app release job keeps
+skipping media.
+
+Add these repository secrets under **Settings → Secrets and variables →
+Actions**, using the same values as the Salmple repository:
+
+- `SSH_HOST`: the VPS hostname or address.
+- `SSH_USER`: the account used to upload the website.
+- `SSH_PORT`: the SSH port.
+- `SSH_KNOWN_HOSTS`: the trusted host-key entry, including the port when needed.
+- `SSH_KEY`: the account's private SSH key.
+
+On the VPS, create `/var/www/html/clap-studio/`, give the SSH account permission
+to write there, and configure your web server to serve that directory for the
+site's domain. The workflow sets directories to `755` and files to `644`, as
+Salmple does. `rsync --delete` removes old files inside this website directory
+that are absent from the new build.
 
 `scripts/test-website.sh` checks that exported image paths work within the
 output folder, every musical view is present in both appearances, and missing

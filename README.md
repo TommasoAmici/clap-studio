@@ -131,6 +131,8 @@ This skips the optional model checks; it does not verify those models or change 
 
 The static landing page lives in [`website/`](website/README.md), with screenshots that follow the browser's light or dark appearance, a Drums/Melody/Together preview, and a section for ALM Squid Salmple banks, Pool folders and export. Run `scripts/website.sh` to make a self-contained `build/website` folder ready for a static host, or serve the repository root and open `/website/` to preview the source. It needs no package install or runtime service.
 
+The [Website workflow](.github/workflows/website.yml) checks website changes on pull requests and deploys changes pushed to `main` to `/var/www/html/clap-studio/` on your VPS over SSH, matching the Salmple deployment. See the [website setup](website/README.md#vps-deployment) for the five SSH secrets and server directory. App releases continue to skip media downloads.
+
 ## Similarity model
 
 Three embedders sit behind one protocol:

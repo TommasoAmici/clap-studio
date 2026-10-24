@@ -1,0 +1,81 @@
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "media/**/*.png"
+      - "scripts/website.sh"
+      - "scripts/test-website.sh"
+      - ".gitattributes"
+      - ".github/workflows/website.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "media/**/*.png"
+      - "scripts/website.sh"
+      - "scripts/test-website.sh"
+      - ".gitattributes"
+      - ".github/workflows/website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Let an upload finish before the next version starts replacing its files.
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  website:
+    name: Build and deploy the landing page
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        env:
+          GIT_LFS_SKIP_SMUDGE: "1"
+        with:
+          lfs: false
+
+      - name: Download screenshots
+        run: git lfs pull --include="media/**/*.png" --exclude=""
+
+      - name: Check the website export
+        run: scripts/test-website.sh
+
+      - name: Build the website
+        run: scripts/website.sh
+
+      - name: Prepare SSH config
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          set -eu
+          for name in SSH_HOST SSH_USER SSH_PORT SSH_KNOWN_HOSTS SSH_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Set the $name repository secret before deploying."
+              exit 1
+            fi
+          done
+          install -d -m 700 ~/.ssh
+          printf 'Host clap-studio\n  HostName %s\n  User %s\n  Port %s\n  BatchMode yes\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' \
+            "$SSH_HOST" "$SSH_USER" "$SSH_PORT" > ~/.ssh/config
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/config ~/.ssh/known_hosts ~/.ssh/id_ed25519
+
+      - name: Deploy the landing page
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          rsync -avzr --delete --chmod=D755,F644 \
+            build/website/ clap-studio:/var/www/html/clap-studio/
