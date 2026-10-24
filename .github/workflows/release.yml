@@ -14,6 +14,8 @@ permissions:
   contents: write # needed to create the tag and the GitHub release
 
 env:
+  # The app build does not use website screenshots or animations.
+  GIT_LFS_SKIP_SMUDGE: '1'
   # BirdNET (bird species) is CC BY-NC-SA 4.0, and for now every release includes it. To sell the app, change this
   # to '0': the build then leaves out the feature and its models.
   NON_COMMERCIAL: '1'
@@ -25,6 +27,8 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          lfs: false
 
       - name: Show toolchain
         run: |

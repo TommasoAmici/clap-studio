@@ -73,7 +73,7 @@ Install Apple developer tools first:
 From the cloned repository:
 
 ```sh
-scripts/setup.sh --check   # shows the selected compiler, SDK and Testing plugin; installs nothing
+scripts/setup.sh --check   # checks the selected compiler, SDK, Testing plugin and Git LFS; installs nothing
 scripts/build.sh          # debug build
 scripts/test.sh           # unit + end-to-end tests
 scripts/bundle.sh         # builds build/ClapStudio.app (ad-hoc signed)
@@ -96,6 +96,19 @@ mise exec -- uv run --python "$(mise which python)" --default-index https://pypi
 
 The setup script can install mise through an existing Homebrew installation when it is missing. It trusts this repository's `mise.toml` and installs only its uv and Python tools. An existing `tools/.venv` with a different Python version is left alone, with instructions to move it aside. Model dependencies follow the ranges in the export scripts and `tools/requirements.txt`; the Swift build does not need them. Exports are separate from setup because they download large models. Without any exported model, the app uses its built-in sound features and the model-dependent tests are skipped. The bundle includes exported models when present (override their folder with `CLAP_MODELS_DIR`); changing embedding models can re-index a large library once.
 
+Images and animations in `media/` use **Git LFS**. Setup installs Git LFS through
+an existing Homebrew installation when needed and initializes this repository's
+filters and upload hook. It leaves global Git configuration alone and reports
+existing hook conflicts instead of replacing them. `--check` also reports the
+Git LFS version and changes no configuration.
+
+App builds and tests work with the small LFS pointer files; the release workflow
+skips image downloads. To work on the website or view the media after cloning,
+run `scripts/setup.sh --media`, or `git lfs pull --include="media/**"` after
+initializing Git LFS. Ordinary setup leaves this download optional.
+`sh scripts/test-lfs.sh` checks media tracking, a checkout without image
+downloads, and restoring the original image bytes from a local cache.
+
 If an installed-model test crashes inside Apple's ML runtime, check the rest of the suite using an empty model folder:
 
 ```sh
@@ -103,7 +116,7 @@ CLAP_TEST_MODELS_DIR="$(mktemp -d)"
 CLAP_MODELS_DIR="$CLAP_TEST_MODELS_DIR" scripts/test.sh
 ```
 
-This skips the optional model checks; it does not verify those models or change the installed ones. `sh scripts/test-setup.sh` checks the setup diagnostics with fake developer tools, including missing tools, an old compiler, missing SDK/plugins and a Swift shadowing the selected compiler on PATH.
+This skips the optional model checks; it does not verify those models or change the installed ones. `sh scripts/test-setup.sh` checks the setup diagnostics with fake developer tools, including missing tools, an old compiler, missing SDK/plugins and a Swift shadowing the selected compiler on PATH. It also checks Git LFS installation, optional media downloads, read-only checks and preserving existing hooks.
 
 `scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; capturing this native macOS alert needs existing screen capture permission.
 
