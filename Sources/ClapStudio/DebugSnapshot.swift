@@ -32,6 +32,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_SCALE=2          pixels per point, independent of the display
 ///   CLAP_SNAPSHOT_APPEARANCE=dark  light or dark, for this app only
 ///   CLAP_SNAPSHOT_MEDIA=1          use a fresh musical sketch for media captures
+///   CLAP_SNAPSHOT_ANIMATE=1        record one two-bar playback loop as a silent GIF
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
@@ -116,7 +117,10 @@ enum DebugSnapshot {
         let placesOverlay = env["CLAP_SNAPSHOT_PLACES"] == "1" ? await DebugSnapshotPlaces.overlay(model: model, media: media) : nil
         guard env["CLAP_SNAPSHOT_PLACES"] != "1" || placesOverlay != nil else { NSApp.terminate(nil); return }
         defer { placesOverlay?.removeFromSuperview() }
-        if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
+        if env["CLAP_SNAPSHOT_ANIMATE"] == "1" {
+            do { try await DebugSnapshotAnimation.write(model: model, to: URL(fileURLWithPath: path)) }
+            catch { NSLog("Could not record playback: %@", error.localizedDescription) }
+        } else if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
         NSApp.terminate(nil)
     }
 
@@ -172,7 +176,7 @@ enum DebugSnapshot {
     }
 
     /// The frame view holds the toolbar as well as the content.
-    private static func windowImage() -> Data? {
+    static func windowImage() -> Data? {
         // A sheet is a window of its own: when one is open, it is what gets drawn.
         guard let main = NSApp.windows.first(where: \.isVisible) else { return nil }
         let window = main.attachedSheet ?? main
