@@ -4,6 +4,7 @@
 # Builds a debug app, launches it, waits for the library to load and quits.
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
 #     --update  show the update prompt using a local example release (no network; needs existing screen capture access)
+#     --update-restart  show the restart prompt without installing or restarting (needs existing screen capture access)
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
 #     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
@@ -38,6 +39,7 @@ DELAY=9
 while [ $# -gt 0 ]; do
   case "$1" in
     --update) export CLAP_SNAPSHOT_UPDATE=1 ;;
+    --update-restart) export CLAP_SNAPSHOT_UPDATE=1; export CLAP_SNAPSHOT_UPDATE_RESTART=1 ;;
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
     --edit) export CLAP_SNAPSHOT_EDIT=1 ;;

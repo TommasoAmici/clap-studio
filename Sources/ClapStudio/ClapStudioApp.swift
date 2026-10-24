@@ -25,7 +25,7 @@ struct ClapStudioApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { model.checkForUpdates(manual: true) }
-                    .disabled(model.isCheckingUpdates)
+                    .disabled(model.isCheckingUpdates || model.isInstallingUpdate)
             }
             SidebarCommands()
             InspectorCommands()

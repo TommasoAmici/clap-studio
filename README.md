@@ -50,13 +50,19 @@ Point it at a folder; it indexes the files **in place** (nothing is moved, renam
 
 ## Updates
 
-The app bundle checks GitHub for a newer release when you open it and while it
-is running, at most once a day.
-When one is available, a pop-up offers **Open Release** to read what changed and
-download the app, **Later**, or **Skip This Update**. Skipping applies to that
-release only; a later build can still be offered. **Clap Studio > Check for
-Updates…** checks immediately, including a release you skipped. Downloads and
-installation are your choice; your samples and library are kept.
+The app bundle checks GitHub for a newer release every time you open it and, while it
+is running, once a day.
+When one is available, a pop-up offers **Update**, **Later**, or **Skip This
+Update**. Update downloads the app from GitHub, checks its release checksum and
+app signature, and installs it in `/Applications`. If that folder is not
+writable, it uses `~/Applications`; the restart prompt shows the exact location.
+The previous app is kept until the new one passes verification. **Restart**
+opens the installed update after Clap Studio has saved its work; **Later** lets
+you keep working and open the new app yourself. Your samples and library are kept.
+Skipping applies to that release only; a later build can still be offered.
+**Clap Studio > Check for Updates…** checks immediately, including a release you
+skipped. Older releases without an app and checksum offer **Open Release** for
+manual installation instead.
 
 Checks read only the public releases of `TommasoAmici/clap-studio`; no samples or
 library information are sent. The repository must be public for checks to work.
@@ -125,7 +131,7 @@ CLAP_MODELS_DIR="$CLAP_TEST_MODELS_DIR" scripts/test.sh
 
 This skips the optional model checks; it does not verify those models or change the installed ones. `sh scripts/test-setup.sh` checks the setup diagnostics with fake developer tools, including missing tools, an old compiler, missing SDK/plugins and a Swift shadowing the selected compiler on PATH. It also checks Git LFS installation, optional media downloads, read-only checks and preserving existing hooks.
 
-`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; capturing this native macOS alert needs existing screen capture permission.
+`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; `--update-restart` shows the restart prompt without installing or restarting. Capturing these native macOS alerts needs existing screen capture permission.
 
 `scripts/media-kit.sh` regenerates the website and social images in [`media/`](media/README.md): Library, Map, Drum Machine, Melody, drums with melody together, Places, and Squid Salmple banks, Pool and Send sheet, each in light and dark appearance at 3200 × 2000 pixels. Two silent looping GIFs show drums and melody playing together at 1600 × 1000 pixels. It creates 420 original synthetic samples in a temporary library, including 36 ambience sounds at demonstration places around the world, and copies 54 of them to a demonstration Squid stick inside the same temporary folder. No connected USB drive is needed or used for these captures. A separate demo app preference domain keeps its settings apart, and the temporary files are removed when finished. No personal samples or neural models are needed. Pass an output folder to preview a new set elsewhere.
 

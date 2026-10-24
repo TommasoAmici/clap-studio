@@ -73,6 +73,13 @@ import Testing
                 "a clock moved backwards cannot postpone update checks indefinitely")
     }
 
+    @Test func launchingChecksEvenWhenTheLastCheckWasRecent() {
+        let now = Date(timeIntervalSince1970: 200_000)
+        #expect(UpdateSchedule.shouldCheck(now: now, lastCheck: now, onLaunch: true),
+                "opening the app should find a release published since the last session")
+        #expect(!UpdateSchedule.shouldCheck(now: now, lastCheck: now, onLaunch: false))
+    }
+
     private func release(tag: String = "v0.22.0-build.106", draft: Bool = false,
                          prerelease: Bool = false, url: String? = nil) -> Data {
         try! JSONSerialization.data(withJSONObject: ["tag_name": tag, "draft": draft, "prerelease": prerelease,

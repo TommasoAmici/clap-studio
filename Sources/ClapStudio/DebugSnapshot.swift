@@ -10,6 +10,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT=/path/out.png    write the image, then quit
 ///   CLAP_SNAPSHOT_DELAY=9          seconds to wait for the library to load (default 9)
 ///   CLAP_SNAPSHOT_UPDATE=1         show an example update prompt without contacting GitHub
+///   CLAP_SNAPSHOT_UPDATE_RESTART=1 show the restart prompt without installing or restarting
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
 ///   CLAP_SNAPSHOT_EDIT=1           with SELECT: give the selected sample a sample edit (changes the library: use a copy)
@@ -109,9 +110,11 @@ enum DebugSnapshot {
             if let height = Double(env["CLAP_SNAPSHOT_HEIGHT"] ?? "") { frame.size.height = height }
             window.setFrame(frame, display: true)
         }
-        if env["CLAP_SNAPSHOT_UPDATE"] == "1", let window = NSApp.windows.first(where: \.isVisible),
+        if env["CLAP_SNAPSHOT_UPDATE_RESTART"] == "1", let window = NSApp.windows.first(where: \.isVisible) {
+            model.showUpdateRestart(at: URL(fileURLWithPath: "/Applications/ClapStudio.app"), on: window)
+        } else if env["CLAP_SNAPSHOT_UPDATE"] == "1", let window = NSApp.windows.first(where: \.isVisible),
            let installed = ReleaseVersion(version: "0.0.0", build: "0") {
-            let fixture = Data(#"{"tag_name":"v99.0.0-build.1","html_url":"https://github.com/TommasoAmici/clap-studio/releases/tag/v99.0.0-build.1","draft":false,"prerelease":false}"#.utf8)
+            let fixture = Data(#"{"tag_name":"v99.0.0-build.1","html_url":"https://github.com/TommasoAmici/clap-studio/releases/tag/v99.0.0-build.1","draft":false,"prerelease":false,"assets":[{"name":"ClapStudio-99.0.0-build.1-macos.zip","browser_download_url":"https://github.com/TommasoAmici/clap-studio/releases/download/v99.0.0-build.1/ClapStudio-99.0.0-build.1-macos.zip","size":100},{"name":"ClapStudio-99.0.0-build.1-macos.zip.sha256","browser_download_url":"https://github.com/TommasoAmici/clap-studio/releases/download/v99.0.0-build.1/ClapStudio-99.0.0-build.1-macos.zip.sha256","size":100}]}"#.utf8)
             if let update = try? ReleaseChecker.update(data: fixture, statusCode: 200, installed: installed) {
                 model.showUpdatePrompt(update, on: window)
             }

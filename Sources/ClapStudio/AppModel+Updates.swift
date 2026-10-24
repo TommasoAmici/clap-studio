@@ -2,16 +2,17 @@ import AppKit
 import ClapCore
 
 extension AppModel {
-    /// Release builds check quietly once a day; development snapshots never contact GitHub.
+    /// Release builds check quietly on launch and once a day; development snapshots never contact GitHub.
     func startUpdateChecks() {
         guard updateScheduleTask == nil, installedReleaseVersion != nil else { return }
         #if DEBUG
         guard ProcessInfo.processInfo.environment["CLAP_SNAPSHOT"] == nil else { return }
         #endif
         updateScheduleTask = Task { [weak self] in
+            self?.checkForUpdates(manual: false, onLaunch: true)
             while !Task.isCancelled {
-                self?.checkForUpdates(manual: false)
                 do { try await Task.sleep(for: .seconds(3600)) } catch { return }
+                self?.checkForUpdates(manual: false)
             }
         }
     }
@@ -21,13 +22,14 @@ extension AppModel {
                        build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
     }
 
-    func checkForUpdates(manual: Bool) {
+    func checkForUpdates(manual: Bool, onLaunch: Bool = false) {
+        guard !isInstallingUpdate else { return }
         guard let installed = installedReleaseVersion else {
             if manual { errorMessage = "To check for updates, open the Clap Studio app bundle. This development build has no release version." }
             return
         }
         let defaults = UserDefaults.standard
-        guard manual || (!isCheckingUpdates && UpdateSchedule.shouldCheck(now: Date(), lastCheck: defaults.object(forKey: "updates.lastCheck") as? Date)) else { return }
+        guard manual || (!isCheckingUpdates && UpdateSchedule.shouldCheck(now: Date(), lastCheck: defaults.object(forKey: "updates.lastCheck") as? Date, onLaunch: onLaunch)) else { return }
         updateCheckTask?.cancel()
         isCheckingUpdates = true
         defaults.set(Date(), forKey: "updates.lastCheck")
@@ -53,18 +55,23 @@ extension AppModel {
         }
     }
 
-    /// Waits until an existing chooser or sheet is closed so it is never displaced by a background check.
-    private func presentUpdate(_ update: ReleaseUpdate) async {
+    /// Waits until an existing chooser or sheet is closed so a background check never displaces it.
+    func waitForUpdateWindow() async -> NSWindow? {
         while !Task.isCancelled {
             if NSApp.isActive, NSApp.modalWindow == nil,
                let window = NSApp.mainWindow ?? NSApp.keyWindow,
                window.sheetParent == nil, !window.isSheet, window.attachedSheet == nil {
-                await withCheckedContinuation { continuation in
-                    showUpdatePrompt(update, on: window) { continuation.resume() }
-                }
-                return
+                return window
             }
-            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            do { try await Task.sleep(for: .seconds(1)) } catch { return nil }
+        }
+        return nil
+    }
+
+    private func presentUpdate(_ update: ReleaseUpdate) async {
+        guard let window = await waitForUpdateWindow() else { return }
+        await withCheckedContinuation { continuation in
+            showUpdatePrompt(update, on: window) { continuation.resume() }
         }
     }
 
@@ -72,14 +79,19 @@ extension AppModel {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = "A new Clap Studio update is available"
-        alert.informativeText = "Version \(update.version.version) (build \(update.version.build)) is ready. Open its GitHub release page to download the app and read what changed. Your samples and library are kept."
-        alert.addButton(withTitle: "Open Release")
+        let canInstall = update.download != nil
+        let action = canInstall ? "Update downloads and installs the app in Applications. You can restart when it is ready." : "Open its GitHub release page to download the app and read what changed."
+        alert.informativeText = "Version \(update.version.version) (build \(update.version.build)) is ready. \(action) Your samples and library are kept."
+        alert.addButton(withTitle: canInstall ? "Update" : "Open Release")
         alert.addButton(withTitle: "Later")
         alert.addButton(withTitle: "Skip This Update")
         alert.buttons[1].keyEquivalent = "\u{1b}"
         updateAlert = alert
         alert.beginSheetModal(for: window) { [weak self] response in
-            if response == .alertFirstButtonReturn { NSWorkspace.shared.open(update.pageURL) }
+            if response == .alertFirstButtonReturn {
+                if canInstall { self?.installUpdate(update) }
+                else { NSWorkspace.shared.open(update.pageURL) }
+            }
             if response == .alertThirdButtonReturn { UserDefaults.standard.set(update.tag, forKey: "updates.skippedTag") }
             self?.updateAlert = nil
             dismissed()
