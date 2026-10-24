@@ -7,6 +7,9 @@ trap 'rm -rf "$SCRATCH"' EXIT HUP INT TERM
 mkdir -p "$SCRATCH/bin"
 export CLAP_TEST_DEV="$SCRATCH/CommandLineTools"
 export CLAP_TEST_MISE_LOG="$SCRATCH/mise-log"
+export CLAP_TEST_LFS_LOG="$SCRATCH/lfs-log"
+export CLAP_TEST_BREW_LOG="$SCRATCH/brew-log"
+export CLAP_TEST_LFS_INSTALLED="$SCRATCH/lfs-installed"
 mkdir -p "$CLAP_TEST_DEV/usr/bin" "$CLAP_TEST_DEV/usr/lib/swift/host/plugins/testing"
 mkdir -p "$CLAP_TEST_DEV/SDKs/MacOSX26.5.sdk" "$CLAP_TEST_DEV/SDKs/MacOSX27.0.sdk"
 touch "$CLAP_TEST_DEV/usr/lib/swift/host/plugins/testing/libTestingMacros.dylib"
@@ -43,6 +46,26 @@ case "$*" in
   *) echo "mise test" ;;
 esac
 EOF
+cat > "$SCRATCH/bin/git" <<'EOF'
+#!/bin/sh
+case "$*" in
+  "lfs version")
+    if [ "${CLAP_TEST_NO_LFS:-0}" = 1 ] && [ ! -e "$CLAP_TEST_LFS_INSTALLED" ]; then exit 1; fi
+    echo "git-lfs/3.7.1 (test)" ;;
+  "lfs install --local")
+    printf '%s\n' "$*" >> "$CLAP_TEST_LFS_LOG"
+    [ "${CLAP_TEST_LFS_HOOK_FAIL:-0}" = 0 ] || { echo "Existing hook must be kept" >&2; exit 1; } ;;
+  "lfs pull --include=media/**")
+    printf '%s\n' "$*" >> "$CLAP_TEST_LFS_LOG" ;;
+  *) echo "Unexpected Git command: $*" >&2; exit 42 ;;
+esac
+EOF
+cat > "$SCRATCH/bin/brew" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$CLAP_TEST_BREW_LOG"
+[ "$*" = "install git-lfs" ] || exit 42
+touch "$CLAP_TEST_LFS_INSTALLED"
+EOF
 cat > "$CLAP_TEST_DEV/usr/bin/python" <<'EOF'
 #!/bin/sh
 echo "3.12.9"
@@ -72,7 +95,15 @@ contains() {
 "$ROOT/scripts/setup.sh" --check > "$SCRATCH/output" 2>&1
 contains "MacOSX26.5.sdk"
 contains "Apple Swift version 6.4"
+contains "Git LFS: git-lfs/3.7.1"
 [ ! -e "$CLAP_TEST_MISE_LOG" ] || { echo "--check must not install tools" >&2; exit 1; }
+[ ! -e "$CLAP_TEST_LFS_LOG" ] || { echo "--check must not change Git configuration or download media" >&2; exit 1; }
+[ ! -e "$CLAP_TEST_BREW_LOG" ] || { echo "--check must not install Git LFS" >&2; exit 1; }
+expectFailure env CLAP_TEST_NO_LFS=1 "$ROOT/scripts/setup.sh" --check
+contains "Git LFS"
+[ ! -e "$CLAP_TEST_BREW_LOG" ] || { echo "Missing LFS check tried to install it" >&2; exit 1; }
+expectFailure "$ROOT/scripts/setup.sh" --check --media
+contains "Choose one option"
 SDKROOT="$CLAP_TEST_DEV/SDKs/MacOSX26.5.sdk" "$ROOT/scripts/setup.sh" --check > "$SCRATCH/output" 2>&1
 contains "MacOSX26.5.sdk"
 
@@ -102,6 +133,26 @@ contains "$CLAP_TEST_DEV"
 
 "$ROOT/scripts/setup.sh" > "$SCRATCH/output" 2>&1
 contains "Ready."
+cp "$CLAP_TEST_LFS_LOG" "$SCRATCH/output"
+contains "lfs install --local"
+if /usr/bin/grep -F "lfs pull" "$CLAP_TEST_LFS_LOG" >/dev/null; then
+    echo "Ordinary setup must not download optional media" >&2
+    exit 1
+fi
+"$ROOT/scripts/setup.sh" --media > "$SCRATCH/output" 2>&1
+cp "$CLAP_TEST_LFS_LOG" "$SCRATCH/output"
+contains "lfs pull --include=media/**"
+expectFailure env CLAP_TEST_LFS_HOOK_FAIL=1 "$ROOT/scripts/setup.sh"
+contains "git lfs install --manual"
+
+env CLAP_TEST_NO_LFS=1 "$ROOT/scripts/setup.sh" > "$SCRATCH/output" 2>&1
+cp "$CLAP_TEST_BREW_LOG" "$SCRATCH/output"
+contains "install git-lfs"
+rm -f "$CLAP_TEST_LFS_INSTALLED"
+mv "$SCRATCH/bin/brew" "$SCRATCH/brew"
+expectFailure env PATH="$SCRATCH/bin:/usr/bin:/bin:/usr/sbin:/sbin" CLAP_TEST_NO_LFS=1 "$ROOT/scripts/setup.sh"
+contains "Install Git LFS"
+mv "$SCRATCH/brew" "$SCRATCH/bin/brew"
 cp "$CLAP_TEST_MISE_LOG" "$SCRATCH/output"
 contains "install uv python"
 contains "which python"

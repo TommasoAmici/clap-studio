@@ -1,23 +1,26 @@
 #!/bin/sh
-# Checks Apple tools and installs the pinned model-export tools.
-#   scripts/setup.sh                check Swift/SDK; install uv and Python
-#   scripts/setup.sh --check        check Swift/SDK only, without installing
+# Checks Apple tools, initializes Git LFS and installs the pinned model-export tools.
+#   scripts/setup.sh                check Swift/SDK; initialize LFS; install uv and Python
+#   scripts/setup.sh --check        check Swift/SDK and Git LFS, without installing
 #   scripts/setup.sh --model-tools  also prepare tools/.venv for CLAP export
+#   scripts/setup.sh --media        also download the website's media images
 set -e
 CHECK=0
 MODEL_TOOLS=0
+MEDIA=0
 for arg in "$@"; do
   case "$arg" in
     --check) CHECK=1 ;;
     --model-tools) MODEL_TOOLS=1 ;;
+    --media) MEDIA=1 ;;
     --help)
-      sed -n '2,5p' "$0"
+      sed -n '2,6p' "$0"
       exit 0 ;;
-    *) echo "Unknown option: $arg. Use --check or --model-tools." >&2; exit 2 ;;
+    *) echo "Unknown option: $arg. Use --check, --model-tools or --media." >&2; exit 2 ;;
   esac
 done
-if [ "$CHECK" = 1 ] && [ "$MODEL_TOOLS" = 1 ]; then
-  echo "--check does not install model tools. Choose one option." >&2
+if [ "$CHECK" = 1 ] && { [ "$MODEL_TOOLS" = 1 ] || [ "$MEDIA" = 1 ]; }; then
+  echo "--check does not install tools or download media. Choose one option." >&2
   exit 2
 fi
 if [ "$(uname -s)" != Darwin ]; then
@@ -34,7 +37,15 @@ if [ -z "$SWIFT_MAJOR" ] || [ "$SWIFT_MAJOR" -lt 6 ]; then
 fi
 printf 'Developer tools: %s\nSwift: %s\nSDK: %s (%s)\nTesting plugins: %s\n' \
   "$DEV_DIR" "$SWIFT_VERSION" "$SDKROOT" "$SDK_VERSION" "$TESTING_PLUGINS"
-[ "$CHECK" = 0 ] || exit 0
+if [ "$CHECK" = 1 ]; then
+  "$ROOT/scripts/setup-lfs.sh" --check
+  exit 0
+fi
+if [ "$MEDIA" = 1 ]; then
+  "$ROOT/scripts/setup-lfs.sh" --media
+else
+  "$ROOT/scripts/setup-lfs.sh"
+fi
 
 if ! command -v mise >/dev/null 2>&1; then
   if [ -x "$HOME/.local/bin/mise" ]; then

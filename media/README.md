@@ -1,5 +1,9 @@
 # Clap Studio media kit
 
+These images are stored with Git LFS. Run `git lfs pull --include="media/**"`
+after initializing Git LFS to download them, or `scripts/setup.sh --media`
+to initialize the repository and download the images together.
+
 Eighteen PNGs show the Library, Map, Drum Machine, Melody, and drums with melody
 together, plus field recordings on the world map and Squid Salmple banks, Pool
 and Send sheet, in light and dark appearance. Each full window is rendered at
