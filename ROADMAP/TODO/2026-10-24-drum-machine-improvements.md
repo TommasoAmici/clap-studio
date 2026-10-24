@@ -4,7 +4,7 @@
 - [x] let's get rid of the `Open MIDI...` button, it's a relatively niche feature
 - [x] let's move the bar length input and `Clear steps` button so they match the UI of the Melody sequencer. They should be in the same position in both drawers so it's more intuitive for users
 - [x] the dropdown `close/medium/wide` is a bit unclear to me, can you make it more intuitive?
-- [ ] the dropdown `close/medium/wide` shows an empty selection instead of any of the values it contains
+- [x] the dropdown `close/medium/wide` shows an empty selection instead of any of the values it contains
 - [x] get rid of the BPM input, the user should just use the global project BPM in the top toolbar
 
 ## Implementation context
@@ -34,3 +34,5 @@
   Adventurous with a plain-language explanation. The UI maps these onto the
   existing Close/Medium/Wide raw values, keeping saved settings and the
   nearest-4/12/40 candidate pools unchanged. No new core behavior is needed.
+- The blank menu was caused by an `EmptyView` label, not a lost setting. Its
+  label now reads the current choice, and VoiceOver names the control and value.

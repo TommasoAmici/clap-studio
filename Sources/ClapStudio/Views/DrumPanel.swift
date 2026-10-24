@@ -112,8 +112,10 @@ struct DrumPanel: View {
                     ForEach(DrumVariation.allCases) { Text($0.soundVarietyTitle).tag($0) }
                 }
                 .pickerStyle(.inline).labelsHidden()
-            } label: { EmptyView() }
+            } label: { Text(model.drumVariation.soundVarietyTitle) }
                 .menuIndicator(.visible).fixedSize()
+                .accessibilityLabel("Sound variety")
+                .accessibilityValue(model.drumVariation.soundVarietyTitle)
                 .help("Similar stays close to the current sound. Balanced offers more options, and Adventurous reaches further. All keep the same instrument and one-shot or loop, following What counts as similar.")
         }
     }
