@@ -20,7 +20,8 @@
 #     --height PX  resize the window to this height in points
 #     --scale N  render bitmap captures at N pixels per point (1–4); --update uses the display's resolution
 #     --appearance light|dark  force this app's appearance without changing macOS settings
-#     --media  reset the drawers and choose suitable sounds from a seeded media library
+#     --media  reset the drawers and choose suitable sounds from a seeded media library;
+#              with --usb, show its scratch demonstration Squid stick instead of a connected drive
 #     --animate  write a silent looping GIF of live drums/melody playback (give it a .gif output path)
 # Set CLAP_SNAPSHOT_EXECUTABLE to an already-built debug executable to skip compilation.
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;

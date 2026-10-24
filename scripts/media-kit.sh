@@ -1,5 +1,5 @@
 #!/bin/sh
-# Regenerates twelve 3200 × 2000 PNGs and two 1600 × 1000 animated GIFs with synthetic samples.
+# Regenerates eighteen 3200 × 2000 PNGs and two 1600 × 1000 animated GIFs with synthetic samples.
 # Usage: scripts/media-kit.sh [OUTPUT_DIRECTORY]
 # Runs sequentially: do not run another snapshot or media-kit capture at the same time.
 set -e
@@ -25,7 +25,7 @@ SEED_BIN="$("$SWIFT" build -c release --show-bin-path)"
 cp "$BIN/ClapStudio" "$SCRATCH/ClapStudioMedia"
 export CLAP_SNAPSHOT_EXECUTABLE="$SCRATCH/ClapStudioMedia"
 for appearance in light dark; do
-  for view in library map drums melody ensemble places; do
+  for view in library map drums melody ensemble places squid-banks squid-pool squid-send; do
     case "$view" in
       library) set -- --select ;;
       map) set -- --map --select ;;
@@ -33,6 +33,9 @@ for appearance in light dark; do
       melody) set -- --melody --select ;;
       ensemble) set -- --drums --melody --select ;;
       places) set -- --places --select ;;
+      squid-banks) set -- --usb Studio --select ;;
+      squid-pool) set -- --usb pool --select ;;
+      squid-send) set -- --usb pool/Drums/Kicks --select --send Drums/Kicks ;;
     esac
     scripts/snapshot.sh "$OUT/$view-$appearance.png" --media \
       --appearance "$appearance" --width 1600 --height 1000 --scale 2 "$@"

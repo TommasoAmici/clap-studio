@@ -1,8 +1,9 @@
 # Clap Studio media kit
 
-Twelve PNGs show the Library, Map, Drum Machine, Melody, and drums with melody
-together, plus field recordings on the world map, in light and dark
-appearance. Each full window is rendered at 3200 × 2000 pixels, including its
+Eighteen PNGs show the Library, Map, Drum Machine, Melody, and drums with melody
+together, plus field recordings on the world map and Squid Salmple banks, Pool
+and Send sheet, in light and dark appearance. Each full window is rendered at
+3200 × 2000 pixels, including its
 toolbar and inspector. Two silent, looping GIFs show the drums and melody
 playing together, with their real moving playheads, at 1600 × 1000 pixels. Each
 GIF records one two-bar phrase at 124 BPM (about four seconds).
@@ -22,6 +23,22 @@ the library’s real pin counts, so every demonstration place fits in the image.
 Each ambience clip has one eight-second segment; no neural sound labels are
 claimed.
 
+The Squid images use a demonstration stick inside the temporary folder. It
+holds 54 copies of the synthetic sounds, exported through the app's usual Squid
+conversion with category tags and level matching. The banks show all eight
+channels and free slots; the Pool shows folders within folders. The Send image
+shows the real export sheet over the full window. No physical USB stick is
+needed or accessed. The displayed drive name and FAT32 format are demonstration
+data; audio properties and folder contents are read from the generated files.
+
+Use these images to highlight ALM Squid Salmple support on the website:
+
+| View | Light | Dark |
+| --- | --- | --- |
+| Banks and channels | [PNG](squid-banks-light.png) | [PNG](squid-banks-dark.png) |
+| Pool folders and samples | [PNG](squid-pool-light.png) | [PNG](squid-pool-dark.png) |
+| Send samples to the Pool | [PNG](squid-send-light.png) | [PNG](squid-send-dark.png) |
+
 Sound names, tags, collections and map coordinates are
 demonstration data. The sound map uses repeatable, irregular clouds with a few
 sounds between families, rather than geometric rings.
@@ -29,6 +46,12 @@ The app's ordinary controls, waveforms and measured sound properties are real.
 
 The capture forces only the demo app's appearance and uses a separate preference
 domain. The installed app's library and macOS appearance are left alone.
+
+With a seeded scratch library, `scripts/snapshot.sh out.png --media --usb Studio
+--select` captures the banks; `--usb pool` captures the Pool. Add
+`--usb pool/Drums/Kicks --send Drums/Kicks` to show the Send sheet. Set
+`CLAP_DATA_DIR` to that scratch library, set `CLAP_NO_INDEX=1`, and use a
+separate demo executable as `scripts/media-kit.sh` does to keep preferences apart.
 
 For a single playback capture from a scratch library, use
 `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh out.gif --drums --melody --animate --scale 1`. Animation
