@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="clap.icon/readme-dark.png">
+    <img src="clap.icon/readme.png" alt="Clap Studio app icon" width="160" height="160">
+  </picture>
+</p>
+
 # Clap Studio
 
 A macOS (SwiftUI + Metal) app to organise and search audio samples for music production.
