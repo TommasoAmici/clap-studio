@@ -1,5 +1,5 @@
 #!/bin/sh
-# Regenerates eight full-window PNGs with original synthetic samples, at 3200 × 2000 pixels.
+# Regenerates twelve 3200 × 2000 PNGs and two 1600 × 1000 animated GIFs with synthetic samples.
 # Usage: scripts/media-kit.sh [OUTPUT_DIRECTORY]
 # Runs sequentially: do not run another snapshot or media-kit capture at the same time.
 set -e
@@ -25,15 +25,19 @@ SEED_BIN="$("$SWIFT" build -c release --show-bin-path)"
 cp "$BIN/ClapStudio" "$SCRATCH/ClapStudioMedia"
 export CLAP_SNAPSHOT_EXECUTABLE="$SCRATCH/ClapStudioMedia"
 for appearance in light dark; do
-  for view in library map drums melody; do
+  for view in library map drums melody ensemble places; do
     case "$view" in
       library) set -- --select ;;
       map) set -- --map --select ;;
       drums) set -- --drums --select ;;
       melody) set -- --melody --select ;;
+      ensemble) set -- --drums --melody --select ;;
+      places) set -- --places --select ;;
     esac
     scripts/snapshot.sh "$OUT/$view-$appearance.png" --media \
       --appearance "$appearance" --width 1600 --height 1000 --scale 2 "$@"
   done
+  scripts/snapshot.sh "$OUT/ensemble-playing-$appearance.gif" --media --animate \
+    --appearance "$appearance" --width 1600 --height 1000 --scale 1 --drums --melody --select
 done
 echo "Media kit saved in $OUT"

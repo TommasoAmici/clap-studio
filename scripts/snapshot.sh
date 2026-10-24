@@ -21,6 +21,7 @@
 #     --scale N  render bitmap captures at N pixels per point (1–4); --update uses the display's resolution
 #     --appearance light|dark  force this app's appearance without changing macOS settings
 #     --media  reset the drawers and choose suitable sounds from a seeded media library
+#     --animate  write a silent looping GIF of live drums/melody playback (give it a .gif output path)
 # Set CLAP_SNAPSHOT_EXECUTABLE to an already-built debug executable to skip compilation.
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
 #                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut;
@@ -57,6 +58,7 @@ while [ $# -gt 0 ]; do
       case "$1" in light|dark) export CLAP_SNAPSHOT_APPEARANCE="$1" ;;
         *) echo "appearance must be light or dark" >&2; exit 2 ;; esac ;;
     --media) export CLAP_SNAPSHOT_MEDIA=1 ;;
+    --animate) export CLAP_SNAPSHOT_ANIMATE=1 ;;
     --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;
     --send) shift; export CLAP_SNAPSHOT_SEND="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
@@ -76,6 +78,9 @@ CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$EXECUTABLE" >/dev/null 2>&1 
 PID=$!
 # The app quits itself after writing the image; wait a little longer than its delay, then make sure it is gone.
 i=0
-while [ ! -s "$OUT" ] && [ "$i" -lt $((DELAY + 20)) ]; do sleep 1; i=$((i + 1)); done
+while [ ! -s "$OUT" ] && [ "$i" -lt $((DELAY + 20)) ]; do
+  kill -0 "$PID" 2>/dev/null || break
+  sleep 1; i=$((i + 1))
+done
 kill "$PID" 2>/dev/null || true
 [ -s "$OUT" ] && echo "$OUT" || { echo "no image was written" >&2; exit 1; }
