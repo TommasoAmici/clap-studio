@@ -47,6 +47,7 @@ public struct ReleaseUpdate: Equatable, Sendable {
     public let tag: String
     public let version: ReleaseVersion
     public let pageURL: URL
+    public let download: ReleaseDownload?
 }
 
 public enum ReleaseCheckError: Error, LocalizedError {
@@ -86,7 +87,30 @@ public enum ReleaseChecker {
         // Opening a browser is limited to this release's own page, even for malformed server responses.
         let expected = "https://github.com/\(repository)/releases/tag/\(release.tag)"
         guard release.page == expected, let page = URL(string: expected) else { throw ReleaseCheckError.invalidRelease }
-        return ReleaseUpdate(tag: release.tag, version: version, pageURL: page)
+        let name = "ClapStudio-\(version.version)-build.\(version.build)-macos.zip"
+        let assets = release.assets ?? []
+        let archives = assets.filter { $0.name == name }
+        let checksums = assets.filter { $0.name == name + ".sha256" }
+        var download: ReleaseDownload?
+        if !archives.isEmpty && !checksums.isEmpty {
+            guard archives.count == 1, checksums.count == 1,
+                  archives[0].size > 0, archives[0].size < Int64(UInt32.max),
+                  checksums[0].size > 0, checksums[0].size <= 1024 else { throw ReleaseCheckError.invalidRelease }
+            let prefix = "https://github.com/\(repository)/releases/download/\(release.tag)/"
+            guard archives[0].url == prefix + name, checksums[0].url == prefix + name + ".sha256",
+                  let archiveURL = URL(string: archives[0].url), let checksumURL = URL(string: checksums[0].url) else {
+                throw ReleaseCheckError.invalidRelease
+            }
+            download = ReleaseDownload(archiveURL: archiveURL, checksumURL: checksumURL, size: archives[0].size)
+        }
+        return ReleaseUpdate(tag: release.tag, version: version, pageURL: page, download: download)
+    }
+
+    private struct GitHubAsset: Decodable {
+        let name: String
+        let url: String
+        let size: Int64
+        enum CodingKeys: String, CodingKey { case name, url = "browser_download_url", size }
     }
 
     private struct GitHubRelease: Decodable {
@@ -94,8 +118,9 @@ public enum ReleaseChecker {
         let page: String
         let draft: Bool
         let prerelease: Bool
+        let assets: [GitHubAsset]?
         enum CodingKeys: String, CodingKey {
-            case tag = "tag_name", page = "html_url", draft, prerelease
+            case tag = "tag_name", page = "html_url", draft, prerelease, assets
         }
     }
 }
