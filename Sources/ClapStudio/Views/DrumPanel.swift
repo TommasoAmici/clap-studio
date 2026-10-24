@@ -58,8 +58,6 @@ struct DrumPanel: View {
                 .textFieldStyle(.roundedBorder).frame(width: 65)
                 .help("Number of 4/4 bars. Shortening removes steps past the end.")
             Text(model.drumPattern.bars == 1 ? "bar" : "bars").foregroundStyle(.secondary)
-            Button("Open MIDI…") { model.chooseMidiFile(forDrums: true) }
-                .help("Replace this beat with a MIDI file: one drum row per file track, snapped to sixteenth steps")
             Spacer()
         }
         .font(.caption).controlSize(.small)

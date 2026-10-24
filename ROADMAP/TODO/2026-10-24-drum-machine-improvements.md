@@ -1,7 +1,7 @@
 # Drum machine improvements
 
 - [x] If there are more than 1 bar, they should scroll. Get rid of the pagination with arrow buttons `Bar 1 of 2`
-- [ ] let's get rid of the `Open MIDI...` button, it's a relatively niche feature
+- [x] let's get rid of the `Open MIDI...` button, it's a relatively niche feature
 - [ ] let's move the bar length input and `Clear steps` button so they match the UI of the Melody sequencer. They should be in the same position in both drawers so it's more intuitive for users
 - [ ] the dropdown `close/medium/wide` is a bit unclear to me, can you make it more intuitive?
 - [ ] the dropdown `close/medium/wide` shows an empty selection instead of any of the values it contains
@@ -22,3 +22,5 @@
 - Scrolling verified with four bars at 1600 points wide and a bar-three target
   at the 1250-point window minimum. The whole existing suite passes (399 tests
   in 87 suites). Builds add no warnings beyond the existing CLT linker paths.
+- Drum MIDI import stays available through File > Open Drum MIDI File… and
+  dropping a MIDI file on the drawer. Only the drawer button was removed.
