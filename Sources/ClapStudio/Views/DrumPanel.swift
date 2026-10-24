@@ -38,7 +38,7 @@ struct DrumPanel: View {
             }
             .background(.bar)
             .dropZone(.drums)
-            .onAppear { scroll = Double(model.drumBar) * DrumGridLayout.barWidth }
+            .onAppear { scroll = Double(model.drumBar) }
             .onChange(of: model.drumPlaying) { _, playing in
                 if playing { scroll = 0 }
             }

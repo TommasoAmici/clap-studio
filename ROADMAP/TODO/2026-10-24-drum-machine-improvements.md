@@ -36,3 +36,16 @@
   nearest-4/12/40 candidate pools unchanged. No new core behavior is needed.
 - The blank menu was caused by an `EmptyView` label, not a lost setting. Its
   label now reads the current choice, and VoiceOver names the control and value.
+- Narrow snapshots exposed a regression from fixed-width steps: only eleven
+  of sixteen steps fitted with the inspector open. Step cells now shrink from
+  24 to the original 13-point minimum, keeping a complete bar on screen at
+  1250 points. The shared offset is in bars, so resizing preserves the place;
+  slider and all rows derive the same bar width and omit the final bar gap.
+- Final UI checks used a synthetic 420-sound library and a copied executable
+  with its own preference domain. Light: one complete bar with Melody at the
+  1250-point minimum. Dark: four bars scrolled to bar three at that width.
+  Wide: visible parts of bars one and two at 1600 points. Both drawer headers
+  retain Length/Clear/Close at the right and the variety selection is visible.
+- All changes here are UI only. The existing 399 tests in 87 suites pass after
+  every source slice, with no new build warnings. No audio files, saved pattern
+  format, matching logic or model versions changed.
