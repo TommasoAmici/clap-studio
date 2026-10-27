@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -25,7 +27,40 @@ def bundle_version(script):
     return matches[0]
 
 
+def github_cli_data(cli, path):
+    """Use the CLI's existing credentials and certificate trust for local checks."""
+    try:
+        response = subprocess.run([
+            cli, "api", "--hostname", "github.com", "--include", path,
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: 2022-11-28",
+        ], capture_output=True, timeout=20)
+    except subprocess.TimeoutExpired as error:
+        raise OSError("The GitHub release lookup timed out.") from error
+    headers, separator, data = response.stdout.replace(b"\r\n", b"\n").partition(b"\n\n")
+    status = re.match(rb"HTTP/[0-9.]+ ([0-9]{3})\b", headers)
+    if not separator or not status:
+        raise OSError("GitHub CLI could not read release details. Check gh auth status and your connection.")
+    code = int(status[1])
+    if code >= 400:
+        raise HTTPError("https://api.github.com" + path, code, "GitHub lookup failed", {}, None)
+    if response.returncode or code != 200:
+        raise OSError("GitHub CLI did not complete the release lookup.")
+    return data
+
+
 def request_json(path):
+    cli = shutil.which("gh")
+    if cli:
+        data = github_cli_data(cli, path)
+    else:
+        data = request_data(path)
+    if len(data) > 1024 * 1024:
+        raise ValueError("GitHub returned too much release data.")
+    return json.loads(data)
+
+
+def request_data(path):
     request = Request("https://api.github.com" + path, headers={
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -40,9 +75,7 @@ def request_json(path):
     except HTTPError as error:
         error.close()
         raise
-    if len(data) > 1024 * 1024:
-        raise ValueError("GitHub returned too much release data.")
-    return json.loads(data)
+    return data
 
 
 def latest_release(repository):

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Checks that publication requires a newer app version and a readable release."""
 import importlib.util
+import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -25,6 +27,57 @@ def http_error(code):
 
 
 class ReleaseVersionTests(unittest.TestCase):
+    def test_cli_uses_existing_credentials_and_reads_the_http_status(self):
+        response = subprocess.CompletedProcess([], 0, stdout=(
+            b'HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n'
+            + json.dumps(release("v0.28.0")).encode()), stderr=b"")
+        with patch.object(guard.shutil, "which", return_value="/tools/gh"), patch.object(
+            guard.subprocess, "run", return_value=response
+        ) as run, patch.object(guard, "request_data") as direct:
+            self.assertEqual(guard.request_json("/repos/example/app/releases/latest"),
+                             release("v0.28.0"))
+            direct.assert_not_called()
+            command = run.call_args.args[0]
+            self.assertEqual(command[:5], ["/tools/gh", "api", "--hostname", "github.com", "--include"])
+            self.assertEqual(run.call_args.kwargs["timeout"], 20)
+
+    def test_cli_errors_keep_their_status_and_never_fall_back_to_anonymous_requests(self):
+        for code in [404, 401, 403, 429, 500]:
+            response = subprocess.CompletedProcess([], 1, stdout=(
+                f'HTTP/2.0 {code} Failure\n\n{{"message": "Failure"}}'.encode()), stderr=b"")
+            with self.subTest(code=code), patch.object(guard.shutil, "which", return_value="gh"), \
+                    patch.object(guard.subprocess, "run", return_value=response), \
+                    patch.object(guard, "request_data") as direct:
+                with self.assertRaises(HTTPError) as error:
+                    guard.request_json("/repos/example/app/releases/latest")
+                self.assertEqual(error.exception.code, code)
+                error.exception.close()
+                direct.assert_not_called()
+
+    def test_incomplete_cli_output_and_timeouts_cannot_enable_publication(self):
+        for code, output in [(1, b""), (0, b"{}"), (1, b"HTTP/2.0 200 OK\n\n{}"),
+                             (0, b"HTTP/2.0 200 OK\n\nnot JSON")]:
+            response = subprocess.CompletedProcess([], code, stdout=output, stderr=b"")
+            with self.subTest(output=output), patch.object(guard.shutil, "which", return_value="gh"), \
+                    patch.object(guard.subprocess, "run", return_value=response), \
+                    self.assertRaises((OSError, ValueError)):
+                guard.request_json("/repos/example/app/releases/latest")
+        with patch.object(guard.shutil, "which", return_value="gh"), patch.object(
+            guard.subprocess, "run", side_effect=subprocess.TimeoutExpired("gh", 20)
+        ), self.assertRaises(OSError):
+            guard.request_json("/repos/example/app/releases/latest")
+
+    def test_direct_https_remains_available_without_the_cli_and_size_is_limited(self):
+        with patch.object(guard.shutil, "which", return_value=None), patch.object(
+            guard, "request_data", return_value=b'{"tag_name": "v0.28.0"}'
+        ) as direct:
+            self.assertEqual(guard.request_json("/example"), {"tag_name": "v0.28.0"})
+            direct.assert_called_once_with("/example")
+        with patch.object(guard.shutil, "which", return_value=None), patch.object(
+            guard, "request_data", return_value=b"x" * (1024 * 1024 + 1)
+        ), self.assertRaises(ValueError):
+            guard.request_json("/example")
+
     def test_newer_version_publishes_even_when_build_number_is_smaller(self):
         for version, tag in [("0.29.0", "v0.28.0-build.999"),
                              ("0.10.0", "v0.9.9"),

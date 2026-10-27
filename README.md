@@ -125,6 +125,8 @@ Always use these scripts for builds and tests. They use the compiler found by `x
 
 Compiler caches stay in `.build/`, so builds also work in shells that cannot write to your home folder. Explicit `CLANG_MODULE_CACHE_PATH` and `SWIFTPM_MODULECACHE_OVERRIDE` settings are honoured.
 
+Before a release, `python3 scripts/check-release-version.py --version X.Y.Z` checks that the version is newer than the latest published release. It uses the GitHub CLI's existing login when `gh` is installed, or a verified HTTPS request otherwise. A failed lookup stops publication.
+
 The VST3 interfaces are vendored, so normal builds need no SDK download. `scripts/vendor-vst3.sh` fetches the pinned revision from Steinberg; add `--latest` to update it, or pass a commit or tag. It replaces the vendor files and updates the revision pin and bundled license notice. See [the bridge notes](Sources/CVST3/README.md), then review the diff and run the build and full tests.
 
 For model export, `mise.toml` pins **uv 0.12.23** and **Python 3.12.9**. [Install mise](https://mise.jdx.dev/getting-started.html) (or `brew install mise` if you already use Homebrew), then:
