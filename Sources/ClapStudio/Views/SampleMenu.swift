@@ -60,7 +60,7 @@ extension AppModel {
         }
         menu.append(.submenu("Set Mood", moodItems))
         menu.append(.action("Add Tag…") { [unowned self] in tagPromptTargets = ids })
-        menu.append(.action("Tags from File Keywords") { [unowned self] in importFileKeywords(ids) })
+        menu.append(.action("Use Keywords as Tags") { [unowned self] in importFileKeywords(ids) })
         if samples.contains(where: canWriteTags) {
             menu.append(.action("Write Tags into Files…") { [unowned self] in tagWriteTargets = ids.filter { sampleByID[$0].map(canWriteTags) == true } })
         }

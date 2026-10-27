@@ -35,7 +35,7 @@ extension AppModel {
             return
         }
         let count = Set(additions.flatMap(\.ids)).count
-        record(LibraryEdit(name: "Tags from File Keywords",
+        record(LibraryEdit(name: "Use Keywords as Tags",
                            undo: { [unowned self] in for a in additions { applyTag(a.tag, to: a.ids, add: false) } },
                            redo: { [unowned self] in for a in additions { applyTag(a.tag, to: a.ids, add: true) } }))
         for a in additions { applyTag(a.tag, to: a.ids, add: true) }

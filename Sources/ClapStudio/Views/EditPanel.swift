@@ -26,7 +26,7 @@ struct EditPanel: View {
                     Button("Original") { model.playSample(sample, fullFile: true) }
                     Spacer()
                     if !edit.isNeutral {
-                        Button("Copy…") { model.exportTrimmed(sample.id) }.help("Write the edited sound to a new WAV file")
+                        Button("Copy To…") { model.exportTrimmed(sample.id) }.help("Write the edited sound to a new WAV file")
                         Button("Reset") { model.resetEdit() }
                     }
                 }

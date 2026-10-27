@@ -11,7 +11,7 @@ struct InsightsSheet: View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fresh alternatives").font(.title3.bold())
+                    Text("Ideas").font(.title3.bold())
                     Text("Sounds close to the ones you grab most, that you have never used.")
                         .font(.caption).foregroundStyle(.secondary)
                 }

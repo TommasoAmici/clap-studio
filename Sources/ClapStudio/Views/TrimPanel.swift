@@ -44,7 +44,7 @@ struct TrimPanel: View {
                 .controlSize(.small)
                 HStack {
                     Button("Remove Trim") { model.clearTrim() }
-                    Button("Export Trimmed Copy…") { model.exportTrimmed(sample.id) }
+                    Button("Copy To…") { model.exportTrimmed(sample.id) }
                     Spacer()
                     Button("Add to Drum Machine") { model.addToDrums([sample.id]) }
                 }

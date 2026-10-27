@@ -25,7 +25,7 @@ struct DeveloperSettingsView: View {
                     Text(result.message).font(.caption).foregroundStyle(result.failed ? .red : .secondary)
                         .textSelection(.enabled)
                     if let folder = result.folder {
-                        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
+                        Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
                             .controlSize(.small)
                     }
                 }

@@ -102,7 +102,7 @@ private struct BankCard: View {
                 Button("Try in Drum Machine") { model.loadBankIntoDrums((1...SquidLayout.slotsPerBank).compactMap { samples[$0] }) }
                     .disabled(samples.isEmpty).controlSize(.small)
                 Button { reveal() } label: { Image(systemName: "folder") }
-                    .buttonStyle(.borderless).help("Show in Finder")
+                    .buttonStyle(.borderless).help("Reveal in Finder")
             }
             HStack(spacing: 6) {
                 ForEach(1...SquidLayout.slotsPerBank, id: \.self) { slot in cell(slot) }

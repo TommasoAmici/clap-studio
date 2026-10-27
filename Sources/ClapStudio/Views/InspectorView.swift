@@ -51,7 +51,7 @@ struct InspectorView: View {
                     .buttonStyle(.borderless).foregroundStyle(s.favorite ? .yellow : .secondary)
                     .help(s.favorite ? "Remove from favorites (F)" : "Add to favorites (F)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([s.url]) } label: {
-                    Image(systemName: "magnifyingglass.circle")
+                    Image(systemName: "arrow.forward.circle")
                 }
                 .buttonStyle(.borderless).help("Reveal in Finder")
             }
