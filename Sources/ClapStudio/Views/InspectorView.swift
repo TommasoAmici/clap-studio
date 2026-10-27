@@ -19,6 +19,8 @@ struct InspectorView: View {
                     transport(sample)
                     TrimPanel(sample: sample)
                     EditPanel(sample: sample)
+                    Button("VST3 Effects…") { model.openEffects(ids: [sample.id]) }
+                        .help("Preview an effect chain and bounce a new WAV copy")
                     PropertiesPanel(sample: sample)
                     CuePanel()
                     SimilarList()

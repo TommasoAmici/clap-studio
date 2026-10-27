@@ -15,8 +15,11 @@ let package = Package(
         .executable(name: "ClapStudio", targets: ["ClapStudio"]),
     ],
     targets: [
+        .target(name: "CVST3", path: "Sources/CVST3", sources: ["VST3Host.cpp"],
+                publicHeadersPath: "include", cxxSettings: [.headerSearchPath("vendor")],
+                linkerSettings: [.linkedFramework("CoreFoundation")]),
         .target(
-            name: "ClapCore",
+            name: "ClapCore", dependencies: ["CVST3"],
             // Use Accelerate's current BLAS/LAPACK headers; the default ones are deprecated since macOS 13.3.
             swiftSettings: [.unsafeFlags(["-Xcc", "-DACCELERATE_NEW_LAPACK"])] + flags,
             linkerSettings: [.linkedLibrary("sqlite3")]
@@ -25,5 +28,6 @@ let package = Package(
         .executableTarget(name: "ClapBench", dependencies: ["ClapCore"]),
         .executableTarget(name: "ClapMediaSeed", dependencies: ["ClapCore"]),
         .testTarget(name: "ClapCoreTests", dependencies: ["ClapCore"], swiftSettings: flags),
-    ]
+    ],
+    cxxLanguageStandard: .cxx17
 )

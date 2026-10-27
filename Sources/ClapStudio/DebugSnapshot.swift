@@ -122,6 +122,14 @@ enum DebugSnapshot {
                 model.showUpdatePrompt(update, on: window)
             }
         }
+        if env["CLAP_SNAPSHOT_EFFECTS"] == "1" {
+            model.openEffects(ids: Array(model.visible.prefix(env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" ? 1 : 2).map(\.id)))
+            if let fixture = env["CLAP_SNAPSHOT_EFFECTS_PLUGIN"] { model.effects.addBundle(URL(fileURLWithPath: fixture)) }
+            if let panel = model.effects.panel, let width = env["CLAP_SNAPSHOT_WIDTH"].flatMap(Double.init) {
+                var frame = panel.frame; frame.size.width = max(panel.minSize.width, width); panel.setFrame(frame, display: true)
+            }
+        }
+        if env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" { model.effects.bounce() }
         try? await Task.sleep(for: .seconds(3))
         if media && env["CLAP_SNAPSHOT_USB"] != nil { DebugSnapshotSquid.revealSidebar() }
         let placesOverlay = env["CLAP_SNAPSHOT_PLACES"] == "1" ? await DebugSnapshotPlaces.overlay(model: model, media: media) : nil
@@ -189,7 +197,8 @@ enum DebugSnapshot {
     /// The frame view holds the toolbar as well as the content.
     static func windowImage() -> Data? {
         // A sheet is a separate window. Media captures keep the main window around it for website context.
-        guard let main = NSApp.windows.first(where: \.isVisible) else { return nil }
+        let effects = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_EFFECTS"] == "1"
+        guard let main = NSApp.windows.first(where: { $0.isVisible && (!effects || $0.title == "VST3 Effects") }) else { return nil }
         let composeSheet = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MEDIA"] == "1" && main.attachedSheet != nil
         let window = composeSheet ? main : (main.attachedSheet ?? main)
         // Native glass layers and alert contents can be absent from bitmap caching.

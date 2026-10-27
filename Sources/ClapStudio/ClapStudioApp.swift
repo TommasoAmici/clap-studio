@@ -98,6 +98,9 @@ struct ClapStudioApp: App {
                     .disabled(model.selectedID == nil)
                 Button("Build a Kit From This…") { if let id = model.selectedID { model.buildKit(around: id) } }
                     .disabled(model.selectedID == nil)
+                Button("VST3 Effects…") { model.openEffects(ids: model.actionTargets) }
+                    .keyboardShortcut("e", modifiers: [.command, .option])
+                    .disabled(model.actionTargets.isEmpty)
                 Button("Add to Drum Machine") { model.addToDrums(model.actionTargets) }
                     .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
                 Button("Add to Melody") { model.addToMelody(model.actionTargets) }
