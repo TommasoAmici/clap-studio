@@ -36,25 +36,17 @@ struct PianoRoll: View {
             let grid = PianoRollGrid(stepWidth: max(Self.minStepWidth, width / total), rowHeight: Self.rowHeight)
             let maxScroll = max(0, total - width / grid.stepWidth)
             let left = min(max(0, scroll), maxScroll)
-            VStack(spacing: 0) {
-                // The keyboard sits inside the vertical scroll beside the grid, so the two always line up.
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        HStack(alignment: .top, spacing: 0) {
-                            keyboard(grid).frame(width: Self.keyboardWidth, height: grid.height)
-                            gridView(grid, width: width, left: left, maxScroll: maxScroll)
-                        }
-                        .overlay(alignment: .topLeading) { rowAnchors(grid) }
+            // The keyboard sits inside the vertical scroll beside the grid, so the two always line up.
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    HStack(alignment: .top, spacing: 0) {
+                        keyboard(grid).frame(width: Self.keyboardWidth, height: grid.height)
+                        gridView(grid, width: width, left: left, maxScroll: maxScroll)
                     }
-                    .onAppear { reveal(proxy, grid) }
-                    .onChange(of: trackIndex) { reveal(proxy, grid) }
+                    .overlay(alignment: .topLeading) { rowAnchors(grid) }
                 }
-                // A melody longer than the roll is shown a window at a time: this slider, or a sideways scroll, moves it.
-                if maxScroll > 0 {
-                    Slider(value: Binding(get: { left }, set: { scroll = $0 }), in: 0...maxScroll)
-                        .controlSize(.mini).padding(.leading, Self.keyboardWidth).padding(.trailing, 8)
-                        .help("Move along the melody")
-                }
+                .onAppear { reveal(proxy, grid) }
+                .onChange(of: trackIndex) { reveal(proxy, grid) }
             }
             .background(SidewaysScroll { points in scroll = min(max(0, left - points / grid.stepWidth), maxScroll) })
         }
