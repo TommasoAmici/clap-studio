@@ -39,6 +39,8 @@ public enum ReleaseInstaller {
                 try fm.moveItem(at: app, to: destination)
             }
             try validateBundle(destination, version: version)
+            // Clear download quarantine only after verification, while rollback is still available.
+            try clearDownloadQuarantine(destination)
         } catch {
             if fm.fileExists(atPath: backup.path) {
                 if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
@@ -50,6 +52,10 @@ public enum ReleaseInstaller {
         }
         try? fm.removeItem(at: backup)
         return destination
+    }
+
+    static func clearDownloadQuarantine(_ app: URL) throws {
+        try run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", app.path], failure: .installFailed)
     }
 
     public static func validateBundle(_ app: URL, version: ReleaseVersion) throws {

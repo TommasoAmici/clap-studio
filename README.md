@@ -67,7 +67,10 @@ When one is available, a pop-up offers **Update**, **Later**, or **Skip This
 Update**. Update downloads the app from GitHub, checks its release checksum and
 app signature, and installs it in `/Applications`. If that folder is not
 writable, it uses `~/Applications`; the restart prompt shows the exact location.
-The previous app is kept until the new one passes verification. **Restart**
+The previous app is kept until the new one passes verification and its download
+quarantine is removed, so in-app updates can reopen without **Open Anyway**.
+The first browser download may still need **Open Anyway** in System Settings.
+**Restart**
 opens the installed update after Clap Studio has saved its work; **Later** lets
 you keep working and open the new app yourself. Your samples and library are kept.
 Skipping applies to that release only; a later build can still be offered.

@@ -3,6 +3,26 @@ import Testing
 @testable import ClapCore
 
 @Suite struct ReleaseInstallTests {
+    @Test func quarantineIsRemovedFromTheBundleAndItsContents() throws {
+        let root = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = try signedApp(in: root, version: ReleaseVersion(tag: "v1.2.3-build.4")!)
+        try tool("/usr/bin/xattr", ["-wr", "com.apple.quarantine", "0081;00000000;ClapStudio;", app.path])
+        try ReleaseInstaller.clearDownloadQuarantine(app)
+        for path in [app, app.appendingPathComponent("Contents/MacOS/ClapStudio")] {
+            let attributes = Process()
+            attributes.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            attributes.arguments = ["-p", "com.apple.quarantine", path.path]
+            attributes.standardOutput = FileHandle.nullDevice
+            attributes.standardError = FileHandle.nullDevice
+            try attributes.run()
+            attributes.waitUntilExit()
+            #expect(attributes.terminationStatus != 0, "download quarantine must be removed from the app and executable")
+        }
+        try ReleaseInstaller.validateBundle(app, version: ReleaseVersion(tag: "v1.2.3-build.4")!)
+        try ReleaseInstaller.clearDownloadQuarantine(app)
+    }
+
     @Test func verifiedAppIsInstalledAndReplacesOnlyClapStudio() throws {
         let root = TestSupport.tempDir()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -17,10 +37,22 @@ import Testing
         try ReleaseInstaller.validateBundle(destination, version: version)
         let marker = destination.appendingPathComponent("old-marker")
         try Data("old".utf8).write(to: marker)
+        try tool("/usr/bin/xattr", ["-wr", "com.apple.quarantine", "0081;00000000;ClapStudio;", destination.path])
         _ = try ReleaseInstaller.install(archive: archive, version: version, applications: applications)
         #expect(!FileManager.default.fileExists(atPath: marker.path), "replacement must contain the new app's files")
         #expect(try FileManager.default.contentsOfDirectory(atPath: applications.path) == ["ClapStudio.app"],
                 "successful installation removes staging and backup folders")
+        let attributes = Process()
+        attributes.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        attributes.arguments = ["-lr", destination.path]
+        let output = Pipe()
+        attributes.standardOutput = output
+        try attributes.run()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        attributes.waitUntilExit()
+        #expect(attributes.terminationStatus == 0)
+        #expect(!String(decoding: data, as: UTF8.self).contains("com.apple.quarantine"),
+                "verified updates must reopen without download quarantine")
     }
 
     @Test func wrongVersionKeepsTheInstalledApp() throws {
