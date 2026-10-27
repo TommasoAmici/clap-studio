@@ -1,3 +1,4 @@
+import AppKit
 import ClapCore
 import SwiftUI
 
@@ -52,18 +53,8 @@ struct DrumStepGrid: View {
                 }
             }
             .fixedSize(horizontal: true, vertical: true)
-            .offset(x: (Double(first) - left) * barWidth, y: 15)
-            .frame(width: width, height: 39, alignment: .topLeading)
-            .overlay(alignment: .topLeading) {
-                Canvas { context, _ in
-                    for bar in first..<last {
-                        let x = (Double(bar) - left) * barWidth
-                        context.draw(Text("Bar \(bar + 1)").font(.caption2).foregroundColor(.secondary),
-                                     at: CGPoint(x: x, y: 6), anchor: .leading)
-                    }
-                }
-                .frame(height: 14).allowsHitTesting(false)
-            }
+            .offset(x: (Double(first) - left) * barWidth)
+            .frame(width: width, height: 22, alignment: .topLeading)
             .clipped()
             .background(SidewaysScroll { points in scroll = min(max(0, left - points / barWidth), maximum) })
             .onChange(of: model.drumBar) { _, bar in
@@ -73,11 +64,11 @@ struct DrumStepGrid: View {
             }
             .onChange(of: maximum) { _, value in scroll = min(scroll, value) }
         }
-        .frame(height: 39)
+        .frame(height: 22)
     }
 }
 
-/// The piano roll's slider alternative to a sideways swipe, aligned with the drum steps.
+/// A native scrollbar shows how much of the pattern is visible, aligned with the drum steps.
 struct DrumScrollControl: View {
     @Environment(AppModel.self) private var model
     @Binding var scroll: Double
@@ -88,15 +79,59 @@ struct DrumScrollControl: View {
             GeometryReader { geometry in
                 let maximum = DrumGridLayout.maximumScroll(bars: model.drumPattern.bars, width: max(1, geometry.size.width))
                 if maximum > 0 {
-                    Slider(value: Binding(get: { min(max(0, scroll), maximum) }, set: { scroll = $0 }), in: 0...maximum)
-                        .controlSize(.mini)
+                    DrumScroller(scroll: $scroll, maximum: maximum,
+                                 visibleBars: geometry.size.width / DrumGridLayout.barWidth(in: geometry.size.width))
                         .accessibilityLabel("Scroll drum bars")
                         .help("Scroll across the drum pattern. You can also swipe sideways over the steps or hold Shift while scrolling.")
                 }
             }
             Color.clear.frame(width: DrumGridLayout.mixWidth)
         }
-        .frame(height: 18)
+        .frame(height: 12)
+    }
+}
+
+/// Uses the system thumb, page clicks and appearance while all rows share one offset.
+private struct DrumScroller: NSViewRepresentable {
+    @Binding var scroll: Double
+    let maximum: Double
+    let visibleBars: Double
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSScroller {
+        let view = NSScroller(frame: NSRect(x: 0, y: 0, width: 100, height: 12))
+        view.scrollerStyle = .overlay
+        view.controlSize = .small
+        view.target = context.coordinator
+        view.action = #selector(Coordinator.scroll(_:))
+        view.setAccessibilityLabel("Scroll drum bars")
+        return view
+    }
+
+    func updateNSView(_ view: NSScroller, context: Context) {
+        context.coordinator.parent = self
+        view.knobProportion = visibleBars / (visibleBars + maximum)
+        view.doubleValue = min(max(0, scroll), maximum) / maximum
+    }
+
+    final class Coordinator: NSObject {
+        var parent: DrumScroller
+        init(_ parent: DrumScroller) { self.parent = parent }
+
+        @objc func scroll(_ sender: NSScroller) {
+            let change: Double
+            switch sender.hitPart {
+            case .decrementLine: change = -0.25
+            case .incrementLine: change = 0.25
+            case .decrementPage: change = -parent.visibleBars
+            case .incrementPage: change = parent.visibleBars
+            default:
+                parent.scroll = sender.doubleValue * parent.maximum
+                return
+            }
+            parent.scroll = min(max(0, parent.scroll + change), parent.maximum)
+        }
     }
 }
 
