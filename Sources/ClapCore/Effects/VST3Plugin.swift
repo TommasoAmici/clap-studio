@@ -114,17 +114,22 @@ final class VST3Instance: @unchecked Sendable {
 
     @MainActor func snapshot(_ recipe: EffectSlot) throws -> EffectSlot {
         var slot = recipe
-        slot.parameters = []
-        for index in 0..<max(0, min(4096, clap_vst3_parameter_count(effect))) {
-            var id: UInt32 = 0, title = [UInt16](repeating: 0, count: 128), value = 0.0, steps: Int32 = 0
-            if clap_vst3_parameter_info(effect, index, &id, &title, &value, &steps) != 0 {
-                slot.parameters.append(VST3Parameter(id: id, name: String(decoding: title.prefix(while: { $0 != 0 }), as: UTF16.self),
-                                                      value: value.isFinite ? min(1, max(0, value)) : 0, steps: max(0, Int(steps))))
-            }
-        }
+        slot.parameters = parameterValues()
         slot.componentState = try state(controller: false)
         slot.controllerState = try state(controller: true)
         return slot
+    }
+
+    @MainActor func parameterValues() -> [VST3Parameter] {
+        var parameters: [VST3Parameter] = []
+        for index in 0..<max(0, min(4096, clap_vst3_parameter_count(effect))) {
+            var id: UInt32 = 0, title = [UInt16](repeating: 0, count: 128), value = 0.0, steps: Int32 = 0
+            if clap_vst3_parameter_info(effect, index, &id, &title, &value, &steps) != 0 {
+                parameters.append(VST3Parameter(id: id, name: String(decoding: title.prefix(while: { $0 != 0 }), as: UTF16.self),
+                                                      value: value.isFinite ? min(1, max(0, value)) : 0, steps: max(0, Int(steps))))
+            }
+        }
+        return parameters
     }
 
     @MainActor private func state(controller: Bool) throws -> Data? {
@@ -137,8 +142,8 @@ final class VST3Instance: @unchecked Sendable {
         return Data(bytes: bytes, count: Int(size))
     }
 
-    @MainActor func prepare(rate: Double) throws {
-        guard clap_vst3_prepare(effect, rate) != 0 else { throw VST3Error.message("This effect does not support offline stereo audio at this sample rate.") }
+    @MainActor func prepare(rate: Double, live: Bool = false) throws {
+        guard (live ? clap_vst3_prepare_live(effect, rate) : clap_vst3_prepare(effect, rate)) != 0 else { throw VST3Error.message("This effect does not support stereo audio at this sample rate.") }
     }
 
     @MainActor func close() {

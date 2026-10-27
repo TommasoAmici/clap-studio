@@ -95,7 +95,7 @@ struct Effect {
     IEditController *controller = nullptr; bool initialized = false, separateController = false, active = false, processing = false;
     IConnectionPoint *componentConnection = nullptr, *controllerConnection = nullptr;
     int32 inputBusCount = 0, outputBusCount = 0;
-    double rate = 44100; int64 position = 0;
+    double rate = 44100; int64 position = 0; int32 mode = kOffline;
     ~Effect() {
         if (processing) processor->setProcessing(false);
         if (active) component->setActive(false);
@@ -168,7 +168,9 @@ int32_t clap_vst3_parameter_info(ClapVST3Effect e, int32_t index, uint32_t *id, 
 void *clap_vst3_controller(ClapVST3Effect effect) { return effect ? static_cast<Effect *>(effect)->controller : nullptr; }
 int32_t clap_vst3_parameter_set(ClapVST3Effect effect, uint32_t id, double value) {
     auto e = static_cast<Effect *>(effect);
-    return e && e->controller && e->controller->setParamNormalized(id, value) == kResultOk;
+    if (!e || !e->controller) return 0;
+    e->handler.edits.erase(id);
+    return e->controller->setParamNormalized(id, value) == kResultOk;
 }
 int32_t clap_vst3_state_get(ClapVST3Effect effect, int32_t controller, uint8_t **bytes, int32_t *size) {
     auto e = static_cast<Effect *>(effect); if (!e || !bytes || !size) return 0;
@@ -189,7 +191,7 @@ int32_t clap_vst3_state_set(ClapVST3Effect effect, int32_t controller, const uin
     return 1;
 }
 void clap_vst3_bytes_free(uint8_t *bytes) { free(bytes); }
-int32_t clap_vst3_prepare(ClapVST3Effect effect, double rate) {
+static int32_t prepare(ClapVST3Effect effect, double rate, int32 mode) {
     auto e = static_cast<Effect *>(effect); if (!e || e->active) return 0;
     // Component topology queries belong to the UI thread, before audio processing starts.
     e->inputBusCount = e->component->getBusCount(kAudio, kInput);
@@ -202,11 +204,13 @@ int32_t clap_vst3_prepare(ClapVST3Effect effect, double rate) {
     if (e->processor->canProcessSampleSize(kSample32) != kResultOk) return 0;
     if (e->component->activateBus(kAudio, kInput, 0, true) != kResultOk || e->component->activateBus(kAudio, kOutput, 0, true) != kResultOk) return 0;
     for (int direction : {kInput, kOutput}) for (int i = 0; i < e->component->getBusCount(kEvent, direction); ++i) e->component->activateBus(kEvent, direction, i, false);
-    ProcessSetup setup{}; setup.processMode = kOffline; setup.symbolicSampleSize = kSample32; setup.maxSamplesPerBlock = 512; setup.sampleRate = rate;
+    ProcessSetup setup{}; setup.processMode = mode; setup.symbolicSampleSize = kSample32; setup.maxSamplesPerBlock = 512; setup.sampleRate = rate;
     if (e->processor->setupProcessing(setup) != kResultOk || e->component->setActive(true) != kResultOk) return 0;
     e->active = true; if (e->processor->setProcessing(true) != kResultOk) return 0;
-    e->processing = true; e->rate = rate; return 1;
+    e->processing = true; e->rate = rate; e->mode = mode; return 1;
 }
+int32_t clap_vst3_prepare(ClapVST3Effect effect, double rate) { return prepare(effect, rate, kOffline); }
+int32_t clap_vst3_prepare_live(ClapVST3Effect effect, double rate) { return prepare(effect, rate, kRealtime); }
 uint32_t clap_vst3_latency(ClapVST3Effect e) { return static_cast<Effect *>(e)->processor->getLatencySamples(); }
 uint32_t clap_vst3_tail(ClapVST3Effect e) { return static_cast<Effect *>(e)->processor->getTailSamples(); }
 int32_t clap_vst3_process(ClapVST3Effect effect, float *left, float *right, int32_t frames, const uint32_t *ids, const double *values, int32_t count) {
@@ -219,7 +223,7 @@ int32_t clap_vst3_process(ClapVST3Effect effect, float *left, float *right, int3
     Changes changes; changes.queues.reserve(count); for (int i = 0; i < count; ++i) changes.queues.emplace_back(ids[i], values[i]);
     ProcessContext context{}; context.sampleRate = e->rate; context.projectTimeSamples = e->position; context.tempo = 120; context.timeSigNumerator = context.timeSigDenominator = 4;
     context.state = ProcessContext::kPlaying | ProcessContext::kTempoValid | ProcessContext::kTimeSigValid;
-    ProcessData data; data.processMode = kOffline; data.symbolicSampleSize = kSample32; data.numSamples = frames; data.numInputs = static_cast<int32>(in.size()); data.numOutputs = static_cast<int32>(out.size());
+    ProcessData data; data.processMode = e->mode; data.symbolicSampleSize = kSample32; data.numSamples = frames; data.numInputs = static_cast<int32>(in.size()); data.numOutputs = static_cast<int32>(out.size());
     data.inputs = in.data(); data.outputs = out.data(); data.inputParameterChanges = &changes; data.processContext = &context;
     if (e->processor->process(data) != kResultOk) return 0;
     memcpy(left, outputL, frames * sizeof(float)); memcpy(right, outputR, frames * sizeof(float)); e->position += frames; return 1;

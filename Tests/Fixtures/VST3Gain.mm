@@ -55,10 +55,18 @@ struct Gain : IComponent, IAudioProcessor, IEditController {
     tresult PLUGIN_API getBusArrangement(BusDirection, int32, SpeakerArrangement& a) override { a = SpeakerArr::kStereo; return kResultOk; }
     tresult PLUGIN_API canProcessSampleSize(int32 s) override { return s == kSample32 ? kResultOk : kResultFalse; }
     uint32 PLUGIN_API getLatencySamples() override { return 0; }
-    tresult PLUGIN_API setupProcessing(ProcessSetup&) override { return kResultOk; }
+    tresult PLUGIN_API setupProcessing(ProcessSetup& setup) override {
+#ifdef CLAP_REALTIME_ONLY
+        if (setup.processMode != kRealtime) return kResultFalse;
+#endif
+        return kResultOk;
+    }
     tresult PLUGIN_API setProcessing(TBool) override { return kResultOk; }
     uint32 PLUGIN_API getTailSamples() override { return 0; }
     tresult PLUGIN_API process(ProcessData& d) override {
+#ifdef CLAP_REALTIME_ONLY
+        if (d.processMode != kRealtime) return kResultFalse;
+#endif
         if (d.inputParameterChanges && d.inputParameterChanges->getParameterCount()) {
             auto q = d.inputParameterChanges->getParameterData(0); int32 offset; q->getPoint(0,offset,gain);
         }

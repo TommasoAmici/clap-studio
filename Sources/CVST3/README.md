@@ -34,3 +34,12 @@ open until the user closes their window. Closing captures settings; cancelling
 kills the session and discards its changes. `VST3Process` supervises each
 Process on one DispatchQueue worker because Foundation launch and wait must
 use the same thread’s run loop.
+
+The live audition helper keeps the processors warm, processes 512-frame blocks
+in real-time mode and queues about 40 ms rather than rendering a complete WAV.
+The helper's serial run loop owns controller and bounded processing calls;
+source decoding and trim/edit DSP run detached. Native editors borrow those
+same processors, so their parameter changes reach the next queued blocks.
+Ordered commands and status files live in a private scratch directory. A
+main-loop heartbeat gives the supervisor a 30-second inactivity deadline.
+Replacing a chain cancels and reaps its old helper; the app process never owns plug-in pointers.
