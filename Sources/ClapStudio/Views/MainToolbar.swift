@@ -10,12 +10,15 @@ struct MainToolbar: ToolbarContent {
         // The project button's text would otherwise read as part of the icon buttons beside it.
         if #available(macOS 26.0, *) { ToolbarSpacer(.fixed) }
         ToolbarItemGroup {
-            ModelToggle("Match Loudness", systemImage: "dial.medium", isOn: \.project.matchLoudness,
-                        help: "Match preview loudness, so quiet and loud samples can be compared")
             ModelToggle("Drum Machine", systemImage: "square.grid.4x3.fill", isOn: \.showDrums,
                         help: "Show the drum machine")
             ModelToggle("Melody", systemImage: "pianokeys", isOn: \.showMelody,
                         help: "Show the melody: a piano roll that plays with the drum machine")
+        }
+        if #available(macOS 26.0, *) { ToolbarSpacer(.fixed) }
+        ToolbarItemGroup {
+            ModelToggle("Match Loudness", systemImage: "dial.medium", isOn: \.project.matchLoudness,
+                        help: "Match preview loudness, so quiet and loud samples can be compared")
             ModelToggle("Autoplay", systemImage: "speaker.wave.2", isOn: \.autoplay,
                         help: "Play a sample when it is selected")
         }

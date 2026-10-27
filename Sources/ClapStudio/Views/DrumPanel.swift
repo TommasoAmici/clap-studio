@@ -129,6 +129,11 @@ struct DrumPanel: View {
             .disabled(model.drumPattern.tracks.isEmpty)
             .help(model.drumPlaying ? "Stop the pattern" : "Play the pattern in a loop")
             Text("Drum machine").font(.caption.bold()).lineLimit(1).fixedSize()
+            Button { model.addToDrums(model.actionTargets) } label: { Label("Add Selected", systemImage: "plus") }
+                .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
+                .help("Add the selected sample to the drum machine")
+            Button("Open MIDI…") { model.chooseMidiFile(forDrums: true) }
+                .help("Replace the drum pattern with the notes of a MIDI file")
             Spacer()
             lengthControl
             Button("Clear Steps") { model.drumPattern.clearHits() }
@@ -156,7 +161,13 @@ struct DrumPanel: View {
             }
             .help("50% is straight. Higher pushes every second step late, lower pulls it early. Double-click the value to reset.")
             Spacer()
-            VolumeControl()
+            if model.squidEnabled {
+                Button("Send to Squid…") { model.openSquidExport(ids: model.drumPattern.tracks.map(\.sampleID)) }
+                    .disabled(model.drumPattern.tracks.isEmpty)
+                    .help("Send these sounds to a Squid Salmple USB stick")
+            }
+            Button("Remove All Tracks") { model.drumMachine.stop(); model.drumPattern = DrumPattern(swing: model.drumPattern.swing) }
+                .disabled(model.drumPattern.tracks.isEmpty)
         }
         .controlSize(.small)
         .padding(.horizontal, 12).padding(.bottom, 6)
@@ -170,27 +181,6 @@ private extension DrumVariation {
         case .medium: return "Balanced"
         case .wide: return "Adventurous"
         }
-    }
-}
-
-/// The drum machine's buttons. They live in the status bar while the drum machine is open.
-struct DrumActions: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button("Add Selected") { model.addToDrums(model.actionTargets) }
-                .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
-            if model.squidEnabled {
-                Button("Send to Squid…") { model.openSquidExport(ids: model.drumPattern.tracks.map(\.sampleID)) }
-                    .disabled(model.drumPattern.tracks.isEmpty)
-                    .help("Send these sounds to a Squid Salmple USB stick")
-            }
-            Button("Remove All") { model.drumMachine.stop(); model.drumPattern = DrumPattern(swing: model.drumPattern.swing) }
-                .disabled(model.drumPattern.tracks.isEmpty)
-        }
-        .controlSize(.small)
-        .lineLimit(1).fixedSize()
     }
 }
 

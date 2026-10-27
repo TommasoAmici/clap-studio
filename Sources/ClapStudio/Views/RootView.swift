@@ -200,8 +200,7 @@ struct StatusBar: View {
                 Label("Basic similarity (no neural model)", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange).help(model.modelNote)
             }
-            // The drum machine's buttons and the volume trade places while the drum machine is open.
-            if model.showDrums { DrumActions() } else { VolumeControl() }
+            VolumeControl()
         }
         .font(.callout)
         .padding(.horizontal, 12).padding(.vertical, 6)
