@@ -62,6 +62,10 @@ keep standard system materials.
 
 ## Updates
 
+Read [the changelog](CHANGELOG.md) for features, fixes, and other changes in each
+version. GitHub release pages use the same notes, including pending changes when
+a newer build is published before a version bump.
+
 The app bundle checks GitHub for a newer release every time you open it and, while it
 is running, once a day.
 When one is available, a pop-up offers **Update**, **Later**, or **Skip This

@@ -19,13 +19,14 @@ A push to `main` runs `.github/workflows/release.yml` and publishes a release, s
    - only `fix`, `docs`, `test`, `chore`: patch, `0.19.0` becomes `0.19.1`
    - the user named a specific number: use it
    - nothing since the last bump: stop, there is nothing to release
-5. **Bump.** Change only `CFBundleShortVersionString` in `scripts/bundle.sh`. Leave `CFBundleVersion` alone.
-6. **Commit** on its own, nothing else in it: `chore(release): bump to X.Y.Z` (the fixed subject from `AGENTS.md`, longer than 25 characters on purpose; no body needed). Screenshots that step 3 refreshed and that changed files under `media/` go into this commit, since they are the release's own; when the run changed none, the commit holds only the version bump.
-7. **Push** with `git push origin main`. Never force-push, never skip hooks. If the push is rejected, stop and report; do not rebase or merge on your own.
-8. **Report** the new version, the commits it releases (one line each), and that the release workflow has started: `gh run list --workflow release.yml --limit 1`.
+5. **Prepare the changelog.** Read `CHANGELOG.md` and the commits from step 4. Describe features, fixes, and other changes a musician will notice in plain English. Add any missing changes to `## Unreleased`, then move those entries into a new `## X.Y.Z` section below an empty `## Unreleased`; preserve earlier sections. Check the new version's notes with `python3 scripts/release-notes.py X.Y.Z` and `python3 scripts/test-release-notes.py`. Commit the changelog separately as `docs: release notes`.
+6. **Bump.** Change only `CFBundleShortVersionString` in `scripts/bundle.sh`. Leave `CFBundleVersion` alone.
+7. **Commit** on its own, nothing else in it: `chore(release): bump to X.Y.Z` (the fixed subject from `AGENTS.md`, longer than 25 characters on purpose; no body needed). Screenshots that step 3 refreshed and that changed files under `media/` go into this commit, since they are the release's own; when the run changed none, the commit holds only the version bump.
+8. **Push** with `git push origin main`. Never force-push, never skip hooks. If the push is rejected, stop and report; do not rebase or merge on your own.
+9. **Report** the new version, the commits it releases (one line each), and that the release workflow has started: `gh run list --workflow release.yml --limit 1`.
 
 ## Notes
 
-- Release notes come from the workflow, not from this skill.
+- The workflow publishes `CHANGELOG.md` notes for the app's version. Pending entries are also included when a push publishes another build before a version bump.
 - The website and social images live in `media/` and deploy with the next push to `main`; step 3 keeps them fresh before the release commit.
 - Files under `ROADMAP/` are not touched here: items are ticked off with the feature that ships them.
