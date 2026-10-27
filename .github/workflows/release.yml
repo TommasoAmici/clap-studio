@@ -104,6 +104,7 @@ jobs:
           codesign --verify --deep --strict "$APP"
           echo "tag=v${BASE_VERSION}-build.${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "asset=ClapStudio-${BASE_VERSION}-build.${BUILD_NUMBER}-macos.zip" >> "$GITHUB_OUTPUT"
+          echo "version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Package app
         env:
@@ -118,13 +119,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
           ASSET: ${{ steps.version.outputs.asset }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          NOTES="The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run \`xattr -dr com.apple.quarantine ClapStudio.app\`. This build bundles the LAION-CLAP model (Apache-2.0)."
+          python3 scripts/release-notes.py "$VERSION" > release-notes.md
+          cat >> release-notes.md <<'NOTES'
+
+          ## Installing this build
+
+          The app is ad-hoc signed, not notarized. After unzipping, right-click the app and choose Open the first time, or run `xattr -dr com.apple.quarantine ClapStudio.app`. This build bundles the LAION-CLAP model (Apache-2.0).
+          NOTES
           if [ "$NON_COMMERCIAL" != "0" ]; then
-            NOTES="$NOTES It also bundles BirdNET V2.4 (CC BY-NC-SA 4.0): non-commercial use only."
+            printf '\nIt also bundles BirdNET V2.4 (CC BY-NC-SA 4.0): non-commercial use only.\n' >> release-notes.md
           fi
           gh release create "$TAG" "$ASSET" "$ASSET.sha256" \
             --target "$GITHUB_SHA" \
             --title "Clap Studio $TAG" \
-            --generate-notes \
-            --notes "$NOTES"
+            --notes-file release-notes.md

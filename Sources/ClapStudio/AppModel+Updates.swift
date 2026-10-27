@@ -82,6 +82,7 @@ extension AppModel {
         let canInstall = update.download != nil
         let action = canInstall ? "Update downloads and installs the app in Applications. You can restart when it is ready." : "Open its GitHub release page to download the app and read what changed."
         alert.informativeText = "Version \(update.version.version) (build \(update.version.build)) is ready. \(action) Your samples and library are kept."
+        alert.accessoryView = UpdateReleaseNotes.view(for: update.releaseNotes)
         alert.addButton(withTitle: canInstall ? "Update" : "Open Release")
         alert.addButton(withTitle: "Later")
         alert.addButton(withTitle: "Skip This Update")
