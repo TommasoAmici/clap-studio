@@ -47,6 +47,7 @@ struct RootView: View {
                 .toolbar { ToolbarItem { InspectorToggle(isShown: $showInspector) } }
         }
         #if DEBUG
+        .modifier(DebugSnapshotAccessibility())
         .task { await DebugSnapshot.runIfRequested(model: model) }
         #endif
         .onPreferenceChange(DropZoneFrames.self) { model.dropZones = $0 }

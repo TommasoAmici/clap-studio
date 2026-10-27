@@ -31,6 +31,7 @@ struct PlacesPanel: View {
             }
         }
         .mapStyle(.standard(elevation: .flat))
+        .modifier(ExtendCanvasBackground())
         .overlay(alignment: .topLeading) { summary }
         .onAppear(perform: fit)
         .onChange(of: model.placesRevision) { fit() }
@@ -60,11 +61,12 @@ struct PlacesPanel: View {
             if model.placeSelection != nil {
                 Button("Show All") { model.placeSelectionID = nil }.controlSize(.small)
             }
-            Button { fit() } label: { Image(systemName: "scope") }
+            Button { fit() } label: { Label("Fit Every Pin", systemImage: "scope") }
+                .labelStyle(.iconOnly)
                 .buttonStyle(.borderless).help("Fit every pin")
         }
         .padding(.horizontal, 10).padding(.vertical, 5)
-        .background(.regularMaterial, in: Capsule())
+        .floatingControls(in: Capsule())
         .padding(10)
     }
 

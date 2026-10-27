@@ -1,10 +1,11 @@
 #!/bin/sh
 # Renders the app's window to a PNG (toolbar included), whatever Space the window is on. Most views need no
-# screen capture permission; --update uses existing access to capture native alert contents.
+# screen capture permission; --native and --update use existing access for system-rendered layers.
 # Builds a debug app, launches it, waits for the library to load and quits.
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
 #     --update  show the update prompt using a local example release (no network; needs existing screen capture access)
 #     --update-restart  show the restart prompt without installing or restarting (needs existing screen capture access)
+#     --native  capture native glass layers at the display's resolution (needs existing screen capture access)
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
 #     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
@@ -21,6 +22,11 @@
 #     --height PX  resize the window to this height in points
 #     --scale N  render bitmap captures at N pixels per point (1–4); --update uses the display's resolution
 #     --appearance light|dark  force this app's appearance without changing macOS settings
+#     --standard-effects  exercise custom panels' glass path (native controls still follow macOS settings)
+#     --reduce-transparency  exercise custom panels' opaque fallback without changing macOS settings
+#     --increase-contrast  exercise custom panels' high-contrast fallback without changing macOS settings
+#     --reduce-motion  disable snapshot animations without changing macOS settings
+#     --map-selection  with --map: select three dots to show the floating selection actions
 #     --media  reset the drawers and choose suitable sounds from a seeded media library;
 #              with --usb, show its scratch demonstration Squid stick instead of a connected drive
 #     --animate  write a silent looping GIF of live drums/melody playback (give it a .gif output path)
@@ -39,9 +45,11 @@ DELAY=9
 while [ $# -gt 0 ]; do
   case "$1" in
     --update) export CLAP_SNAPSHOT_UPDATE=1 ;;
+    --native) export CLAP_SNAPSHOT_NATIVE=1 ;;
     --update-restart) export CLAP_SNAPSHOT_UPDATE=1; export CLAP_SNAPSHOT_UPDATE_RESTART=1 ;;
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
+    --map-selection) export CLAP_SNAPSHOT_MAP_SELECTION=1 ;;
     --edit) export CLAP_SNAPSHOT_EDIT=1 ;;
     --usb) shift; export CLAP_SNAPSHOT_USB="$1" ;;
     --like) shift; export CLAP_SNAPSHOT_LIKE="$1" ;;
@@ -60,6 +68,13 @@ while [ $# -gt 0 ]; do
     --appearance) shift
       case "$1" in light|dark) export CLAP_SNAPSHOT_APPEARANCE="$1" ;;
         *) echo "appearance must be light or dark" >&2; exit 2 ;; esac ;;
+    --standard-effects)
+      export CLAP_SNAPSHOT_REDUCE_TRANSPARENCY=0
+      export CLAP_SNAPSHOT_INCREASE_CONTRAST=0
+      export CLAP_SNAPSHOT_REDUCE_MOTION=0 ;;
+    --reduce-transparency) export CLAP_SNAPSHOT_REDUCE_TRANSPARENCY=1 ;;
+    --increase-contrast) export CLAP_SNAPSHOT_INCREASE_CONTRAST=1 ;;
+    --reduce-motion) export CLAP_SNAPSHOT_REDUCE_MOTION=1 ;;
     --media) export CLAP_SNAPSHOT_MEDIA=1 ;;
     --animate) export CLAP_SNAPSHOT_ANIMATE=1 ;;
     --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;

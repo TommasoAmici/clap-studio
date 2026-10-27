@@ -7,7 +7,6 @@ struct FilterBar: View {
     @State private var showTempo = false
 
     var body: some View {
-        @Bindable var model = model
         VStack(spacing: 0) {
             filters
             if let example = model.exampleQuery { ExampleBar(example: example) }
@@ -16,13 +15,38 @@ struct FilterBar: View {
     }
 
     private var filters: some View {
-        @Bindable var model = model
-        return HStack(spacing: 10) {
-            Picker("Type", selection: $model.descriptorFilter.kind) {
-                ForEach(DescriptorFilter.Kind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                typePicker
+                propertyFilters
+                RecordButton()
+                Spacer(minLength: 0)
+                listActions
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 300)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    typePicker
+                    RecordButton()
+                    Spacer(minLength: 0)
+                    listActions
+                }
+                propertyFilters
+            }
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12).padding(.vertical, 8)
+    }
 
+    private var typePicker: some View {
+        @Bindable var model = model
+        return Picker("Type", selection: $model.descriptorFilter.kind) {
+            ForEach(DescriptorFilter.Kind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+        }
+        .pickerStyle(.segmented).labelsHidden().frame(width: 300)
+    }
+
+    private var propertyFilters: some View {
+        HStack(spacing: 10) {
             Button { showTempo.toggle() } label: {
                 FilterLabel(tempoTitle, systemImage: "metronome")
             }
@@ -41,9 +65,12 @@ struct FilterBar: View {
 
             CategoryFilterMenu()
             MoodFilterMenu()
+        }
+        .fixedSize()
+    }
 
-            RecordButton()
-            Spacer()
+    private var listActions: some View {
+        HStack(spacing: 10) {
             if model.viewMode == .library {
                 HStack(spacing: 2) {
                     Button { model.shuffleList() } label: { Label("Shuffle", systemImage: "shuffle") }
@@ -51,8 +78,8 @@ struct FilterBar: View {
                         .tint(model.shuffleSeed == nil ? nil : .accentColor)
                         .help("Put the list in a random order (⌘R). Press again for another one.")
                     if model.shuffleSeed != nil {
-                        Button { model.endShuffle() } label: { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.borderless).help("Back to sorted order")
+                        Button { model.endShuffle() } label: { Label("Back to Sorted Order", systemImage: "xmark.circle.fill") }
+                            .labelStyle(.iconOnly).buttonStyle(.borderless).help("Back to sorted order")
                     }
                 }
             }
@@ -60,8 +87,7 @@ struct FilterBar: View {
                 Button("Clear") { model.descriptorFilter.reset() }.buttonStyle(.borderless)
             }
         }
-        .controlSize(.small)
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .fixedSize()
     }
 
     private var tempoTitle: String {
@@ -190,13 +216,14 @@ struct RecordButton: View {
                 .frame(width: 60, height: 6)
                 Text(String(format: "%.1f s", model.recordingSeconds)).monospacedDigit().foregroundStyle(.secondary)
                 Button("Find Similar") { model.finishRecording() }
-                Button { model.cancelRecording() } label: { Image(systemName: "xmark.circle.fill") }
-                    .buttonStyle(.borderless).help("Throw the recording away")
+                Button { model.cancelRecording() } label: { Label("Discard Recording", systemImage: "xmark.circle.fill") }
+                    .labelStyle(.iconOnly).buttonStyle(.borderless).help("Throw the recording away")
             }
             .padding(.horizontal, 8).padding(.vertical, 2)
             .background(Color.red.opacity(0.15), in: Capsule())
         } else {
-            Button { model.toggleRecording() } label: { Image(systemName: "mic") }
+            Button { model.toggleRecording() } label: { Label("Find Sounds Using the Microphone", systemImage: "mic") }
+                .labelStyle(.iconOnly)
                 .disabled(model.recordingStarting)
                 .help("Make a sound into the microphone (up to 10 seconds) and find library sounds like it")
         }

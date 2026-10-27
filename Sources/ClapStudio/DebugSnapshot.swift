@@ -83,6 +83,9 @@ enum DebugSnapshot {
             if env["CLAP_SNAPSHOT_LOG"] == "1" { NSLog("SNAPSHOT-ORDER %@", model.visible.prefix(8).map(\.name).joined(separator: ", ")) }
         }
         if env["CLAP_SNAPSHOT_SELECT"] == "1" { model.select(model.visible.first?.id, play: false) }
+        if env["CLAP_SNAPSHOT_MAP_SELECTION"] == "1", model.viewMode == .map, let snapshot = model.snapshot {
+            model.selectOnMap(rows: Array(0..<min(3, snapshot.index.count)))
+        }
         if env["CLAP_SNAPSHOT_EDIT"] == "1" { model.setEdit(SampleEdit(reverse: true, gainDB: -3, lowPassHz: 4000), audition: false) }
         if let usb = env["CLAP_SNAPSHOT_USB"], let drive = model.usbDrives.first {
             // "NAME" is a set ("default" for the first one), "NAME/2" is that set's bank 2.
@@ -189,8 +192,9 @@ enum DebugSnapshot {
         guard let main = NSApp.windows.first(where: \.isVisible) else { return nil }
         let composeSheet = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MEDIA"] == "1" && main.attachedSheet != nil
         let window = composeSheet ? main : (main.attachedSheet ?? main)
-        // Native alert text and buttons can be absent from bitmap caching, leaving only the background.
-        if ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_UPDATE"] == "1" {
+        // Native glass layers and alert contents can be absent from bitmap caching.
+        let env = ProcessInfo.processInfo.environment
+        if env["CLAP_SNAPSHOT_UPDATE"] == "1" || env["CLAP_SNAPSHOT_NATIVE"] == "1" {
             return nativeWindowImage(window)
         }
         guard let view = window.contentView?.superview else { return nil }
@@ -226,10 +230,10 @@ enum DebugSnapshot {
         return rep.representation(using: .png, properties: [:])
     }
 
-    /// Uses existing screen capture permission for the native alert; never asks for new access.
+    /// Uses existing screen capture permission for system-rendered layers; never asks for new access.
     private static func nativeWindowImage(_ window: NSWindow) -> Data? {
         guard CGPreflightScreenCaptureAccess() else {
-            NSLog("The native update prompt snapshot needs existing macOS screen capture access.")
+            NSLog("A native window snapshot needs existing macOS screen capture access.")
             return nil
         }
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("clap-alert-\(UUID()).png")

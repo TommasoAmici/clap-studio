@@ -14,6 +14,13 @@ The window uses native macOS toolbars, a sidebar and an inspector. On macOS 26
 and later, the sidebar keeps the system's glass and scroll edge appearance.
 Reduce Motion disables the inspector toggle's animation.
 
+Floating controls on Map and Places use Liquid Glass on macOS 26 and later,
+and the map's colours extend beneath the sidebar and inspector. Legends,
+waveforms, sample lists and sequencers keep readable content backgrounds.
+Filters and map controls wrap when space is tight. Reduce Transparency or
+Increase Contrast gives floating panels an opaque background. macOS 14 and 15
+keep standard system materials.
+
 - **Similarity search**: select a sample and see the closest-sounding ones (a hi-hat finds other hi-hats).
 - **Explore map**: every sample as a dot, laid out by similarity and coloured by cluster. Clusters are named after what is in them (for example "Snare · Bright" or "Hi-hat & Cymbal"); hover a legend row for the breakdown. Hover a dot to hear it, click to select, drag it out into Ableton. Pan with a drag or trackpad scroll, zoom with pinch or mouse wheel, double-click empty space to refit.
 - **Shuffle** (⌘R, Library tab): puts the list in a random order so browsing doesn't always start with the same samples. Press again for another order; sorting by a column, or ✕ next to the button, goes back. (Rescan Library is ⇧⌘R.)
@@ -138,6 +145,14 @@ This skips the optional model checks; it does not verify those models or change 
 `scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; `--update-restart` shows the restart prompt without installing or restarting. Capturing these native macOS alerts needs existing screen capture permission.
 
 `scripts/media-kit.sh` regenerates the website and social images in [`media/`](media/README.md): Library, Map, Drum Machine, Melody, drums with melody together, Places, and Squid Salmple banks, Pool and Send sheet, each in light and dark appearance at 3200 × 2000 pixels. Two silent looping GIFs show drums and melody playing together at 1600 × 1000 pixels. It creates 420 original synthetic samples in a temporary library, including 36 ambience sounds at demonstration places around the world, and copies 54 of them to a demonstration Squid stick inside the same temporary folder. No connected USB drive is needed or used for these captures. A separate demo app preference domain keeps its settings apart, and the temporary files are removed when finished. No personal samples or neural models are needed. Pass an output folder to preview a new set elsewhere.
+
+Snapshot options `--standard-effects`, `--reduce-transparency` and
+`--increase-contrast` exercise the custom floating panels' glass and opaque
+paths without changing your Mac's settings. Native controls still honour
+those settings. `--reduce-motion` disables snapshot animations, and
+`--map-selection` with `--map` shows the selection actions. Bitmap captures
+omit native glass layers; `--native` includes them at the display's
+resolution using existing screen capture permission.
 
 The static landing page lives in [`website/`](website/README.md), with screenshots that follow the browser's light or dark appearance, a Drums/Melody/Together preview, and a section for ALM Squid Salmple banks, Pool folders and export. Shared links show a 1200 × 630 preview card with the app icon and sound map. Run `scripts/website.sh` to make a self-contained `build/website` folder ready for a static host, or serve the repository root and open `/website/` to preview the source. The export adds the current app version to image URLs so browsers refresh screenshots after a release. Set `WEBSITE_URL` to the public site address when exporting for correct link previews. It needs no package install or runtime service.
 

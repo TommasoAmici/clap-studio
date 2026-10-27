@@ -82,16 +82,22 @@ struct MapPanel: View {
                 MapPlaceholder()
             }
         }
+        .modifier(ExtendCanvasBackground())
         .overlay(alignment: .topLeading) { if model.snapshot != nil { MapControls().padding(12) } }
-        .overlay(alignment: .bottomLeading) { if model.snapshot != nil { ClusterLegend().padding(12) } }
         .overlay(alignment: .topTrailing) { if model.searchPending { SearchingBadge().padding(12) } }
         .overlay(alignment: .bottom) {
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
+                HStack(alignment: .bottom, spacing: 12) {
+                    if model.snapshot != nil { ClusterLegend() }
+                    Spacer(minLength: 0)
+                    HoverCaption()
+                    Spacer(minLength: 0)
+                }
                 if !model.mapSelection.isEmpty { MapSelectionBar() }
-                HoverCaption()
             }
-            .padding(.bottom, 12)
+            .padding(12)
         }
+        .modifier(FloatingControlsContainer())
     }
 }
 
@@ -113,14 +119,38 @@ private struct MapControls: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                playbackControls
+                Divider().frame(height: 16)
+                layoutControls
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                playbackControls
+                layoutControls
+            }
+        }
+        .font(.callout)
+        .controlSize(.small)
+        .padding(12)
+        .floatingControls(in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var playbackControls: some View {
         @Bindable var model = model
-        HStack(spacing: 12) {
+        return HStack(spacing: 12) {
             Toggle("Hover to play", isOn: $model.hoverPlay).toggleStyle(.switch).controlSize(.small)
             Divider().frame(height: 16)
             Stepper(value: Binding(get: { model.clusterCount }, set: { model.setClusterCount($0) }), in: 2...Palette.clusterLimit) {
                 Text("\(model.clusterCount) clusters").monospacedDigit()
             }
-            Divider().frame(height: 16)
+        }
+        .fixedSize()
+    }
+
+    private var layoutControls: some View {
+        @Bindable var model = model
+        return HStack(spacing: 12) {
             Menu {
                 Picker("Colour by", selection: $model.mapColorMode) {
                     ForEach(MapColorMode.allCases) { Text($0.rawValue).tag($0) }
@@ -145,9 +175,7 @@ private struct MapControls: View {
             Button("Re-layout") { model.relayout() }.disabled(model.isIndexing)
                 .help("Recompute the whole map. Positions otherwise stay stable between launches.")
         }
-        .font(.callout)
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .fixedSize()
     }
 }
 
@@ -186,7 +214,7 @@ private struct ClusterLegend: View {
         }
         .padding(10)
         .fixedSize()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .floatingInformation(in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var clusters: some View {
@@ -206,7 +234,7 @@ private struct ClusterLegend: View {
         }
         .frame(maxWidth: 300, maxHeight: 190)
         .fixedSize(horizontal: true, vertical: false)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .floatingInformation(in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -216,11 +244,11 @@ private struct HoverCaption: View {
     var body: some View {
         if let row = model.hoverRow, let id = model.snapshot?.index.ids[row], let s = model.sampleByID[id] {
             VStack(spacing: 2) {
-                Text(s.name).font(.callout.bold())
-                Text(s.folder.isEmpty ? " " : s.folder).font(.caption).foregroundStyle(.secondary)
+                Text(s.name).font(.callout.bold()).lineLimit(1)
+                Text(s.folder.isEmpty ? " " : s.folder).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .floatingInformation(in: RoundedRectangle(cornerRadius: 8))
             .allowsHitTesting(false)
         }
     }
@@ -243,10 +271,11 @@ private struct MapSelectionBar: View {
             Button("Favorite") { model.toggleFavorite(model.mapSelection) }
             Button("Tag…") { model.tagPromptTargets = model.mapSelection }
             Button("Hide") { model.hide(model.mapSelection); model.clearMapSelection() }
-            Button { model.clearMapSelection() } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.borderless)
+            Button { model.clearMapSelection() } label: { Label("Clear Selection", systemImage: "xmark") }
+                .labelStyle(.iconOnly).buttonStyle(.borderless).help("Clear the map selection")
         }
         .controlSize(.small)
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(.regularMaterial, in: Capsule())
+        .floatingControls(in: Capsule())
     }
 }
