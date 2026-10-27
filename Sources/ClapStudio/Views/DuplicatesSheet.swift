@@ -92,11 +92,12 @@ struct DuplicatesSheet: View {
 
     private var footer: some View {
         HStack {
-            Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+            Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
             Spacer()
             Button("Hide \(toHide.count) Copies") {
                 model.hide(Array(toHide))
                 toHide = []
+                dismiss()
             }
             .keyboardShortcut(.defaultAction)
             .disabled(toHide.isEmpty)

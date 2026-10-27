@@ -170,6 +170,7 @@ private struct CueRow: View {
     let cue: CuePoint
     let number: Int
     @State private var label = ""
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 6) {
@@ -182,7 +183,8 @@ private struct CueRow: View {
             Text(Format.clock(model.seconds(for: cue))).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             TextField("Label", text: $label)
                 .textFieldStyle(.plain)
-                .onSubmit { model.renameCue(cue.id, to: label) }
+                .focused($focused)
+                .onSubmit { commit() }
             Image(systemName: cue.fileSynced ? "doc.badge.checkmark" : "internaldrive")
                 .foregroundStyle(cue.fileSynced ? Color.green : Color.orange).imageScale(.small)
                 .help(cue.fileSynced ? "Stored in the file" : "App only")
@@ -191,6 +193,12 @@ private struct CueRow: View {
         }
         .onAppear { label = cue.label }
         .onChange(of: cue.label) { _, new in label = new }
+        .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }
+    }
+
+    private func commit() {
+        guard label != cue.label else { return }
+        model.renameCue(cue.id, to: label)
     }
 }
 

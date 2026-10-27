@@ -24,7 +24,7 @@ struct KitSheet: View {
             }
             Divider()
             HStack {
-                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("Try in Drum Machine") { model.loadKitIntoDrums(); dismiss() }
                 Button("Save as Collection…") { model.newCollectionSeed = model.kitSamples.map(\.id); dismiss() }

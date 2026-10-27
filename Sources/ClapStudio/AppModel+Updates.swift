@@ -43,7 +43,7 @@ extension AppModel {
                         await self.presentUpdate(update)
                     }
                 } else if manual {
-                    self.errorMessage = "Clap Studio is up to date."
+                    self.errorMessage = "Clap Studio \(installed.version) (build \(installed.build)) is the latest version available."
                 }
             } catch {
                 guard !Task.isCancelled else { return }
