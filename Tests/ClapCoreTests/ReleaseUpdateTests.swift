@@ -64,6 +64,24 @@ import Testing
         }
     }
 
+    @Test func releaseNotesKeepTheirWordsAndParagraphs() throws {
+        let installed = try #require(ReleaseVersion(version: "0.22.0", build: "105"))
+        let body = "## Added\n\n- Preview **VST3** effects.\n- Keep the musician’s settings."
+        let update = try ReleaseChecker.update(data: release(body: " \n" + body + "\n "),
+                                               statusCode: 200, installed: installed)
+        #expect(update?.releaseNotes == body,
+                "Release notes keep Markdown and Unicode while removing blank padding")
+    }
+
+    @Test func olderReleasesWithoutNotesStillOfferUpdates() throws {
+        let installed = try #require(ReleaseVersion(version: "0.22.0", build: "105"))
+        for data in [release(), release(body: " \n\t "), release(body: NSNull())] {
+            let update = try #require(try ReleaseChecker.update(data: data, statusCode: 200, installed: installed))
+            #expect(update.releaseNotes.isEmpty,
+                    "Missing notes cannot hide an otherwise valid app update")
+        }
+    }
+
     @Test func automaticChecksAreAtMostDailyButRecoverFromClockChanges() {
         let now = Date(timeIntervalSince1970: 200_000)
         #expect(UpdateSchedule.shouldCheck(now: now, lastCheck: nil))
@@ -81,8 +99,10 @@ import Testing
     }
 
     private func release(tag: String = "v0.22.0-build.106", draft: Bool = false,
-                         prerelease: Bool = false, url: String? = nil) -> Data {
-        try! JSONSerialization.data(withJSONObject: ["tag_name": tag, "draft": draft, "prerelease": prerelease,
-            "html_url": url ?? "https://github.com/TommasoAmici/clap-studio/releases/tag/\(tag)"])
+                         prerelease: Bool = false, url: String? = nil, body: Any? = nil) -> Data {
+        var object: [String: Any] = ["tag_name": tag, "draft": draft, "prerelease": prerelease,
+            "html_url": url ?? "https://github.com/TommasoAmici/clap-studio/releases/tag/\(tag)"]
+        if let body { object["body"] = body }
+        return try! JSONSerialization.data(withJSONObject: object)
     }
 }

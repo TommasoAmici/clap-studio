@@ -11,6 +11,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_DELAY=9          seconds to wait for the library to load (default 9)
 ///   CLAP_SNAPSHOT_UPDATE=1         show an example update prompt without contacting GitHub
 ///   CLAP_SNAPSHOT_UPDATE_RESTART=1 show the restart prompt without installing or restarting
+///   CLAP_SNAPSHOT_UPDATE_NOTES=long|none exercise scrolling or missing release notes
 ///   CLAP_SNAPSHOT_UPDATE_PROGRESS=download|install show update activity without downloading or installing
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
@@ -123,7 +124,14 @@ enum DebugSnapshot {
         } else if env["CLAP_SNAPSHOT_UPDATE"] == "1", let window = NSApp.windows.first(where: \.isVisible),
            let installed = ReleaseVersion(version: "0.0.0", build: "0") {
             let fixture = Data(#"{"tag_name":"v99.0.0-build.1","html_url":"https://github.com/TommasoAmici/clap-studio/releases/tag/v99.0.0-build.1","draft":false,"prerelease":false,"assets":[{"name":"ClapStudio-99.0.0-build.1-macos.zip","browser_download_url":"https://github.com/TommasoAmici/clap-studio/releases/download/v99.0.0-build.1/ClapStudio-99.0.0-build.1-macos.zip","size":100},{"name":"ClapStudio-99.0.0-build.1-macos.zip.sha256","browser_download_url":"https://github.com/TommasoAmici/clap-studio/releases/download/v99.0.0-build.1/ClapStudio-99.0.0-build.1-macos.zip.sha256","size":100}]}"#.utf8)
-            if let update = try? ReleaseChecker.update(data: fixture, statusCode: 200, installed: installed) {
+            var release = (try? JSONSerialization.jsonObject(with: fixture)) as? [String: Any] ?? [:]
+            let exampleNotes = "## Added\n\n- See download activity while an update is installed.\n- Preview and bounce chains of **VST3 effects**.\n\n## Fixed\n\n- Keep preview controls steady while audio plays.\n- Center the empty Effects panel."
+            if env["CLAP_SNAPSHOT_UPDATE_NOTES"] != "none" {
+                release["body"] = exampleNotes + (env["CLAP_SNAPSHOT_UPDATE_NOTES"] == "long"
+                    ? "\n\n## More examples\n\n" + (1...20).map { "- Example note \($0): a longer description checks that release notes stay readable and can scroll while the update buttons remain visible." }.joined(separator: "\n") : "")
+            }
+            if let data = try? JSONSerialization.data(withJSONObject: release),
+               let update = try? ReleaseChecker.update(data: data, statusCode: 200, installed: installed) {
                 model.showUpdatePrompt(update, on: window)
             }
         }
@@ -136,6 +144,16 @@ enum DebugSnapshot {
         }
         if env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" { model.effects.bounce() }
         try? await Task.sleep(for: .seconds(3))
+        if env["CLAP_SNAPSHOT_UPDATE_NOTES"] == "long",
+           let scroll = model.updateAlert?.accessoryView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView,
+           let text = scroll.documentView as? NSTextView {
+            text.scrollToEndOfDocument(nil)
+            guard scroll.contentView.bounds.minY > 0 else {
+                NSLog("Long release notes did not scroll.")
+                NSApp.terminate(nil)
+                return
+            }
+        }
         if media && env["CLAP_SNAPSHOT_USB"] != nil { DebugSnapshotSquid.revealSidebar() }
         let placesOverlay = env["CLAP_SNAPSHOT_PLACES"] == "1" ? await DebugSnapshotPlaces.overlay(model: model, media: media) : nil
         guard env["CLAP_SNAPSHOT_PLACES"] != "1" || placesOverlay != nil else { NSApp.terminate(nil); return }

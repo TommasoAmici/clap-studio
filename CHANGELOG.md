@@ -1,11 +1,12 @@
 # Changelog
 
 Changes for musicians using Clap Studio. Versions group changes made between
-version bumps; GitHub may publish several builds of the same version.
+version bumps; earlier GitHub releases may include several builds of one version.
 
 ## Unreleased
 
 - See a spinner and task description while an app update downloads and installs.
+- Read release notes in the update dialog and a changelog with each version’s changes.
 
 ## 0.28.0
 

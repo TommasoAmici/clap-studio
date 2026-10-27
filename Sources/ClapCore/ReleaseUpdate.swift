@@ -48,6 +48,8 @@ public struct ReleaseUpdate: Equatable, Sendable {
     public let version: ReleaseVersion
     public let pageURL: URL
     public let download: ReleaseDownload?
+    /// The release's own notes; older releases may not have any.
+    public let releaseNotes: String
 }
 
 public enum ReleaseCheckError: Error, LocalizedError {
@@ -103,7 +105,8 @@ public enum ReleaseChecker {
             }
             download = ReleaseDownload(archiveURL: archiveURL, checksumURL: checksumURL, size: archives[0].size)
         }
-        return ReleaseUpdate(tag: release.tag, version: version, pageURL: page, download: download)
+        return ReleaseUpdate(tag: release.tag, version: version, pageURL: page, download: download,
+                             releaseNotes: (release.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private struct GitHubAsset: Decodable {
@@ -119,8 +122,9 @@ public enum ReleaseChecker {
         let draft: Bool
         let prerelease: Bool
         let assets: [GitHubAsset]?
+        let body: String?
         enum CodingKeys: String, CodingKey {
-            case tag = "tag_name", page = "html_url", draft, prerelease, assets
+            case tag = "tag_name", page = "html_url", draft, prerelease, assets, body
         }
     }
 }

@@ -4,6 +4,8 @@
 # Builds a debug app, launches it, waits for the library to load and quits.
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
 #     --update  show the update prompt using a local example release (no network; needs existing screen capture access)
+#     --update-long-notes  show the update prompt with long example notes scrolled to the end
+#     --update-no-notes  show the update prompt for an older release without notes
 #     --update-restart  show the restart prompt without installing or restarting (needs existing screen capture access)
 #     --update-download  show download activity without contacting GitHub
 #     --update-install  show verification and installation activity without installing
@@ -50,6 +52,8 @@ DELAY=9
 while [ $# -gt 0 ]; do
   case "$1" in
     --update) export CLAP_SNAPSHOT_UPDATE=1 ;;
+    --update-long-notes) export CLAP_SNAPSHOT_UPDATE=1; export CLAP_SNAPSHOT_UPDATE_NOTES=long ;;
+    --update-no-notes) export CLAP_SNAPSHOT_UPDATE=1; export CLAP_SNAPSHOT_UPDATE_NOTES=none ;;
     --native) export CLAP_SNAPSHOT_NATIVE=1 ;;
     --update-restart) export CLAP_SNAPSHOT_UPDATE=1; export CLAP_SNAPSHOT_UPDATE_RESTART=1 ;;
     --update-download) export CLAP_SNAPSHOT_UPDATE_PROGRESS=download ;;

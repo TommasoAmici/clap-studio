@@ -27,6 +27,6 @@ A push to `main` runs `.github/workflows/release.yml` and publishes a release, s
 
 ## Notes
 
-- The workflow publishes `CHANGELOG.md` notes for the app's version. Pending entries are also included when a push publishes another build before a version bump.
+- The workflow uses `CHANGELOG.md` notes for the app's version. Its extractor also includes pending entries from the publishing commit, so release preparation moves them into the version section first.
 - The website and social images live in `media/` and deploy with the next push to `main`; step 3 keeps them fresh before the release commit.
 - Files under `ROADMAP/` are not touched here: items are ticked off with the feature that ships them.
