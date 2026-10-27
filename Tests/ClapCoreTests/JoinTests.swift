@@ -27,10 +27,7 @@ import Testing
         #expect(plans.last?.regions.first?.startFrame == 0, "Every output starts with a sound, not silence.")
     }
 
-    @Test func oversizedOrEmptySoundsAndInvalidLimitsAreRejected() {
-        #expect(throws: JoinError.self) {
-            try JoinPlanner.plan(frameCounts: [44_101], settings: JoinSettings(maxSeconds: 1))
-        }
+    @Test func emptySoundsAndInvalidLimitsAreRejected() {
         for settings in [
             JoinSettings(maxSeconds: .nan), JoinSettings(maxSeconds: .infinity),
             JoinSettings(maxSeconds: 0), JoinSettings(silenceSeconds: -1),
@@ -41,5 +38,31 @@ import Testing
             #expect(throws: JoinError.self) { try JoinPlanner.plan(frameCounts: [100], settings: settings) }
         }
         #expect(throws: JoinError.self) { try JoinPlanner.plan(frameCounts: [0], settings: JoinSettings()) }
+    }
+
+    @Test func anOversizedSoundKeepsEveryFrameAcrossFilesWithoutGaps() throws {
+        let plans = try JoinPlanner.plan(frameCounts: [110_250], settings: JoinSettings(maxSeconds: 1))
+        #expect(plans.map(\.frameCount) == [44_100, 44_100, 22_050])
+        #expect(plans.flatMap(\.regions).map(\.sourceStartFrame) == [0, 44_100, 88_200],
+                "Each piece resumes exactly where the previous file stopped.")
+        #expect(plans.allSatisfy { $0.regions.first?.startFrame == 0 }, "Splitting a source adds no silence.")
+    }
+
+    @Test func silenceSeparatesDifferentSourcesEvenAfterASplit() throws {
+        let plans = try JoinPlanner.plan(frameCounts: [55_125, 11_025],
+                                         settings: JoinSettings(maxSeconds: 1, silenceSeconds: 0.25))
+        #expect(plans.map(\.frameCount) == [44_100, 33_075])
+        #expect(plans.last?.regions.map(\.startFrame) == [0, 22_050])
+        #expect(plans.last?.regions.map(\.sourceStartFrame) == [44_100, 0])
+    }
+
+    @Test func splitPiecesUseRemainingSpaceWithoutAddingGapsInsideTheSource() throws {
+        let plans = try JoinPlanner.plan(frameCounts: [22_050, 66_150, 11_025],
+                                         settings: JoinSettings(maxSeconds: 1, silenceSeconds: 0.25, maxCuePoints: 2))
+        #expect(plans.map(\.frameCount) == [44_100, 44_100, 33_075])
+        let pieces = plans.flatMap(\.regions).filter { $0.sourceIndex == 1 }
+        #expect(pieces.map(\.sourceStartFrame) == [0, 11_025, 55_125])
+        #expect(pieces.map { $0.endFrame - $0.startFrame }.reduce(0, +) == 66_150)
+        #expect(plans.allSatisfy { $0.regions.count <= 2 })
     }
 }

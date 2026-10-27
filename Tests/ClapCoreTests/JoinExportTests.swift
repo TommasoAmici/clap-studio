@@ -100,7 +100,7 @@ import Testing
         #expect(outputs.allSatisfy { CueFileReader.read(url: $0).count == 1 })
     }
 
-    @Test func aMissingOrOversizedSourcePublishesNothing() throws {
+    @Test func aMissingSourcePublishesNothing() throws {
         let dir = TestSupport.tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
         let source = dir.appendingPathComponent("good.wav"), folder = dir.appendingPathComponent("out")
@@ -109,11 +109,62 @@ import Testing
             try JoinExporter.export([JoinSource(url: source), JoinSource(url: dir.appendingPathComponent("missing.wav"))],
                                      settings: JoinSettings(), to: folder)
         }
-        #expect(throws: JoinError.self) {
-            try JoinExporter.export([JoinSource(url: source)], settings: JoinSettings(maxSeconds: 0.1), to: folder)
-        }
         #expect((try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.isEmpty != false,
                 "An unsuccessful batch leaves no joined files or temporary files behind.")
+    }
+
+    @Test func anOversizedSourceSplitsWithoutRepeatingOrLosingAudio() throws {
+        let dir = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("long.wav")
+        try writeTestWav(source, seconds: 0.25) { time in Float(time * 2) }
+        let original = try Data(contentsOf: source)
+        let outputs = try JoinExporter.export([JoinSource(url: source)], settings: JoinSettings(maxSeconds: 0.1),
+                                               to: dir.appendingPathComponent("out"))
+        #expect(outputs.count == 3)
+        let pieces = try outputs.map { try TrimRender.read(url: $0) }
+        #expect(pieces.map(\.frameLength) == [4_410, 4_410, 2_205])
+        let joined = pieces.flatMap { Array(UnsafeBufferPointer(start: $0.floatChannelData![0], count: Int($0.frameLength))) }
+        let input = try TrimRender.read(url: source)
+        #expect(joined == Array(UnsafeBufferPointer(start: input.floatChannelData![0], count: Int(input.frameLength))),
+                "Splits preserve all the original samples without adding a gap or restarting the sound.")
+        #expect(outputs.allSatisfy { CueFileReader.read(url: $0).map(\.frame) == [0] })
+        #expect(try Data(contentsOf: source) == original)
+    }
+
+    @Test func streamedResamplingAndTrimFadesContinueAcrossChunkAndFileBoundaries() throws {
+        let dir = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("long-48k.wav")
+        try writeTestWav(source, seconds: 3.1, sampleRate: 48_000) {
+            Float(sin(2 * .pi * 440 * $0)) * 0.5
+        }
+        let trim = SampleTrim(start: 0.1, end: 3.05, fadeOut: 0.02)
+        let outputs = try JoinExporter.export([JoinSource(url: source, trim: trim)],
+                                               settings: JoinSettings(maxSeconds: 0.5), to: dir.appendingPathComponent("out"))
+        let actual = try outputs.flatMap { output -> [Float] in
+            let buffer = try TrimRender.read(url: output)
+            return Array(UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength)))
+        }
+        let native = try TrimRender.read(url: source, start: trim.start, end: trim.end,
+                                         fadeIn: SampleTrim.declick, fadeOut: trim.effectiveFadeOut)
+        let format = try #require(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false))
+        let expected = try AudioConvert.convert(native, to: format, highQuality: true)
+        let expectedSamples = Array(UnsafeBufferPointer(start: expected.floatChannelData![0], count: Int(expected.frameLength)))
+        #expect(actual.count == expectedSamples.count, "Streaming conversion preserves every converted frame.")
+        #expect(zip(actual, expectedSamples).allSatisfy { abs($0 - $1) <= 0.00004 },
+                "Conversion and fades match a continuous render within the 16-bit rounding step.")
+    }
+
+    @Test func storedTrimDurationIsFittedToTheActualFile() throws {
+        let dir = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("rounded.wav")
+        try writeTestWav(source, seconds: 0.1) { _ in 0.25 }
+        let outputs = try JoinExporter.export([JoinSource(url: source, trim: SampleTrim(start: 0, end: 0.10001))],
+                                               settings: JoinSettings(), to: dir.appendingPathComponent("out"))
+        #expect(try AVAudioFile(forReading: outputs[0]).length == 4_410,
+                "A stored duration rounded beyond the audio keeps all actual frames.")
     }
 
     @Test func cancellationDoesNotPublishFiles() async throws {

@@ -29,7 +29,6 @@ public struct JoinSettings: Codable, Equatable, Sendable {
 
 public enum JoinError: Error, LocalizedError {
     case invalidSettings
-    case tooLong(String)
     case tooLarge(String)
     case unsupportedChannels(String)
     case verificationFailed
@@ -37,7 +36,6 @@ public enum JoinError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidSettings: return "Choose a maximum length above zero and up to 300 seconds, silence from 0 to 300 seconds, and 1 to 65,536 cue sets."
-        case .tooLong(let name): return "\(name) is longer than the maximum. Trim it in the inspector or raise the maximum."
         case .tooLarge(let name): return "\(name) is too large to join at once. Trim it in the inspector before joining."
         case .unsupportedChannels(let name): return "\(name) has more than two channels. Join mono or stereo samples."
         case .verificationFailed: return "The joined file could not be verified. No source file was changed."
@@ -48,6 +46,7 @@ public enum JoinError: Error, LocalizedError {
 /// A sound's exact bounds in a joined file; the silence after it is excluded.
 public struct JoinedRegion: Equatable, Sendable {
     public var sourceIndex: Int
+    public var sourceStartFrame: Int64 = 0
     public var startFrame: Int64
     public var endFrame: Int64
 }
@@ -66,18 +65,35 @@ public enum JoinPlanner {
         let silence = Int64((settings.silenceSeconds * sampleRate).rounded())
         var files: [JoinedFilePlan] = []
         var regions: [JoinedRegion] = []
+        func finishFile() {
+            if !regions.isEmpty { files.append(JoinedFilePlan(regions: regions)) }
+            regions = []
+        }
         for (index, frames) in frameCounts.enumerated() {
             guard frames > 0 else { throw JoinError.invalidSettings }
-            guard frames <= maximum else { throw JoinError.tooLong("Sample \(index + 1)") }
             var start = regions.last.map { $0.endFrame + silence } ?? 0
-            if !regions.isEmpty, regions.count >= settings.maxCuePoints || start + frames > maximum {
-                files.append(JoinedFilePlan(regions: regions))
-                regions = []
-                start = 0
+            if frames <= maximum {
+                if regions.count >= settings.maxCuePoints || start + frames > maximum {
+                    finishFile()
+                    start = 0
+                }
+                regions.append(JoinedRegion(sourceIndex: index, startFrame: start, endFrame: start + frames))
+            } else {
+                var offset: Int64 = 0
+                while offset < frames {
+                    if regions.count >= settings.maxCuePoints || start >= maximum {
+                        finishFile()
+                        start = 0
+                    }
+                    let count = min(frames - offset, maximum - start)
+                    regions.append(JoinedRegion(sourceIndex: index, sourceStartFrame: offset,
+                                                startFrame: start, endFrame: start + count))
+                    offset += count
+                    if offset < frames { finishFile(); start = 0 }
+                }
             }
-            regions.append(JoinedRegion(sourceIndex: index, startFrame: start, endFrame: start + frames))
         }
-        if !regions.isEmpty { files.append(JoinedFilePlan(regions: regions)) }
+        finishFile()
         return files
     }
 }

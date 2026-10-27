@@ -29,6 +29,8 @@ audio files.
 
 - [x] Join edited sounds into verified WAV copies, with silence, named cue regions,
   length and cue-count limits, and source and destination protection.
+- [x] Split oversized selected sounds across files, preserving every frame
+  without adding silence inside a source.
 - [ ] Add the Library and Map action, native folder chooser, editable settings,
   saved presets and the ALM Squid Salmple preset; document and check the dialog.
 
@@ -43,17 +45,21 @@ audio files.
   silent gaps selectable cue sets on the module. Exact region-end handling on
   the module remains a hardware validation gap; proprietary metadata is not
   invented. `FileCue` and the existing cue reader keep their existing meaning.
-- Joining applies existing trims and sound edits before measuring limits. A
-  sound longer than the chosen maximum is refused before anything is saved:
-  trim it in the inspector or raise the maximum. Sounds remain intact.
+- Joining applies existing trims and sound edits before measuring limits.
+  The first core slice grouped whole sounds and refused oversized sources.
+  The user subsequently chose splitting: a longer sound now continues across
+  files from exact converted source-frame offsets, with no inserted silence
+  between its pieces. Sounds that fit the maximum stay together.
 - `JoinPlanner` measures converted frames and inserts silence only between
   sounds in the same output. `JoinExporter` stages all converted sounds and
   outputs beside the destination, verifies WAV format and cue bounds, then
   publishes with new names and rolls back a failed publication. Cancellation
   is checked between reads, conversions and chunk writes. Audio writing uses
   65,536-frame chunks; metadata verification bounds joined files to 300
-  seconds. Native source decoding is capped at 64 million frames before
-  allocating the whole buffer required by sound edits.
+  seconds. `JoinSourceRenderer` streams unedited sources through one continuous
+  high-quality converter into temporary CAF files, so a long source does not
+  need to fit in memory or a RIFF file. Sound edits require whole buffers and
+  are capped at 64 million native, edited and converted frames.
 - `JoinTests` and `JoinExportTests` cover length/count boundaries, exact silent
   gaps and region ends, edits, resampling, stereo and mono, cue replacement,
   source bytes, existing names, failed batches and cancellation. Both suites
@@ -61,3 +67,10 @@ audio files.
 - Core slice validation: `scripts/build.sh` passed with only the existing
   Command Line Tools linker search-path warnings; the complete
   `scripts/test.sh` run passed 447 tests in 95 suites.
+- Splitting validation: planner/export tests were red for oversized sources
+  before the change, then passed with contiguous source offsets. A 3.1-second
+  48 kHz regression crosses multiple 65,536-frame reads and output files;
+  its concatenated result matches a continuous high-quality render, including
+  trim fades, within one 16-bit rounding step. Stored trims are fitted to the
+  actual file duration. All 17 join tests pass; the full suite passed 453
+  tests in 95 suites after `scripts/build.sh`, with no new warnings.

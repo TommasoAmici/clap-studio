@@ -19,7 +19,7 @@ public enum JoinExporter {
         try Task.checkCancellation()
         guard settings.isValid, !sources.isEmpty else { throw JoinError.invalidSettings }
         let fm = FileManager.default
-        for source in sources { try preflight(source, settings: settings) }
+        let sources = try sources.map { try preflight($0) }
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
         let staging = folder.appendingPathComponent(".clap-join-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: staging, withIntermediateDirectories: false)
@@ -31,10 +31,9 @@ public enum JoinExporter {
         var frames: [Int64] = []
         for (index, source) in sources.enumerated() {
             try Task.checkCancellation()
-            let destination = staging.appendingPathComponent("source-\(index).wav")
-            try render(source, format: format, to: destination)
+            let destination = staging.appendingPathComponent("source-\(index).caf")
+            try JoinSourceRenderer.write(source, format: format, to: destination)
             let count = try AVAudioFile(forReading: destination).length
-            guard Double(count) <= settings.maxSeconds * JoinPlanner.sampleRate else { throw JoinError.tooLong(source.name) }
             converted.append(destination)
             frames.append(count)
         }
@@ -70,44 +69,38 @@ public enum JoinExporter {
         return published
     }
 
-    private static func preflight(_ source: JoinSource, settings: JoinSettings) throws {
+    private static func preflight(_ source: JoinSource) throws -> JoinSource {
         try Task.checkCancellation()
         let file = try AVAudioFile(forReading: source.url)
         guard file.processingFormat.channelCount <= 2 else { throw JoinError.unsupportedChannels(source.name) }
         let rate = file.processingFormat.sampleRate
         let duration = Double(file.length) / rate
+        var source = source
+        let raw = source.trim
+        let start = raw?.start ?? 0, end = raw?.end ?? duration
+        guard start.isFinite, end.isFinite, raw?.fadeOut.isFinite != false,
+              raw?.edit.gainDB.isFinite != false, raw?.edit.speedSemitones.isFinite != false,
+              raw?.edit.lowPassHz?.isFinite != false, raw?.edit.highPassHz?.isFinite != false else {
+            throw JoinError.invalidSettings
+        }
+        guard rate.isFinite, rate > 0, duration > 0 else { throw AudioDecodeError.empty }
+        if let raw {
+            guard let fitted = raw.clamped(toDuration: duration) else { throw AudioDecodeError.empty }
+            source.trim = fitted
+        }
         let trim = source.trim
-        let start = trim?.start ?? 0, end = trim?.end ?? duration
-        guard start.isFinite, end.isFinite, trim?.fadeOut.isFinite != false,
-              trim?.edit.gainDB.isFinite != false, trim?.edit.speedSemitones.isFinite != false,
-              trim?.edit.lowPassHz?.isFinite != false, trim?.edit.highPassHz?.isFinite != false else {
-            throw JoinError.invalidSettings
-        }
-        guard rate.isFinite, rate > 0, start >= 0, end > start, end <= duration else {
-            throw JoinError.invalidSettings
-        }
-        let readFrames = max(0, min(end, duration) - min(max(0, start), duration)) * rate
+        let readFrames = (trim?.length ?? duration) * rate
         let speed = pow(2, (trim?.edit.clamped().speedSemitones ?? 0) / 12)
-        guard readFrames / rate / speed <= settings.maxSeconds + 1 / JoinPlanner.sampleRate else {
-            throw JoinError.tooLong(source.name)
+        if let trim, !trim.edit.isNeutral {
+            guard readFrames <= 64_000_000, readFrames / speed <= 64_000_000,
+                  readFrames / rate / speed * JoinPlanner.sampleRate <= 64_000_000 else {
+                throw JoinError.tooLarge(source.name)
+            }
         }
-        // Rendering sound edits needs a complete buffer. Bound it before converting to AVAudioFrameCount.
-        guard readFrames <= 64_000_000 else { throw JoinError.tooLarge(source.name) }
+        return source
     }
 
-    private static func render(_ source: JoinSource, format: AVAudioFormat, to destination: URL) throws {
-        let trim = source.trim
-        let input = try TrimRender.read(url: source.url, start: trim?.start ?? 0, end: trim?.end,
-                                       fadeIn: trim == nil ? 0 : SampleTrim.declick,
-                                       fadeOut: trim?.effectiveFadeOut ?? 0, edit: trim?.edit)
-        let buffer = try AudioConvert.convert(input, to: format, highQuality: true)
-        try Task.checkCancellation()
-        let file = try AVAudioFile(forWriting: destination, settings: settings(for: format),
-                                   commonFormat: .pcmFormatFloat32, interleaved: false)
-        try file.write(from: buffer)
-    }
-
-    private static func settings(for format: AVAudioFormat) -> [String: Any] {
+    static func settings(for format: AVAudioFormat) -> [String: Any] {
         [
             AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: format.sampleRate,
             AVNumberOfChannelsKey: format.channelCount, AVLinearPCMBitDepthKey: 16,
@@ -134,9 +127,11 @@ public enum JoinExporter {
                 position += Int64(silence.frameLength)
             }
             let input = try AVAudioFile(forReading: sources[region.sourceIndex])
-            while input.framePosition < input.length {
+            input.framePosition = region.sourceStartFrame
+            let last = region.sourceStartFrame + region.endFrame - region.startFrame
+            while input.framePosition < last {
                 try Task.checkCancellation()
-                try input.read(into: chunk, frameCount: AVAudioFrameCount(min(Int64(chunk.frameCapacity), input.length - input.framePosition)))
+                try input.read(into: chunk, frameCount: AVAudioFrameCount(min(Int64(chunk.frameCapacity), last - input.framePosition)))
                 guard chunk.frameLength > 0 else { throw JoinError.verificationFailed }
                 try output.write(from: chunk)
                 position += Int64(chunk.frameLength)
