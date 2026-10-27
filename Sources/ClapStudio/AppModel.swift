@@ -83,6 +83,7 @@ final class AppModel {
     var fileInfoRevision = 0                  // changes when what files say about themselves is read again
     @ObservationIgnored var fileInfoSearch: (revision: Int, text: [Int64: String])?
     var showExport = false
+    @ObservationIgnored let join = JoinState()
     @ObservationIgnored var folderWatcher: FolderWatcher?
     @ObservationIgnored var rescanTask: Task<Void, Never>?
     var undoStack: [LibraryEdit] = []

@@ -58,6 +58,7 @@ struct RootView: View {
         .sheet(isPresented: $model.showDuplicates) { DuplicatesSheet() }
         .sheet(isPresented: $model.showKit) { KitSheet() }
         .sheet(isPresented: $model.showExport, onDismiss: { model.exportIDs = nil }) { ExportSheet() }
+        .sheet(isPresented: $model.showJoin, onDismiss: { model.joinSheetDismissed() }) { JoinSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .sheet(isPresented: $model.showSquidExport) { SquidExportSheet() }
         .onKeyPress(.space) {
@@ -194,7 +195,11 @@ struct StatusBar: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if let p = model.progress, model.isIndexing {
+            if model.isJoining {
+                ProgressView().controlSize(.small)
+                Text("Joining samples…")
+                Button("Cancel") { model.cancelJoin() }.controlSize(.small)
+            } else if let p = model.progress, model.isIndexing {
                 ProgressView(value: p.fraction).frame(width: 160)
                 Text("Indexed \(p.done) of \(p.total)").monospacedDigit()
                 if !p.currentName.isEmpty { Text(p.currentName).lineLimit(1).foregroundStyle(.secondary) }

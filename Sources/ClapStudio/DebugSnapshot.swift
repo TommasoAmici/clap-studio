@@ -143,6 +143,13 @@ enum DebugSnapshot {
             }
         }
         if env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" { model.effects.bounce() }
+        if env["CLAP_SNAPSHOT_JOIN"] == "1" {
+            model.openJoin(ids: Array(model.visible.prefix(8).map(\.id)))
+            if env["CLAP_SNAPSHOT_JOIN_FOLDER"] == "1" {
+                try? await Task.sleep(for: .seconds(0.5))
+                model.queueJoin(settings: .almSalmple)
+            }
+        }
         try? await Task.sleep(for: .seconds(3))
         if env["CLAP_SNAPSHOT_UPDATE_NOTES"] == "long",
            let scroll = model.updateAlert?.accessoryView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView,
@@ -161,6 +168,13 @@ enum DebugSnapshot {
         if env["CLAP_SNAPSHOT_ANIMATE"] == "1" {
             do { try await DebugSnapshotAnimation.write(model: model, to: URL(fileURLWithPath: path)) }
             catch { NSLog("Could not record playback: %@", error.localizedDescription) }
+        } else if env["CLAP_SNAPSHOT_JOIN_FOLDER"] == "1" {
+            let report = NSApp.windows.map { "\($0.title): visible=\($0.isVisible), sheet=\($0.attachedSheet?.title ?? "none")" }.joined(separator: "\n")
+                + "\nJoin folder panel: \(model.joinFolderPanel.map { "visible=\($0.isVisible), number=\($0.windowNumber)" } ?? "none")"
+            try? report.write(toFile: path + ".windows.txt", atomically: true, encoding: .utf8)
+            if let panel = model.joinFolderPanel, let png = nativeWindowImage(panel) {
+                try? png.write(to: URL(fileURLWithPath: path))
+            }
         } else if let png = windowImage() { try? png.write(to: URL(fileURLWithPath: path)) }
         else { NSLog("SNAPSHOT no window image, visible windows %d", NSApp.windows.filter(\.isVisible).count) }
         NSApp.terminate(nil)
