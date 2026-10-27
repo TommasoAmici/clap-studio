@@ -5,6 +5,8 @@
 #   scripts/snapshot.sh [out.png] [--select] [--map] [--delay SECONDS]
 #     --update  show the update prompt using a local example release (no network; needs existing screen capture access)
 #     --update-restart  show the restart prompt without installing or restarting (needs existing screen capture access)
+#     --update-download  show download activity without contacting GitHub
+#     --update-install  show verification and installation activity without installing
 #     --native  capture native glass layers at the display's resolution (needs existing screen capture access)
 #     --effects open the VST3 Effects panel for two samples (uses a scratch library)
 #     --effects-save with --effects: show the native Save dialog for one sample
@@ -50,6 +52,8 @@ while [ $# -gt 0 ]; do
     --update) export CLAP_SNAPSHOT_UPDATE=1 ;;
     --native) export CLAP_SNAPSHOT_NATIVE=1 ;;
     --update-restart) export CLAP_SNAPSHOT_UPDATE=1; export CLAP_SNAPSHOT_UPDATE_RESTART=1 ;;
+    --update-download) export CLAP_SNAPSHOT_UPDATE_PROGRESS=download ;;
+    --update-install) export CLAP_SNAPSHOT_UPDATE_PROGRESS=install ;;
     --effects) export CLAP_SNAPSHOT_EFFECTS=1 ;;
     --effects-save) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_SAVE=1 ;;
     --effects-plugin) shift; export CLAP_SNAPSHOT_EFFECTS_PLUGIN="$1" ;;

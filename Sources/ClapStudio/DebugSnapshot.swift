@@ -11,6 +11,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_DELAY=9          seconds to wait for the library to load (default 9)
 ///   CLAP_SNAPSHOT_UPDATE=1         show an example update prompt without contacting GitHub
 ///   CLAP_SNAPSHOT_UPDATE_RESTART=1 show the restart prompt without installing or restarting
+///   CLAP_SNAPSHOT_UPDATE_PROGRESS=download|install show update activity without downloading or installing
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
 ///   CLAP_SNAPSHOT_EDIT=1           with SELECT: give the selected sample a sample edit (changes the library: use a copy)
@@ -113,7 +114,11 @@ enum DebugSnapshot {
             if let height = Double(env["CLAP_SNAPSHOT_HEIGHT"] ?? "") { frame.size.height = height }
             window.setFrame(frame, display: true)
         }
-        if env["CLAP_SNAPSHOT_UPDATE_RESTART"] == "1", let window = NSApp.windows.first(where: \.isVisible) {
+        if let phase = env["CLAP_SNAPSHOT_UPDATE_PROGRESS"] {
+            model.isInstallingUpdate = true
+            model.updateInstallMessage = phase == "install"
+                ? "Verifying and installing the update…" : "Downloading Clap Studio 99.0.0…"
+        } else if env["CLAP_SNAPSHOT_UPDATE_RESTART"] == "1", let window = NSApp.windows.first(where: \.isVisible) {
             model.showUpdateRestart(at: URL(fileURLWithPath: "/Applications/ClapStudio.app"), on: window)
         } else if env["CLAP_SNAPSHOT_UPDATE"] == "1", let window = NSApp.windows.first(where: \.isVisible),
            let installed = ReleaseVersion(version: "0.0.0", build: "0") {

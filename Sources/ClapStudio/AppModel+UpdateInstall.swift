@@ -5,27 +5,31 @@ extension AppModel {
     func installUpdate(_ update: ReleaseUpdate) {
         guard updateInstallTask == nil else { return }
         isInstallingUpdate = true
-        statusMessage = "Downloading Clap Studio \(update.version.version)…"
+        updateInstallMessage = "Downloading Clap Studio \(update.version.version)…"
         updateInstallTask = Task { [weak self] in
             guard let self else { return }
+            defer {
+                self.isInstallingUpdate = false
+                self.updateInstallMessage = ""
+                self.updateInstallTask = nil
+            }
             do {
                 let destination = try await Task.detached(priority: .userInitiated) { [self] in
                     let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("clap-update-\(UUID().uuidString)")
                     try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: false)
                     defer { try? FileManager.default.removeItem(at: scratch) }
                     let archive = try await ReleaseDownloader.download(update, into: scratch)
-                    await MainActor.run { self.statusMessage = "Verifying and installing the update…" }
+                    await MainActor.run { self.updateInstallMessage = "Verifying and installing the update…" }
                     return try ReleaseInstaller.install(archive: archive, version: update.version,
                                                         applications: ReleaseInstaller.applicationsDirectory())
                 }.value
+                self.isInstallingUpdate = false
+                self.updateInstallMessage = ""
                 self.statusMessage = "Clap Studio \(update.version.version) is installed. Restart to use it."
                 await self.offerUpdateRestart(at: destination)
             } catch {
-                self.statusMessage = ""
                 self.errorMessage = "Could not update Clap Studio. \(error.localizedDescription) Your samples and library are unchanged."
             }
-            self.isInstallingUpdate = false
-            self.updateInstallTask = nil
         }
     }
 
