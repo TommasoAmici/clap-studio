@@ -1,9 +1,17 @@
 # VST3 host bridge
 
 `vendor/pluginterfaces` is the unmodified Steinberg VST3 interface repository
-at commit `4f547e8e102b47de4a8b8aaf343c73b700786372` (MIT license in
+at the commit recorded in `vendor-revision.txt` (MIT license in
 `vendor/pluginterfaces/LICENSE.txt`). Only this target's own C++ source is
 compiled; the interface headers define the official plugin ABI.
+
+Run `scripts/vendor-vst3.sh` from the repository to restore the pinned files.
+Use `scripts/vendor-vst3.sh --latest` to update to upstream HEAD, or pass a
+commit or tag to choose a revision. The script fetches the official repository,
+replaces only the vendored interfaces, and updates the pin and bundled license
+notice together. Local changes inside the vendor folder are replaced; the
+bridge source and C ABI are left alone. Review the diff and run the build and
+full tests after an update.
 
 The C ABI keeps C++ types out of Swift. Lifecycle and controller access belong
 to the main actor; audio processing runs exclusively on a worker task. A plugin
