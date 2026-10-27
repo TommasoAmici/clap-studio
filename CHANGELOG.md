@@ -5,6 +5,8 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+## 0.29.0
+
 - Publish app updates only when the version increases, avoiding repeat releases
   for ordinary changes to the repository.
 - See a spinner and task description while an app update downloads and installs.
