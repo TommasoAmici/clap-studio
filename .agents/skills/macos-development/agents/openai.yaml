@@ -1,0 +1,5 @@
+interface:
+  display_name: "macOS development"
+  short_description: "Build native macOS apps using current Apple design"
+policy:
+  allow_implicit_invocation: true
