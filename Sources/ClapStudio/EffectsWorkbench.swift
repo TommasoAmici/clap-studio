@@ -111,7 +111,7 @@ import UniformTypeIdentifiers
                 audio.prepareToPlay()
                 guard audio.play() else { throw VST3Error.message("The rendered preview could not start playing.") }
                 player = audio; previewURL = target
-                busy = false; progress = "Playing \(sample.name)"
+                busy = false; progress = ""
             } catch {
                 try? FileManager.default.removeItem(at: target)
                 guard !Task.isCancelled else { return }
