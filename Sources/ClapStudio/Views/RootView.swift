@@ -30,6 +30,9 @@ struct RootView: View {
                 }
                 MelodyPanel()
                 DrumPanel()
+                if model.isInstallingUpdate {
+                    UpdateInstallStatus()
+                }
                 StatusBar()
             }
             .frame(minWidth: 750)
@@ -167,6 +170,22 @@ struct OnboardingView: View {
                 .buttonStyle(.borderedProminent).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct UpdateInstallStatus: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView().controlSize(.small)
+                .accessibilityLabel(model.updateInstallMessage)
+            Text(model.updateInstallMessage).lineLimit(1)
+            Spacer()
+        }
+        .font(.callout)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(.bar)
     }
 }
 

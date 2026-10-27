@@ -66,7 +66,9 @@ The app bundle checks GitHub for a newer release every time you open it and, whi
 is running, once a day.
 When one is available, a pop-up offers **Update**, **Later**, or **Skip This
 Update**. Update downloads the app from GitHub, checks its release checksum and
-app signature, and installs it in `/Applications`. If that folder is not
+app signature, and installs it in `/Applications`. A spinner at the bottom of the
+window shows whether the app is downloading or verifying and installing, so you
+can keep working while it finishes. If that folder is not
 writable, it uses `~/Applications`; the restart prompt shows the exact location.
 The previous app is kept until the new one passes verification and its download
 quarantine is removed, so in-app updates can reopen without **Open Anyway**.
@@ -148,7 +150,7 @@ CLAP_MODELS_DIR="$CLAP_TEST_MODELS_DIR" scripts/test.sh
 
 This skips the optional model checks; it does not verify those models or change the installed ones. `sh scripts/test-setup.sh` checks the setup diagnostics with fake developer tools, including missing tools, an old compiler, missing SDK/plugins and a Swift shadowing the selected compiler on PATH. It also checks Git LFS installation, optional media downloads, read-only checks and preserving existing hooks.
 
-`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; `--update-restart` shows the restart prompt without installing or restarting. Capturing these native macOS alerts needs existing screen capture permission.
+`scripts/snapshot.sh [out.png] [--select] [--map]` renders the app's window, toolbar included, to a PNG (debug builds only; the script lists the other options). Keep `CLAP_DATA_DIR` pointed at a scratch folder when experimenting: for example, `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh /tmp/clap-demo.png`. The usual library is in `~/Library/Application Support/ClapStudio`. For a quick demo library, run `CLAP_DATA_DIR=/tmp/clap-demo build/ClapStudio.app/Contents/MacOS/ClapStudio --add-folder /path/to/samples`. `--update` shows the update prompt using a local example release, without contacting GitHub; `--update-restart` shows the restart prompt without installing or restarting. `--update-download` and `--update-install` show the activity spinner for each stage without downloading or installing anything. Capturing the native macOS alerts needs existing screen capture permission.
 
 `scripts/media-kit.sh` regenerates the website and social images in [`media/`](media/README.md): Library, Map, Drum Machine, Melody, drums with melody together, Places, and Squid Salmple banks, Pool and Send sheet, each in light and dark appearance at 3200 × 2000 pixels. Two silent looping GIFs show drums and melody playing together at 1600 × 1000 pixels. It creates 420 original synthetic samples in a temporary library, including 36 ambience sounds at demonstration places around the world, and copies 54 of them to a demonstration Squid stick inside the same temporary folder. No connected USB drive is needed or used for these captures. A separate demo app preference domain keeps its settings apart, and the temporary files are removed when finished. No personal samples or neural models are needed. Pass an output folder to preview a new set elsewhere.
 

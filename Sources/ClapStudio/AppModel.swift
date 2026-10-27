@@ -228,6 +228,7 @@ final class AppModel {
     // MARK: updates
     var isCheckingUpdates = false
     var isInstallingUpdate = false
+    var updateInstallMessage = ""
     @ObservationIgnored var updateInstallTask: Task<Void, Never>?
     @ObservationIgnored var updateAlert: NSAlert?
     @ObservationIgnored var updateCheckTask: Task<Void, Never>?
