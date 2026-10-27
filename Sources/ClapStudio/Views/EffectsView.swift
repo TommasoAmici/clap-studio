@@ -28,34 +28,9 @@ struct EffectsView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                    ForEach($workbench.chain) { $slot in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(slot.plugin.name).font(.headline)
-                                Spacer()
-                                Toggle("Bypass", isOn: $slot.bypass).toggleStyle(.checkbox)
-                                Button { move(slot.id, by: -1) } label: { Image(systemName: "arrow.up") }
-                                    .accessibilityLabel("Move effect earlier").help("Move effect earlier").disabled(workbench.chain.first?.id == slot.id)
-                                Button { move(slot.id, by: 1) } label: { Image(systemName: "arrow.down") }
-                                    .accessibilityLabel("Move effect later").help("Move effect later").disabled(workbench.chain.last?.id == slot.id)
-                                Button { workbench.chain.removeAll { $0.id == slot.id } } label: { Image(systemName: "minus.circle") }
-                                    .accessibilityLabel("Remove effect").help("Remove effect")
-                            }
-                            ForEach($slot.parameters) { $parameter in
-                                HStack {
-                                    Text(parameter.name).frame(width: 140, alignment: .leading).lineLimit(2)
-                                    Slider(value: $parameter.value, in: 0...1, step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
-                                        .accessibilityLabel(parameter.name)
-                                    Text(parameter.value, format: .percent.precision(.fractionLength(0))).monospacedDigit().frame(width: 45, alignment: .trailing)
-                                }
-                                .font(.caption)
-                            }
-                            if slot.parameters.isEmpty {
-                                Text("This effect exposes no editable parameters.").font(.caption).foregroundStyle(.secondary)
-                            }
+                        ForEach($workbench.chain) { $slot in
+                            EffectRow(slot: $slot, workbench: workbench)
                         }
-                        .padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-                    }
                     }
                 }
                 .disabled(workbench.busy)
@@ -94,10 +69,4 @@ struct EffectsView: View {
         .onChange(of: workbench.tailSeconds) { workbench.cancel() }
     }
 
-    private func move(_ id: UUID, by offset: Int) {
-        guard let index = workbench.chain.firstIndex(where: { $0.id == id }) else { return }
-        let next = index + offset
-        guard workbench.chain.indices.contains(next) else { return }
-        workbench.chain.swapAt(index, next)
-    }
 }

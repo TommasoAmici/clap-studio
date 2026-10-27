@@ -3,7 +3,7 @@ import Testing
 
 /// A small native plug-in exercises the real bridge without installed vendor effects.
 enum VST3Fixture {
-    static func bundle(in folder: URL) throws -> URL {
+    static func bundle(in folder: URL, withEditor: Bool = true) throws -> URL {
         let bundle = folder.appendingPathComponent("Gain.vst3"), contents = bundle.appendingPathComponent("Contents")
         let executable = contents.appendingPathComponent("MacOS/Gain")
         try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -11,7 +11,8 @@ enum VST3Fixture {
         let compiler = Process()
         compiler.executableURL = URL(fileURLWithPath: "/usr/bin/clang++")
         compiler.arguments = ["-dynamiclib", "-std=c++17", "-mmacosx-version-min=14.0", "-I", repository.appendingPathComponent("Sources/CVST3/vendor").path,
-                              repository.appendingPathComponent("Tests/Fixtures/VST3Gain.cpp").path, "-o", executable.path]
+                              repository.appendingPathComponent("Tests/Fixtures/VST3Gain.mm").path, "-o", executable.path, "-framework", "AppKit"]
+        if !withEditor { compiler.arguments?.append("-DCLAP_NO_EDITOR=1") }
         try compiler.run(); compiler.waitUntilExit()
         #expect(compiler.terminationStatus == 0, "The native stereo gain fixture builds with the installed compiler")
         let plist: [String: Any] = ["CFBundleExecutable": "Gain", "CFBundleIdentifier": "app.clapstudio.TestGain", "CFBundlePackageType": "BNDL"]

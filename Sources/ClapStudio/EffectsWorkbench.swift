@@ -91,9 +91,26 @@ import UniformTypeIdentifiers
         stopPreview(); busy = true; progress = "Loading effect…"; message = nil
         task = Task {
             do {
-                let parameters = try await effect.parameters()
+                let slot = try await effect.makeSlot()
                 try Task.checkCancellation()
-                chain.append(EffectSlot(plugin: effect, parameters: parameters))
+                chain.append(slot)
+                busy = false; progress = ""
+            } catch {
+                guard !Task.isCancelled else { return }
+                busy = false; progress = ""; message = error.localizedDescription
+            }
+        }
+    }
+
+    func edit(_ id: UUID) {
+        guard !busy, let slot = chain.first(where: { $0.id == id }) else { return }
+        stopPreview(); busy = true; progress = "Close the plug-in window to use your edits."; message = nil
+        task = Task {
+            do {
+                let edited = try await slot.edited()
+                try Task.checkCancellation()
+                guard let index = chain.firstIndex(where: { $0.id == id }) else { return }
+                chain[index] = edited
                 busy = false; progress = ""
             } catch {
                 guard !Task.isCancelled else { return }

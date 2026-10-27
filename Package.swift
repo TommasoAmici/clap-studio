@@ -15,7 +15,7 @@ let package = Package(
         .executable(name: "ClapStudio", targets: ["ClapStudio"]),
     ],
     targets: [
-        .target(name: "CVST3", path: "Sources/CVST3", sources: ["VST3Host.cpp"],
+        .target(name: "CVST3", path: "Sources/CVST3", sources: ["VST3Host.cpp", "VST3Editor.cpp"],
                 publicHeadersPath: "include", cxxSettings: [.headerSearchPath("vendor")],
                 linkerSettings: [.linkedFramework("CoreFoundation")]),
         .target(
@@ -25,7 +25,7 @@ let package = Package(
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .executableTarget(name: "ClapStudio", dependencies: ["ClapCore"], swiftSettings: flags),
-        .executableTarget(name: "ClapVSTHost", dependencies: ["ClapCore"]),
+        .executableTarget(name: "ClapVSTHost", dependencies: ["ClapCore", "CVST3"]),
         .executableTarget(name: "ClapBench", dependencies: ["ClapCore"]),
         .executableTarget(name: "ClapMediaSeed", dependencies: ["ClapCore"]),
         .testTarget(name: "ClapCoreTests", dependencies: ["ClapCore"], swiftSettings: flags),

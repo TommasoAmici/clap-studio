@@ -49,7 +49,7 @@ public enum EffectBounce {
         }
         for slot in chain where !slot.bypass {
             try Task.checkCancellation()
-            let instance = try VST3Instance(plugin: slot.plugin)
+            let instance = try VST3Instance(slot: slot)
             defer { instance.close() }
             try instance.prepare(rate: audio.rate)
             let latency = Int(clap_vst3_latency(instance.effect))

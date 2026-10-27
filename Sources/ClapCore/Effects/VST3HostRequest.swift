@@ -2,19 +2,24 @@ import Foundation
 
 /// File-based messages keep plug-in output away from the app's process.
 public struct VST3HostRequest: Codable, Sendable {
-    public enum Operation: String, Codable, Sendable { case inspect, parameters, render }
+    public enum Operation: String, Codable, Sendable { case inspect, parameters, render, editor }
     public var operation: Operation
     public var bundle: URL?
     public var plugin: VST3Plugin?
+    public var slot: EffectSlot?
     public var chain: [EffectSlot]?
     public var source: URL?
     public var destination: URL?
     public var tailSeconds: Double?
     public var heartbeat: URL?
+    #if DEBUG
+    public var editorCloseAfter: Double?
+    public var editorSnapshot: URL?
+    #endif
 
-    public init(operation: Operation, bundle: URL? = nil, plugin: VST3Plugin? = nil, chain: [EffectSlot]? = nil,
+    public init(operation: Operation, bundle: URL? = nil, plugin: VST3Plugin? = nil, slot: EffectSlot? = nil, chain: [EffectSlot]? = nil,
                 source: URL? = nil, destination: URL? = nil, tailSeconds: Double? = nil) {
-        self.operation = operation; self.bundle = bundle; self.plugin = plugin; self.chain = chain
+        self.operation = operation; self.bundle = bundle; self.plugin = plugin; self.slot = slot; self.chain = chain
         self.source = source; self.destination = destination; self.tailSeconds = tailSeconds
     }
 
@@ -25,9 +30,9 @@ public struct VST3HostRequest: Codable, Sendable {
         defer { try? FileManager.default.removeItem(at: folder) }
         let input = folder.appendingPathComponent("request.json"), output = folder.appendingPathComponent("reply.json")
         var request = request
-        if request.operation == .render { request.heartbeat = folder.appendingPathComponent("heartbeat") }
+        if request.operation == .render || request.operation == .editor { request.heartbeat = folder.appendingPathComponent("heartbeat") }
         try JSONEncoder().encode(request).write(to: input, options: .atomic)
-        try await VST3Process.run(executable: VST3Process.helperURL(), arguments: [input.path, output.path], timeout: timeout, heartbeat: request.heartbeat)
+        try await VST3Process.run(executable: VST3Process.helperURL(), arguments: [input.path, output.path], timeout: timeout, heartbeat: request.heartbeat, startupTimeout: request.heartbeat == nil ? nil : 30)
         let size = try output.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 64 * 1024 * 1024 else { throw VST3Error.message("The plug-in returned too much data.") }
         let reply = try JSONDecoder().decode(VST3HostReply.self, from: Data(contentsOf: output))
@@ -39,9 +44,10 @@ public struct VST3HostRequest: Codable, Sendable {
 public struct VST3HostReply: Codable, Sendable {
     public var plugins: [VST3Plugin]?
     public var parameters: [VST3Parameter]?
+    public var slot: EffectSlot?
     public var error: String?
-    public init(plugins: [VST3Plugin]? = nil, parameters: [VST3Parameter]? = nil, error: String? = nil) {
-        self.plugins = plugins; self.parameters = parameters; self.error = error
+    public init(plugins: [VST3Plugin]? = nil, parameters: [VST3Parameter]? = nil, slot: EffectSlot? = nil, error: String? = nil) {
+        self.plugins = plugins; self.parameters = parameters; self.slot = slot; self.error = error
     }
 }
 
@@ -54,7 +60,9 @@ public enum VST3HostWorker {
             return VST3HostReply(plugins: try VST3Plugin.effectsInProcess(in: bundle))
         case .parameters:
             guard let plugin = request.plugin else { throw VST3Error.message("Missing plug-in class.") }
-            return VST3HostReply(parameters: try plugin.parametersInProcess())
+            return VST3HostReply(slot: try plugin.slotInProcess())
+        case .editor:
+            throw VST3Error.message("Native editors require the window host.")
         case .render:
             guard let source = request.source, let destination = request.destination, let chain = request.chain else {
                 throw VST3Error.message("Missing render recipe.")

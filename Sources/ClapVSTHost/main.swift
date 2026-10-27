@@ -21,7 +21,10 @@ import Foundation
                 let reply: VST3HostReply
                 do {
                     let request = try JSONDecoder().decode(VST3HostRequest.self, from: Data(contentsOf: input))
-                    reply = try await VST3HostWorker.run(request)
+                    if request.operation == .editor {
+                        application.setActivationPolicy(.accessory)
+                        reply = try await NativeEditor.run(request)
+                    } else { reply = try await VST3HostWorker.run(request) }
                 } catch { reply = VST3HostReply(error: error.localizedDescription) }
                 do { try JSONEncoder().encode(reply).write(to: output, options: .atomic) }
                 catch { exit(3) }
