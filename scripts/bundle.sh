@@ -22,6 +22,8 @@ ITEMS="CLAPAudio.mlpackage CLAPText.mlpackage CNN14Trunk.mlpackage clap_vocab.js
 for item in $ITEMS; do
   [ -e "$MODELS/$item" ] && cp -R "$MODELS/$item" "$APP/Contents/Resources/" && echo "Bundled $item"
 done
+# The VST3 interface license travels with the native host.
+cp licenses/VST3.txt "$APP/Contents/Resources/VST3-LICENSE.txt"
 # BirdNET is CC BY-NC-SA 4.0: its notice travels with it.
 [ "$NON_COMMERCIAL" = "0" ] || ! [ -e "$APP/Contents/Resources/BirdNET.mlpackage" ] || cp licenses/BirdNET.txt "$APP/Contents/Resources/BirdNET-LICENSE.txt"
 
