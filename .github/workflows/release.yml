@@ -5,9 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Only one release build per ref at a time; a newer push supersedes a queued one.
+# Serialize publication across main and manually selected refs.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 permissions:
@@ -21,7 +21,28 @@ env:
   NON_COMMERCIAL: '1'
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.guard.outputs.publish }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Check release version
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/test-release-version.py
+          python3 scripts/check-release-version.py --github-output "$GITHUB_OUTPUT"
+
   release:
+    needs: check-version
+    if: needs.check-version.outputs.publish == 'true'
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -121,6 +142,11 @@ jobs:
           ASSET: ${{ steps.version.outputs.asset }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          PUBLISH=$(python3 scripts/check-release-version.py --version "$VERSION")
+          if [ "$PUBLISH" != "true" ]; then
+            echo "Skipped publication: app version $VERSION has not increased." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           python3 scripts/release-notes.py "$VERSION" > release-notes.md
           cat >> release-notes.md <<'NOTES'
 

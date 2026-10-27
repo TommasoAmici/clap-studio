@@ -65,6 +65,12 @@ keep standard system materials.
 Read [the changelog](CHANGELOG.md) for features, fixes, and other changes in each
 version. GitHub release pages use the same notes.
 
+Pushing to `main` checks the app version before building a release. A release is
+published only when that version is newer than the latest published version;
+another build of the same version or an older version is skipped. The version is
+checked again before publication. If GitHub cannot confirm the previous release,
+publication stops.
+
 The app bundle checks GitHub for a newer release every time you open it and, while it
 is running, once a day.
 When one is available, a pop-up offers **Update**, **Later**, or **Skip This

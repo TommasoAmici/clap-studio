@@ -87,6 +87,7 @@ Each file holds one concern. When a file nears 400 lines, split it along a featu
 - Conventional commits, subject at most 25 characters (`feat(inspector): multi sound edit`), with a body of 72-column
   lines saying what changed and why for `feat`, `fix` and `refactor`.
 - One logical change per commit; README updates ride along with the feature.
-- Every push to `main` triggers `.github/workflows/release.yml`, which publishes a GitHub release. A version bump is a
+- Every push to `main` triggers `.github/workflows/release.yml`; it publishes only when the app version exceeds the
+  latest published version. A version bump is a
   separate `chore(release): bump to X.Y.Z` commit that changes `CFBundleShortVersionString` in `scripts/bundle.sh`.
 - `ROADMAP/TODO/` holds planned work as checklists; tick items off when they ship.
