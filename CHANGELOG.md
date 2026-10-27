@@ -5,6 +5,8 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+- Publish app updates only when the version increases, avoiding repeat releases
+  for ordinary changes to the repository.
 - See a spinner and task description while an app update downloads and installs.
 - Read release notes in the update dialog and a changelog with each version’s changes.
 - Open a VST3 effect’s own editor, keeping presets and hidden settings for

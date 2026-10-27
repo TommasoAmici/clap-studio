@@ -134,7 +134,7 @@ Capture durable knowledge rather than a transcript of commands or progress.
 
 ## Commits
 
-Follow the format in `AGENTS.md`: `type(scope): subject` of at most 25 characters, and a 72-column body saying what changed and why for `feat`, `fix` and `refactor`. Every commit builds and passes the full test suite. Leave pushing to the user: a push to `main` publishes a release.
+Follow the format in `AGENTS.md`: `type(scope): subject` of at most 25 characters, and a 72-column body saying what changed and why for `feat`, `fix` and `refactor`. Every commit builds and passes the full test suite. Leave pushing to the user: a push to `main` runs the release workflow, which publishes only an increased app version.
 
 ## When blocked
 

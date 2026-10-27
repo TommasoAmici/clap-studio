@@ -1,12 +1,12 @@
 ---
 name: bump-version-and-push
-description: Bumps the Clap Studio version in scripts/bundle.sh as its own chore(release) commit and pushes main, which publishes a GitHub release. Use when the user asks to bump the version, cut or ship a release, or push the work to main.
+description: Bumps the Clap Studio version in scripts/bundle.sh as its own chore(release) commit and pushes main to publish the increased version. Use when the user asks to bump the version, cut or ship a release, or push the work to main.
 disable-model-invocation: true
 ---
 
 # Bump version and push
 
-A push to `main` runs `.github/workflows/release.yml` and publishes a release, so this skill is the only place a push happens. Naming it is the user's go-ahead to push; do not push any other way.
+A push to `main` runs `.github/workflows/release.yml`, which publishes only when the app version exceeds the latest published version. This skill is the only place a push happens. Naming it is the user's go-ahead to push; do not push any other way.
 
 ## Steps
 
@@ -19,6 +19,7 @@ A push to `main` runs `.github/workflows/release.yml` and publishes a release, s
    - only `fix`, `docs`, `test`, `chore`: patch, `0.19.0` becomes `0.19.1`
    - the user named a specific number: use it
    - nothing since the last bump: stop, there is nothing to release
+   Run `python3 scripts/test-release-version.py` and check the chosen version with `python3 scripts/check-release-version.py --version X.Y.Z` using the existing GitHub credentials. The check must return `true`; stop on `false` or a failed lookup before committing release notes or the bump.
 5. **Prepare the changelog.** Read `CHANGELOG.md` and the commits from step 4. Describe features, fixes, and other changes a musician will notice in plain English. Add any missing changes to `## Unreleased`, then move those entries into a new `## X.Y.Z` section below an empty `## Unreleased`; preserve earlier sections. Check the new version's notes with `python3 scripts/release-notes.py X.Y.Z` and `python3 scripts/test-release-notes.py`. Commit the changelog separately as `docs: release notes`.
 6. **Bump.** Change only `CFBundleShortVersionString` in `scripts/bundle.sh`. Leave `CFBundleVersion` alone.
 7. **Commit** on its own, nothing else in it: `chore(release): bump to X.Y.Z` (the fixed subject from `AGENTS.md`, longer than 25 characters on purpose; no body needed). Screenshots that step 3 refreshed and that changed files under `media/` go into this commit, since they are the release's own; when the run changed none, the commit holds only the version bump.
