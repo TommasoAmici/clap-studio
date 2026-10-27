@@ -84,6 +84,7 @@ struct Effect {
     Host host; IComponent *component = nullptr; IAudioProcessor *processor = nullptr;
     IEditController *controller = nullptr; bool initialized = false, separateController = false, active = false, processing = false;
     IConnectionPoint *componentConnection = nullptr, *controllerConnection = nullptr;
+    int32 inputBusCount = 0, outputBusCount = 0;
     double rate = 44100; int64 position = 0;
     ~Effect() {
         if (processing) processor->setProcessing(false);
@@ -149,11 +150,15 @@ int32_t clap_vst3_parameter_info(ClapVST3Effect e, int32_t index, uint32_t *id, 
     *id = info.id; memcpy(title, info.title, sizeof(info.title)); *value = p->controller->getParamNormalized(info.id); *steps = info.stepCount; return 1;
 }
 int32_t clap_vst3_prepare(ClapVST3Effect effect, double rate) {
-    auto e = static_cast<Effect *>(effect); if (!e || e->active || e->component->getBusCount(kAudio, kInput) < 1 || e->component->getBusCount(kAudio, kOutput) < 1) return 0;
-    std::vector<SpeakerArrangement> inputs(e->component->getBusCount(kAudio, kInput), SpeakerArr::kEmpty), outputs(e->component->getBusCount(kAudio, kOutput), SpeakerArr::kEmpty);
+    auto e = static_cast<Effect *>(effect); if (!e || e->active) return 0;
+    // Component topology queries belong to the UI thread, before audio processing starts.
+    e->inputBusCount = e->component->getBusCount(kAudio, kInput);
+    e->outputBusCount = e->component->getBusCount(kAudio, kOutput);
+    if (e->inputBusCount < 1 || e->outputBusCount < 1) return 0;
+    std::vector<SpeakerArrangement> inputs(e->inputBusCount, SpeakerArr::kEmpty), outputs(e->outputBusCount, SpeakerArr::kEmpty);
     inputs[0] = outputs[0] = SpeakerArr::kStereo;
     if (e->processor->setBusArrangements(inputs.data(), static_cast<int32>(inputs.size()), outputs.data(), static_cast<int32>(outputs.size())) != kResultOk) return 0;
-    for (int direction : {kInput, kOutput}) for (int i = 1; i < e->component->getBusCount(kAudio, direction); ++i) e->component->activateBus(kAudio, direction, i, false);
+    for (int direction : {kInput, kOutput}) for (int i = 1; i < (direction == kInput ? e->inputBusCount : e->outputBusCount); ++i) e->component->activateBus(kAudio, direction, i, false);
     if (e->processor->canProcessSampleSize(kSample32) != kResultOk) return 0;
     if (e->component->activateBus(kAudio, kInput, 0, true) != kResultOk || e->component->activateBus(kAudio, kOutput, 0, true) != kResultOk) return 0;
     for (int direction : {kInput, kOutput}) for (int i = 0; i < e->component->getBusCount(kEvent, direction); ++i) e->component->activateBus(kEvent, direction, i, false);
@@ -167,7 +172,7 @@ uint32_t clap_vst3_tail(ClapVST3Effect e) { return static_cast<Effect *>(e)->pro
 int32_t clap_vst3_process(ClapVST3Effect effect, float *left, float *right, int32_t frames, const uint32_t *ids, const double *values, int32_t count) {
     auto e = static_cast<Effect *>(effect); if (!e || !e->processing || frames < 1 || frames > 512) return 0;
     float *input[2] = {left, right}; float outputL[512]{}, outputR[512]{}; float *output[2] = {outputL, outputR};
-    std::vector<AudioBusBuffers> in(e->component->getBusCount(kAudio, kInput)), out(e->component->getBusCount(kAudio, kOutput));
+    std::vector<AudioBusBuffers> in(e->inputBusCount), out(e->outputBusCount);
     for (auto &b : in) { b.numChannels = 0; b.silenceFlags = ~uint64(0); b.channelBuffers32 = nullptr; }
     for (auto &b : out) { b.numChannels = 0; b.silenceFlags = ~uint64(0); b.channelBuffers32 = nullptr; }
     in[0].numChannels = out[0].numChannels = 2; in[0].channelBuffers32 = input; out[0].channelBuffers32 = output; in[0].silenceFlags = out[0].silenceFlags = 0;

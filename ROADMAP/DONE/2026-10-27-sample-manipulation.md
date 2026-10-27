@@ -72,3 +72,12 @@ I'd also like to be able to apply the same effect chain to multiple samples and 
   filename, folder chooser and Cancel/Save actions were inspected. File
   chooser completion was not automated; write safety and actual processed WAV output are
   covered by the core tests.
+
+- Integration review caught `IComponent.getBusCount` calls in the worker's
+  process callback, although the official interface restricts metadata
+  queries to the UI thread. `CVST3` now caches audio bus counts during
+  main-actor preparation and uses only those cached counts while processing.
+  An external ADelay fixture override asserted `pthread_main_np()` in
+  `getBusCount`: the prior bridge aborted during the render test, and the
+  cached bridge passes. Keep plugin topology and controller queries out of
+  detached processing tasks in future changes.
