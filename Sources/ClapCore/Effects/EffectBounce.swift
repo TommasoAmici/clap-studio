@@ -8,6 +8,32 @@ public enum EffectBounce {
     public static let maximumTailSeconds = 10.0
 
     @MainActor public static func write(source: URL, trim: SampleTrim?, chain: [EffectSlot], to destination: URL, tailSeconds: Double = 2, protectedSources: [URL] = []) async throws {
+        guard chain.contains(where: { !$0.bypass }) else {
+            try await writeInProcess(source: source, trim: trim, chain: [], to: destination, protectedSources: protectedSources)
+            return
+        }
+        try await offMain { try protect(source: source, destination: destination, originals: protectedSources) }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("clap-vst-audio-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let input = folder.appendingPathComponent("input.wav"), output = folder.appendingPathComponent("output.wav")
+        try await writeInProcess(source: source, trim: trim, chain: [], to: input)
+        let recipe = chain.map { slot in
+            var slot = slot
+            for index in slot.parameters.indices {
+                let value = slot.parameters[index].value
+                slot.parameters[index].value = value.isFinite ? min(1, max(0, value)) : 0
+            }
+            return slot
+        }
+        _ = try await VST3HostRequest.send(VST3HostRequest(operation: .render, chain: recipe, source: input,
+                                                         destination: output, tailSeconds: tailSeconds.isFinite ? tailSeconds : 2), timeout: 300)
+        try Task.checkCancellation()
+        // The app verifies and saves the helper's result through the same atomic writer.
+        try await writeInProcess(source: output, trim: nil, chain: [], to: destination, protectedSources: [source] + protectedSources)
+    }
+
+    @MainActor static func writeInProcess(source: URL, trim: SampleTrim?, chain: [EffectSlot], to destination: URL, tailSeconds: Double = 2, protectedSources: [URL] = [], heartbeat: URL? = nil) async throws {
         var audio = try await offMain {
             try Task.checkCancellation()
             try protect(source: source, destination: destination, originals: protectedSources)
@@ -33,7 +59,7 @@ public enum EffectBounce {
             let tail = min(max(Int(reportedTail), Int(audio.rate * extraTail)), Int(audio.rate * maximumTailSeconds))
             let input = audio
             audio = try await offMain {
-                try process(input, instance: instance, parameters: slot.parameters, latency: latency, tail: tail)
+                try process(input, instance: instance, parameters: slot.parameters, latency: latency, tail: tail, heartbeat: heartbeat)
             }
         }
         try Task.checkCancellation()
@@ -64,10 +90,11 @@ public enum EffectBounce {
 
     private struct StereoAudio: Sendable { var left: [Float]; var right: [Float]; let rate: Double }
 
-    private static func process(_ input: StereoAudio, instance: VST3Instance, parameters: [VST3Parameter], latency: Int, tail: Int) throws -> StereoAudio {
+    private static func process(_ input: StereoAudio, instance: VST3Instance, parameters: [VST3Parameter], latency: Int, tail: Int, heartbeat: URL?) throws -> StereoAudio {
         let total = input.left.count + latency + tail
         var left = [Float](repeating: 0, count: total), right = left
         let ids = parameters.map(\.id), values = parameters.map { min(1, max(0, $0.value.isFinite ? $0.value : 0)) }
+        var lastHeartbeat = Date.distantPast
         for start in stride(from: 0, to: total, by: 512) {
             try Task.checkCancellation()
             let frames = min(512, total - start)
@@ -82,6 +109,9 @@ public enum EffectBounce {
             }
             guard blockL.allSatisfy(\.isFinite), blockR.allSatisfy(\.isFinite) else { throw VST3Error.message("The effect produced invalid audio. Nothing was saved.") }
             left.replaceSubrange(start..<start + frames, with: blockL); right.replaceSubrange(start..<start + frames, with: blockR)
+            if let heartbeat, Date().timeIntervalSince(lastHeartbeat) >= 1 {
+                try Data().write(to: heartbeat, options: .atomic); lastHeartbeat = Date()
+            }
         }
         return StereoAudio(left: Array(left.dropFirst(latency)), right: Array(right.dropFirst(latency)), rate: input.rate)
     }

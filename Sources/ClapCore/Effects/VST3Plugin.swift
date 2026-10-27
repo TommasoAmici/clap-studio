@@ -1,7 +1,7 @@
 import CVST3
 import Foundation
 
-public struct VST3Parameter: Identifiable, Sendable, Equatable {
+public struct VST3Parameter: Identifiable, Sendable, Equatable, Codable {
     public let id: UInt32
     public let name: String
     public var value: Double
@@ -9,13 +9,17 @@ public struct VST3Parameter: Identifiable, Sendable, Equatable {
 }
 
 /// One audio effect class in an installed VST3 bundle.
-public struct VST3Plugin: Identifiable, Sendable, Equatable {
+public struct VST3Plugin: Identifiable, Sendable, Equatable, Codable {
     public let bundle: URL
     public let classID: String
     public let name: String
     public var id: String { bundle.path + ":" + classID }
 
-    @MainActor public static func effects(in bundle: URL) throws -> [VST3Plugin] {
+    public static func effects(in bundle: URL) async throws -> [VST3Plugin] {
+        try await VST3HostRequest.send(VST3HostRequest(operation: .inspect, bundle: bundle)).plugins ?? []
+    }
+
+    @MainActor static func effectsInProcess(in bundle: URL) throws -> [VST3Plugin] {
         guard let module = clap_vst3_module_open(bundle.path) else { throw VST3Error.message("Could not load \(bundle.lastPathComponent). Check that the plugin supports this Mac.") }
         defer { clap_vst3_module_close(module) }
         var effects: [VST3Plugin] = []
@@ -28,7 +32,11 @@ public struct VST3Plugin: Identifiable, Sendable, Equatable {
         return effects
     }
 
-    @MainActor public func parameters() throws -> [VST3Parameter] {
+    public func parameters() async throws -> [VST3Parameter] {
+        try await VST3HostRequest.send(VST3HostRequest(operation: .parameters, plugin: self)).parameters ?? []
+    }
+
+    @MainActor func parametersInProcess() throws -> [VST3Parameter] {
         let instance = try VST3Instance(plugin: self)
         defer { instance.close() }
         var parameters: [VST3Parameter] = []
@@ -44,8 +52,8 @@ public struct VST3Plugin: Identifiable, Sendable, Equatable {
 }
 
 /// A reusable recipe for bouncing copies; it does not change library samples.
-public struct EffectSlot: Identifiable, Sendable, Equatable {
-    public let id = UUID()
+public struct EffectSlot: Identifiable, Sendable, Equatable, Codable {
+    public var id = UUID()
     public var plugin: VST3Plugin
     public var parameters: [VST3Parameter]
     public var bypass = false

@@ -22,4 +22,4 @@ This initial host supports stereo 32-bit offline effects, generic normalized
 parameters, bypass, ordered chains, latency compensation and bounded tails.
 It does not host instruments, MIDI, plugin editors, sidechain audio or presets.
 Inactive optional buses are negotiated as empty; plugins rejecting that layout
-are reported as unsupported. Plugin code executes inside the app process.
+are reported as unsupported. Plugin code executes in the bundled `ClapVSTHost` helper. The app performs only file discovery, request supervision, preprocessing, verification and atomic destination replacement. Probe requests have a 30-second deadline; audio-block progress refreshes the render helper’s five-minute inactivity deadline. Cancellation kills and reaps the helper. Helpers receive scratch input/output paths, never the user’s chosen bounce destination.

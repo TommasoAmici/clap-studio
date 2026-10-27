@@ -54,6 +54,28 @@ import Testing
         do { try await task.value; Issue.record("A cancelled bounce must throw") } catch { }
         #expect(try Data(contentsOf: target) == original, "Cancelling does not replace an existing file")
     }
+    @Test func isolatedGainChangesOnlyTheBounceAndKeepsItsRecipe() async throws {
+        let folder = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let bundle = try VST3Fixture.bundle(in: folder)
+        let plugins = try await VST3Plugin.effects(in: bundle)
+        let plugin = try #require(plugins.first)
+        var parameters = try await plugin.parameters()
+        #expect(parameters.count == 1 && parameters[0].name == "Gain")
+        parameters[0].value = 0.5
+        let chain = [EffectSlot(plugin: plugin, parameters: parameters)]
+        let source = folder.appendingPathComponent("source.wav"), target = folder.appendingPathComponent("gain.wav")
+        try writeTestWav(source, seconds: 0.05) { _ in 0.25 }
+        let original = try Data(contentsOf: source)
+        try await EffectBounce.write(source: source, trim: nil, chain: chain, to: target, tailSeconds: 0)
+        let rendered = try AudioDecoder.decode(url: target, start: 0, seconds: 0.02, sampleRate: 44100)
+        #expect(abs((rendered.max() ?? 0) - 0.125) < 0.001, "The helper applies the recipe’s gain")
+        #expect(try Data(contentsOf: source) == original, "The helper only sees a preprocessed scratch copy")
+        let second = folder.appendingPathComponent("gain-again.wav")
+        try await EffectBounce.write(source: source, trim: nil, chain: chain, to: second, tailSeconds: 0)
+        #expect(try Data(contentsOf: target) == Data(contentsOf: second), "Each helper starts the same fresh recipe")
+    }
+
     @Test func officialDelayCanBeLoadedAndRenderedWhenFixtureIsAvailable() async throws {
         guard let path = ProcessInfo.processInfo.environment["CLAP_VST3_TEST_PLUGIN"] else { return }
         let plugins = try await VST3Plugin.effects(in: URL(fileURLWithPath: path))
