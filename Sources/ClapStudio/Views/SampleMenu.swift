@@ -66,6 +66,9 @@ extension AppModel {
         }
         menu.append(.action("VST3 Effects…") { [unowned self] in openEffects(ids: ids) })
         menu.append(.action("Copy To…") { [unowned self] in openExport(ids: ids) })
+        if samples.count > 1, !isJoining {
+            menu.append(.action("Join Samples…") { [unowned self] in openJoin(ids: ids) })
+        }
         menu.append(.divider)
         let poolEntries = samples.compactMap { poolEntry(of: $0) }
         if poolEntries.count == samples.count {

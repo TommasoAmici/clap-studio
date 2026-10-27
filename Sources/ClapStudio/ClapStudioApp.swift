@@ -101,6 +101,9 @@ struct ClapStudioApp: App {
                 Button("VST3 Effects…") { model.openEffects(ids: model.actionTargets) }
                     .keyboardShortcut("e", modifiers: [.command, .option])
                     .disabled(model.actionTargets.isEmpty)
+                Button("Join Samples…") { model.openJoin(ids: model.joinActionTargets) }
+                    .keyboardShortcut("j", modifiers: [.command, .option])
+                    .disabled(model.joinActionTargets.count < 2 || model.isJoining)
                 Button("Add to Drum Machine") { model.addToDrums(model.actionTargets) }
                     .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
                 Button("Add to Melody") { model.addToMelody(model.actionTargets) }

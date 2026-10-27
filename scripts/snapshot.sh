@@ -11,6 +11,9 @@
 #     --update-install  show verification and installation activity without installing
 #     --native  capture native glass layers at the display's resolution (needs existing screen capture access)
 #     --effects open the VST3 Effects panel for two samples (uses a scratch library)
+#     --join open the Join Samples sheet for eight samples (use a scratch library)
+#     --join-preset with --join: show the preset name controls
+#     --join-folder capture the native folder chooser without saving files (needs existing screen capture access)
 #     --effects-save with --effects: show the native Save dialog for one sample
 #     --effects-plugin PATH  with --effects: load a test VST3 bundle
 #     --select  select the first sample (shows the inspector's contents)
@@ -59,6 +62,9 @@ while [ $# -gt 0 ]; do
     --update-download) export CLAP_SNAPSHOT_UPDATE_PROGRESS=download ;;
     --update-install) export CLAP_SNAPSHOT_UPDATE_PROGRESS=install ;;
     --effects) export CLAP_SNAPSHOT_EFFECTS=1 ;;
+    --join) export CLAP_SNAPSHOT_JOIN=1 ;;
+    --join-preset) export CLAP_SNAPSHOT_JOIN=1; export CLAP_SNAPSHOT_JOIN_PRESET=1 ;;
+    --join-folder) export CLAP_SNAPSHOT_JOIN=1; export CLAP_SNAPSHOT_JOIN_FOLDER=1 ;;
     --effects-save) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_SAVE=1 ;;
     --effects-plugin) shift; export CLAP_SNAPSHOT_EFFECTS_PLUGIN="$1" ;;
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;

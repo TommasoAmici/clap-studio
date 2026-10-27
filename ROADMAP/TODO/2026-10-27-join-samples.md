@@ -31,7 +31,7 @@ audio files.
   length and cue-count limits, and source and destination protection.
 - [x] Split oversized selected sounds across files, preserving every frame
   without adding silence inside a source.
-- [ ] Add the Library and Map action, native folder chooser, editable settings,
+- [x] Add the Library and Map action, native folder chooser, editable settings,
   saved presets and the ALM Squid Salmple preset; document and check the dialog.
 
 ## Implementation context
@@ -74,3 +74,31 @@ audio files.
   trim fades, within one 16-bit rounding step. Stored trims are fitted to the
   actual file duration. All 17 join tests pass; the full suite passed 453
   tests in 95 suites after `scripts/build.sh`, with no new warnings.
+- The Library and Map share `sampleMenu(for:)`; the Sample menu also offers
+  `Join Samples…` with Option-Command-J. `AppModel+Join` snapshots sources in
+  visible Library order and owns the detached cancellable export. No library
+  data is edited by joining. The native folder panel is retained until its
+  completion, and starts only after the options sheet has dismissed.
+- `JoinState` owns the small observable feature state and ignored work/panel
+  references. AppModel keeps one ignored reference and forwards the feature
+  properties in `AppModel+Join`, so views still read the shared AppModel while
+  join storage stays out of its large central file.
+- `JoinSheet` stores the current options and named presets under `join.settings`
+  and `join.presets` in UserDefaults. The built-in module preset is immutable;
+  saving an existing custom name updates its settings. The sheet uses intrinsic
+  vertical sizing so showing the preset name row preserves wrapped help text.
+- UI checks use `scripts/snapshot.sh --join` in light Library and dark Map,
+  `--join-preset` for the expanded name controls and `--join-folder` for the
+  native panel. The last one targets the panel directly with existing screen
+  capture access because ordinary main-window captures leave it out; its
+  `.windows.txt` sidecar records actual panel visibility. All were inspected
+  on macOS 26.7.2 using a synthetic scratch library and separate executable
+  preference domain. macOS 14 runtime and hardware region-end handling remain
+  unverified. Apple HIG's scoped-task sheet guidance informed the presentation;
+  the UI uses native controls and adds no APIs newer than macOS 14.
+- Final validation after moving state: `scripts/build.sh` passed without new
+  warnings; `scripts/test.sh` passed 453 tests in 95 suites. The expanded
+  preset sheet also rendered correctly at the minimum 1250-by-680 window size,
+  confirming the nested observable bindings still present it. Native folder
+  capture showed the real folder browser and its Join Here action without
+  saving any files.
