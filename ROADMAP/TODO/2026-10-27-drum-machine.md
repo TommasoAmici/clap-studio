@@ -11,7 +11,7 @@ Make sure that the `Length [ n  ] bars` input:
 ## Checklist
 
 - [x] Restore compact rows and replace the scrolling slider with a native scrollbar.
-- [ ] Add click and arrow-key length adjustment without moving the bar/bars label.
+- [x] Add click and arrow-key length adjustment without moving the bar/bars label.
 
 ## Implementation context
 
@@ -28,3 +28,21 @@ Make sure that the `Length [ n  ] bars` input:
   snapshots show the native thumb in light (1600-point window, first bar) and
   dark (1250-point minimum, bar-three target) appearances. Both retain the
   fixed sound and mixer controls without repeated headings.
+- `DrumLengthControl.swift` keeps the editable count and an `NSStepper`
+  together. Its text-field delegate handles Up/Down in AppKit's field editor;
+  invalid text restores the current count on commit, and every accepted value
+  uses the existing 1…100,000-bar bounds before adjustment to avoid overflow.
+  Typing changes the length when committed; stepper clicks and arrows apply
+  immediately. The stepper follows a valid typed count before it is committed.
+- `DrumPanel.lengthControl` reserves 26 points for the singular/plural suffix.
+  At the minimum window width, one-bar and two-bar light snapshots retain the
+  exact header positions; the native number field and arrows also fit in dark
+  appearance. The field keeps the existing shortening/removal warning.
+- AppKit harnesses loaded the actual control/delegate source and exercised
+  native target/actions for stepper clicks, Up/Down, typing, invalid input,
+  bounds including `Int.max`, scrollbar thumb positions, page/line movement
+  and scroll bounds. These checks complement the real-window snapshots;
+  the change adds no core behavior requiring a new ClapCore test.
+- Final build adds no new warnings; all 413 tests in 89 suites pass after
+  the length-control slice. These changes touch only presentation and controls:
+  no file writes, schema/model changes or re-embedding are involved.

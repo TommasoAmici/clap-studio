@@ -54,10 +54,11 @@ struct DrumPanel: View {
     private var lengthControl: some View {
         HStack(spacing: 4) {
             Text("Length").foregroundStyle(.secondary)
-            TextField("Bars", value: Binding(get: { model.drumPattern.bars }, set: { model.drumPattern.setBars($0) }), format: .number)
-                .textFieldStyle(.roundedBorder).frame(width: 50)
-                .help("Number of 4/4 bars. Shortening removes steps past the end.")
+            DrumLengthControl(bars: Binding(get: { model.drumPattern.bars }, set: { model.drumPattern.setBars($0) }))
+                .frame(width: 69, height: 22)
+                .help("Number of 4/4 bars. Type a number, click the arrows, or use Up and Down while editing. Shortening removes steps past the end.")
             Text(model.drumPattern.bars == 1 ? "bar" : "bars").foregroundStyle(.secondary)
+                .frame(width: 26, alignment: .leading)
         }
         .fixedSize()
     }
