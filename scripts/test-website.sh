@@ -6,13 +6,17 @@ python3 - "$ROOT" <<'PY'
 from html.parser import HTMLParser
 from pathlib import Path
 import os
+import re
 import shutil
 import struct
 import subprocess
 import sys
 import tempfile
+from urllib.parse import parse_qs, urlsplit
 
 root = Path(sys.argv[1]).resolve()
+version = re.search(r"<key>CFBundleShortVersionString</key><string>([^<]+)</string>",
+                    (root / "scripts/bundle.sh").read_text()).group(1)
 
 class LocalFiles(HTMLParser):
     def __init__(self):
@@ -41,7 +45,10 @@ with tempfile.TemporaryDirectory(prefix="clap-site-test-") as scratch:
     files.feed(document)
     assert files.paths, "The exported page must have its local assets."
     for name in files.paths:
-        assert (output / name).is_file(), f"Missing portable asset: {name}"
+        path = urlsplit(name)
+        assert (output / path.path).is_file(), f"Missing portable asset: {name}"
+        if Path(path.path).suffix in (".png", ".svg") or path.path == "site.js":
+            assert parse_qs(path.query) == {"v": [version]}, f"Cached images and gallery code must follow the release version: {name}"
     card = output / "og-image.png"
     assert card.read_bytes() == (root / "website/og-image.png").read_bytes(), "The share image must be exported unchanged."
     assert struct.unpack(">II", card.read_bytes()[16:24]) == (1200, 630), "The share image must fit a large link preview."
@@ -53,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix="clap-site-test-") as scratch:
                    env={**os.environ, "WEBSITE_URL": "https://example.com/clap/"})
     previews = LocalFiles()
     previews.feed((published / "index.html").read_text())
-    assert previews.metadata["og:image"] == "https://example.com/clap/og-image.png", "Preview images need a public URL, including any site subfolder."
+    assert previews.metadata["og:image"] == f"https://example.com/clap/og-image.png?v={version}", "Preview images need a versioned public URL, including any site subfolder."
     assert previews.metadata["twitter:image"] == previews.metadata["og:image"]
     assert previews.metadata["og:url"] == "https://example.com/clap/"
     assert (published / "og-image.png").is_file(), "An absolute image URL must still have its file in the export."
@@ -67,8 +74,21 @@ with tempfile.TemporaryDirectory(prefix="clap-site-test-") as scratch:
     fixture = scratch / "fixture"
     (fixture / "scripts").mkdir(parents=True)
     shutil.copy2(root / "scripts/website.sh", fixture / "scripts/website.sh")
+    shutil.copy2(root / "scripts/bundle.sh", fixture / "scripts/bundle.sh")
     shutil.copytree(root / "website", fixture / "website")
     shutil.copytree(output / "media", fixture / "media")
+    bundle = fixture / "scripts/bundle.sh"
+    bundle.write_text(bundle.read_text().replace(f"<string>{version}</string>",
+                                              "<string>99.2.1</string>"))
+    next_release = scratch / "next-release"
+    subprocess.run([str(fixture / "scripts/website.sh"), str(next_release)], check=True)
+    next_files = LocalFiles()
+    next_files.feed((next_release / "index.html").read_text())
+    for name in next_files.paths:
+        path = urlsplit(name)
+        if Path(path.path).suffix in (".png", ".svg") or path.path == "site.js":
+            assert parse_qs(path.query) == {"v": ["99.2.1"]}, "A version bump must refresh all images without editing the website."
+    assert next_files.metadata["og:image"] == "og-image.png?v=99.2.1", "Local social previews must also follow the version."
     image = fixture / "media/map-light.png"
     image.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:example\nsize 123\n")
     refused = scratch / "unhydrated"

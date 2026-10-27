@@ -26,6 +26,9 @@ The build uses Python's standard library, copies only the screenshots the page
 can show, and changes their paths for the output folder. It refuses missing
 images and Git LFS pointers: download the media first when building a website
 from a checkout that skipped it. App CI does not need to build the website.
+Exported screenshots, the icon and the share card use `?v=` with the current
+app version from `scripts/bundle.sh`, so browsers refresh them after a release.
+The music selector keeps that version when switching views.
 
 The website needs no Node packages, backend, API key, external font, tracking
 script or cookie.
@@ -55,8 +58,8 @@ swift scripts/render-og-image.swift
 The [Website workflow](../.github/workflows/website.yml) follows the
 [Salmple deployment](https://github.com/TommasoAmici/salmple): build the static
 folder, then copy it over SSH with `rsync`. Changes to the website, PNG
-screenshots, export scripts or workflow run the export checks on pull requests
-and deploy after a push to `main`. **Run workflow** on `main` can deploy again
+screenshots, the app version, export scripts or workflow run the export checks
+on pull requests and deploy after a push to `main`. **Run workflow** on `main` can deploy again
 without another commit. Running it on another branch only checks the build.
 This job downloads PNG screenshots through Git LFS; the app release job keeps
 skipping media.
@@ -81,8 +84,9 @@ Salmple does. `rsync --delete` removes old files inside this website directory
 that are absent from the new build.
 
 `scripts/test-website.sh` checks that exported image paths work within the
-output folder, every musical view is present in both appearances, and missing
-images or Git LFS pointers stop the build before writing output.
+output folder, image URLs follow the app version, every musical view is present
+in both appearances, and missing images or Git LFS pointers stop the build
+before writing output.
 
 The page honors reduced-motion preferences, keeps its links and screenshot
 controls usable by keyboard, and uses native `picture` media queries so a
