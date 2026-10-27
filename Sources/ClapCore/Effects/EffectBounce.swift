@@ -63,9 +63,9 @@ public enum EffectBounce {
             }
         }
         try Task.checkCancellation()
-        let result = audio
+        let result = audio, trimTail = chain.contains(where: { !$0.bypass })
         try await offMain {
-            try save(result, to: destination, fileManager: .default)
+            try save(trimTail ? removingSilentTail(result) : result, to: destination, fileManager: .default)
         }
     }
 
@@ -114,6 +114,18 @@ public enum EffectBounce {
             }
         }
         return StereoAudio(left: Array(left.dropFirst(latency)), right: Array(right.dropFirst(latency)), rate: input.rate)
+    }
+
+    /// Keep quiet ringing and a short release, without saving the unused tail allowance.
+    private static func removingSilentTail(_ audio: StereoAudio) throws -> StereoAudio {
+        let threshold: Float = 0.000_01 // -100 dB; only inaudible padding is removed.
+        var last: Int?
+        for index in audio.left.indices.reversed() {
+            if index % 65_536 == 0 { try Task.checkCancellation() }
+            if abs(audio.left[index]) > threshold || abs(audio.right[index]) > threshold { last = index; break }
+        }
+        let count = min(audio.left.count, max(1, (last.map { $0 + 1 } ?? 0) + Int(audio.rate * 0.005)))
+        return StereoAudio(left: Array(audio.left.prefix(count)), right: Array(audio.right.prefix(count)), rate: audio.rate)
     }
 
     private static func save(_ audio: StereoAudio, to destination: URL, fileManager fm: FileManager) throws {
