@@ -64,10 +64,14 @@ private struct ModelToggle: View {
 /// Shows or hides the inspector. Declared in the inspector's content, it sits in the toolbar section over the
 /// inspector.
 struct InspectorToggle: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isShown: Bool
 
     var body: some View {
-        Button { withAnimation { isShown.toggle() } } label: { Label("Inspector", systemImage: "sidebar.trailing") }
+        Button { withAnimation(reduceMotion ? nil : .default) { isShown.toggle() } } label: {
+            Label("Inspector", systemImage: "sidebar.trailing")
+        }
+            .accessibilityValue(isShown ? "Shown" : "Hidden")
             .help(isShown ? "Hide the inspector" : "Show the inspector")
     }
 }

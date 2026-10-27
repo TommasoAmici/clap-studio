@@ -112,9 +112,15 @@ struct SidebarView: View {
 }
 
 /// Long sidebars scrolled under the window buttons drew a black line through them: the toolbar's separator, which
-/// appears whenever scrolled content sits beneath the toolbar. The sidebar has no use for it.
+/// appears whenever scrolled content sits beneath the toolbar. macOS 26 uses its native glass and scroll edge.
 struct NoToolbarSeparator: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 15.0, *) { content.toolbarBackgroundVisibility(.hidden, for: .windowToolbar) } else { content }
+        if #available(macOS 26.0, *) {
+            content
+        } else if #available(macOS 15.0, *) {
+            content.toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            content
+        }
     }
 }
