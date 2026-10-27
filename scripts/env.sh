@@ -6,6 +6,11 @@
 # Xcode. The macOS 26 SDK does not, so we build against it when Xcode is absent.
 # Builds with a full Xcode installation use the default SDK.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Keep compiler caches with the build so restricted shells need no home-folder writes.
+# SwiftPM compiles the manifest separately and needs its own cache override.
+CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT/.build/clang-module-cache}"
+SWIFTPM_MODULECACHE_OVERRIDE="${SWIFTPM_MODULECACHE_OVERRIDE:-$ROOT/.build/manifest-module-cache}"
+export CLANG_MODULE_CACHE_PATH SWIFTPM_MODULECACHE_OVERRIDE
 DEV_DIR="${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || true)}"
 if [ -z "$DEV_DIR" ]; then
   echo "Apple developer tools are missing. Run xcode-select --install, finish the installer, then run scripts/setup.sh." >&2

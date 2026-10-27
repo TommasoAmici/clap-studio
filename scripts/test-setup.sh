@@ -77,6 +77,7 @@ EOF
 chmod +x "$SCRATCH/bin/"* "$CLAP_TEST_DEV/usr/bin/"*
 export PATH="$SCRATCH/bin:$PATH"
 unset SDKROOT DEVELOPER_DIR TOOLCHAINS
+unset CLANG_MODULE_CACHE_PATH SWIFTPM_MODULECACHE_OVERRIDE
 
 expectFailure() {
     if "$@" > "$SCRATCH/output" 2>&1; then
@@ -90,6 +91,22 @@ contains() {
         echo "Expected diagnostic: $1" >&2
         exit 1
     fi
+}
+
+# Sourcing the shared environment must choose writable project caches without
+# creating them; setup --check remains read-only.
+sh -c '. "$1/scripts/env.sh"
+  [ "$CLANG_MODULE_CACHE_PATH" = "$1/.build/clang-module-cache" ]
+  [ "$SWIFTPM_MODULECACHE_OVERRIDE" = "$1/.build/manifest-module-cache" ]' \
+  "$ROOT/scripts/test-setup.sh" "$ROOT"
+env CLANG_MODULE_CACHE_PATH="$SCRATCH/clang" SWIFTPM_MODULECACHE_OVERRIDE="$SCRATCH/manifest" \
+  sh -c '. "$1/scripts/env.sh"
+    [ "$CLANG_MODULE_CACHE_PATH" = "$2/clang" ]
+    [ "$SWIFTPM_MODULECACHE_OVERRIDE" = "$2/manifest" ]' \
+  "$ROOT/scripts/test-setup.sh" "$ROOT" "$SCRATCH"
+[ ! -e "$SCRATCH/clang" ] && [ ! -e "$SCRATCH/manifest" ] || {
+  echo "Checking the environment must not create compiler caches" >&2
+  exit 1
 }
 
 "$ROOT/scripts/setup.sh" --check > "$SCRATCH/output" 2>&1

@@ -123,6 +123,8 @@ scripts/bench.sh 100000 2048  # optional scale benchmark (also the default)
 
 Always use these scripts for builds and tests. They use the compiler found by `xcrun`, so an unrelated Swift on your shell's PATH cannot take over; `scripts/env.sh` selects the SDK and `scripts/test.sh` supplies the Testing plugin path. `DEVELOPER_DIR=/path/to/Xcode.app scripts/setup.sh --check` checks another Xcode without changing the system selection. An explicit `SDKROOT` is honoured; unset it if it names an old or missing SDK. The local configuration checked here is Apple Swift 6.4 with the macOS 26.5 SDK.
 
+Compiler caches stay in `.build/`, so builds also work in shells that cannot write to your home folder. Explicit `CLANG_MODULE_CACHE_PATH` and `SWIFTPM_MODULECACHE_OVERRIDE` settings are honoured.
+
 The VST3 interfaces are vendored, so normal builds need no SDK download. `scripts/vendor-vst3.sh` fetches the pinned revision from Steinberg; add `--latest` to update it, or pass a commit or tag. It replaces the vendor files and updates the revision pin and bundled license notice. See [the bridge notes](Sources/CVST3/README.md), then review the diff and run the build and full tests.
 
 For model export, `mise.toml` pins **uv 0.12.23** and **Python 3.12.9**. [Install mise](https://mise.jdx.dev/getting-started.html) (or `brew install mise` if you already use Homebrew), then:
