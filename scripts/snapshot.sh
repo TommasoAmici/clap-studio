@@ -103,6 +103,7 @@ if [ -n "${CLAP_SNAPSHOT_EXECUTABLE:-}" ]; then
   EXECUTABLE="$CLAP_SNAPSHOT_EXECUTABLE"
 else
   "$SWIFT" build --product ClapStudio >/dev/null
+  "$SWIFT" build --product ClapVSTHost >/dev/null
   EXECUTABLE="$("$SWIFT" build --show-bin-path)/ClapStudio"
 fi
 rm -f "$OUT"

@@ -14,6 +14,8 @@
 #include <vector>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
+#include <unordered_map>
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 namespace {
@@ -37,7 +39,7 @@ struct Stream : IBStream {
     HOST_REFS HOST_QUERY(IBStream)
     tresult PLUGIN_API read(void *b, int32 n, int32 *actual) override {
         if (n < 0 || !b) return kInvalidArgument;
-        int32 count = static_cast<int32>(std::min<int64>(n, bytes.size() - position));
+        int32 count = static_cast<int32>(std::min<int64>(n, std::max<int64>(0, static_cast<int64>(bytes.size()) - position)));
         if (count) memcpy(b, bytes.data() + position, count); position += count;
         if (actual) *actual = count; return count == n ? kResultOk : kResultFalse;
     }
@@ -48,7 +50,7 @@ struct Stream : IBStream {
     }
     tresult PLUGIN_API seek(int64 p, int32 mode, int64 *result) override {
         int64 target = p + (mode == kIBSeekCur ? position : mode == kIBSeekEnd ? bytes.size() : 0);
-        if (target < 0 || target > static_cast<int64>(bytes.size())) return kInvalidArgument;
+        if (target < 0 || target > 64 * 1024 * 1024) return kInvalidArgument;
         position = target; if (result) *result = position; return kResultOk;
     }
     tresult PLUGIN_API tell(int64 *p) override { if (!p) return kInvalidArgument; *p = position; return kResultOk; }
@@ -69,8 +71,16 @@ struct Changes : IParameterChanges {
     IParamValueQueue *PLUGIN_API getParameterData(int32 i) override { return i >= 0 && i < getParameterCount() ? &queues[i] : nullptr; }
     IParamValueQueue *PLUGIN_API addParameterData(const ParamID &, int32 &) override { return nullptr; }
 };
+struct Handler : IComponentHandler {
+    std::unordered_map<ParamID, ParamValue> edits;
+    HOST_REFS HOST_QUERY(IComponentHandler)
+    tresult PLUGIN_API beginEdit(ParamID) override { return kResultOk; }
+    tresult PLUGIN_API performEdit(ParamID id, ParamValue value) override { edits[id] = value; return kResultOk; }
+    tresult PLUGIN_API endEdit(ParamID) override { return kResultOk; }
+    tresult PLUGIN_API restartComponent(int32) override { return kResultOk; }
+};
 struct Module {
-    CFBundleRef bundle = nullptr; IPluginFactory *factory = nullptr; bool entered = false;
+    Host host; CFBundleRef bundle = nullptr; IPluginFactory *factory = nullptr; bool entered = false;
     ~Module() {
         if (factory) factory->release();
         if (bundle) {
@@ -81,7 +91,7 @@ struct Module {
     }
 };
 struct Effect {
-    Host host; IComponent *component = nullptr; IAudioProcessor *processor = nullptr;
+    Host host; Handler handler; IComponent *component = nullptr; IAudioProcessor *processor = nullptr;
     IEditController *controller = nullptr; bool initialized = false, separateController = false, active = false, processing = false;
     IConnectionPoint *componentConnection = nullptr, *controllerConnection = nullptr;
     int32 inputBusCount = 0, outputBusCount = 0;
@@ -92,7 +102,7 @@ struct Effect {
         if (componentConnection && controllerConnection) { componentConnection->disconnect(controllerConnection); controllerConnection->disconnect(componentConnection); }
         if (componentConnection) componentConnection->release();
         if (controllerConnection) controllerConnection->release();
-        if (controller) { if (separateController) controller->terminate(); controller->release(); }
+        if (controller) { controller->setComponentHandler(nullptr); if (separateController) controller->terminate(); controller->release(); }
         if (processor) processor->release();
         if (component) { if (initialized) component->terminate(); component->release(); }
     }
@@ -109,7 +119,12 @@ ClapVST3Module clap_vst3_module_open(const char *path) {
     if (entry && !entry(m->bundle)) { delete m; return nullptr; } m->entered = true;
     auto factory = reinterpret_cast<IPluginFactory *(*)()>(CFBundleGetFunctionPointerForName(m->bundle, CFSTR("GetPluginFactory")));
     m->factory = factory ? factory() : nullptr;
-    if (!m->factory) { delete m; return nullptr; } return m;
+    if (!m->factory) { delete m; return nullptr; }
+    IPluginFactory3 *factory3 = nullptr;
+    if (m->factory->queryInterface(INLINE_UID_OF(IPluginFactory3), reinterpret_cast<void **>(&factory3)) == kResultOk && factory3) {
+        factory3->setHostContext(&m->host); factory3->release();
+    }
+    return m;
 }
 void clap_vst3_module_close(ClapVST3Module m) { delete static_cast<Module *>(m); }
 int32_t clap_vst3_class_count(ClapVST3Module m) { return m ? static_cast<Module *>(m)->factory->countClasses() : 0; }
@@ -139,6 +154,7 @@ ClapVST3Effect clap_vst3_effect_create(ClapVST3Module m, const char *id) {
         e->controller->queryInterface(INLINE_UID_OF(IConnectionPoint), reinterpret_cast<void **>(&e->controllerConnection));
         if (e->componentConnection && e->controllerConnection) { e->componentConnection->connect(e->controllerConnection); e->controllerConnection->connect(e->componentConnection); }
     }
+    if (e->controller) e->controller->setComponentHandler(&e->handler);
     if (e->controller) { Stream stream; if (e->component->getState(&stream) == kResultOk) { stream.position = 0; e->controller->setComponentState(&stream); } }
     return e;
 }
@@ -147,8 +163,32 @@ int32_t clap_vst3_parameter_count(ClapVST3Effect e) { auto p = static_cast<Effec
 int32_t clap_vst3_parameter_info(ClapVST3Effect e, int32_t index, uint32_t *id, uint16_t *title, double *value, int32_t *steps) {
     auto p = static_cast<Effect *>(e); ParameterInfo info{};
     if (!p || !p->controller || p->controller->getParameterInfo(index, info) != kResultOk || (info.flags & ParameterInfo::kIsReadOnly) || (info.flags & ParameterInfo::kIsHidden)) return 0;
-    *id = info.id; memcpy(title, info.title, sizeof(info.title)); *value = p->controller->getParamNormalized(info.id); *steps = info.stepCount; return 1;
+    *id = info.id; memcpy(title, info.title, sizeof(info.title)); *value = p->handler.edits.count(info.id) ? p->handler.edits.at(info.id) : p->controller->getParamNormalized(info.id); *steps = info.stepCount; return 1;
 }
+void *clap_vst3_controller(ClapVST3Effect effect) { return effect ? static_cast<Effect *>(effect)->controller : nullptr; }
+int32_t clap_vst3_parameter_set(ClapVST3Effect effect, uint32_t id, double value) {
+    auto e = static_cast<Effect *>(effect);
+    return e && e->controller && e->controller->setParamNormalized(id, value) == kResultOk;
+}
+int32_t clap_vst3_state_get(ClapVST3Effect effect, int32_t controller, uint8_t **bytes, int32_t *size) {
+    auto e = static_cast<Effect *>(effect); if (!e || !bytes || !size) return 0;
+    *bytes = nullptr; *size = 0; Stream stream;
+    auto result = controller ? (e->controller ? e->controller->getState(&stream) : kNotImplemented) : e->component->getState(&stream);
+    if (result != kResultOk) return 0;
+    if (stream.bytes.size() > 16 * 1024 * 1024) return -1;
+    *size = static_cast<int32_t>(stream.bytes.size());
+    if (*size) { *bytes = static_cast<uint8_t *>(malloc(*size)); if (!*bytes) return -1; memcpy(*bytes, stream.bytes.data(), *size); }
+    return 1;
+}
+int32_t clap_vst3_state_set(ClapVST3Effect effect, int32_t controller, const uint8_t *bytes, int32_t size) {
+    auto e = static_cast<Effect *>(effect); if (!e || size < 0 || size > 16 * 1024 * 1024 || (size && !bytes)) return 0;
+    Stream stream; if (size) stream.bytes.assign(bytes, bytes + size);
+    if (controller) return e->controller && e->controller->setState(&stream) == kResultOk;
+    if (e->component->setState(&stream) != kResultOk) return 0;
+    if (e->controller) { stream.position = 0; e->controller->setComponentState(&stream); }
+    return 1;
+}
+void clap_vst3_bytes_free(uint8_t *bytes) { free(bytes); }
 int32_t clap_vst3_prepare(ClapVST3Effect effect, double rate) {
     auto e = static_cast<Effect *>(effect); if (!e || e->active) return 0;
     // Component topology queries belong to the UI thread, before audio processing starts.

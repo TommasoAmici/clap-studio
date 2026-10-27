@@ -8,11 +8,13 @@ set -e
 . "$(dirname "$0")/env.sh"
 cd "$ROOT"
 "$SWIFT" build -c release --product ClapStudio
+"$SWIFT" build -c release --product ClapVSTHost
 
 APP="build/ClapStudio.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$("$SWIFT" build -c release --show-bin-path)/ClapStudio" "$APP/Contents/MacOS/ClapStudio"
+cp "$("$SWIFT" build -c release --show-bin-path)/ClapVSTHost" "$APP/Contents/MacOS/ClapVSTHost"
 
 # Bundle whichever Core ML models have been exported (tools/export_clap.py, tools/export_model.py,
 # tools/export_birdnet.py).

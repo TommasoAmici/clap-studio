@@ -18,8 +18,19 @@ to the main actor; audio processing runs exclusively on a worker task. A plugin
 instance belongs to one bounce and is reset for every selected sample. The
 module stays loaded until its instances have been terminated.
 
-This initial host supports stereo 32-bit offline effects, generic normalized
-parameters, bypass, ordered chains, latency compensation and bounded tails.
-It does not host instruments, MIDI, plugin editors, sidechain audio or presets.
+The host supports stereo 32-bit offline effects, native NSView editors with
+window sizing and focus, generic parameters as a fallback, bypass, ordered
+chains, latency compensation and bounded tails. It does not host instruments,
+MIDI or sidechain audio. The manufacturer’s editor can select its own presets;
+component/controller state is captured where supported, up to 16 MiB each.
+Saved state is restored before exposed normalized parameters on each render.
+A required IComponentHandler and factory3 host context support editor hosts.
 Inactive optional buses are negotiated as empty; plugins rejecting that layout
-are reported as unsupported. Plugin code executes inside the app process.
+are reported as unsupported. Plugin code executes in the bundled `ClapVSTHost` helper. The app performs only file discovery, request supervision, preprocessing, verification and atomic destination replacement. Probe requests have a 30-second deadline; audio-block progress refreshes the render helper’s five-minute inactivity deadline. Cancellation kills and reaps the helper. Helpers receive scratch input/output paths, never the user’s chosen bounce destination.
+
+Editor helpers send a main-run-loop heartbeat every half second. A hung editor
+is killed after 30 seconds without that heartbeat; responsive editors stay
+open until the user closes their window. Closing captures settings; cancelling
+kills the session and discards its changes. `VST3Process` supervises each
+Process on one DispatchQueue worker because Foundation launch and wait must
+use the same thread’s run loop.

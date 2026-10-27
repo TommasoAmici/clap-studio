@@ -7,6 +7,12 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 - See a spinner and task description while an app update downloads and installs.
 - Read release notes in the update dialog and a changelog with each version’s changes.
+- Open a VST3 effect’s own editor, keeping presets and hidden settings for
+  preview and bounce. Effects without a Mac editor keep parameter sliders.
+- Plug-in crashes and hangs are contained in a separate process, with loading
+  time limits and cancellation that closes the helper.
+- The empty Effects panel is centered, and preview controls stay still while
+  samples play.
 
 ## 0.28.0
 

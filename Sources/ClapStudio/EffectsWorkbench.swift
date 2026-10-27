@@ -59,30 +59,64 @@ import UniformTypeIdentifiers
 
     func addBundle(_ bundle: URL) {
         guard !busy else { return }
-        do {
-            let effects = try VST3Plugin.effects(in: bundle)
-            if effects.count == 1, let effect = effects.first { try add(effect) }
-            else if effects.isEmpty { message = "No audio effects were found in this bundle." }
-            else {
-                let menu = NSMenu()
-                for effect in effects {
-                    let item = NSMenuItem(title: effect.name, action: #selector(addClass(_:)), keyEquivalent: "")
-                    item.target = self; item.representedObject = effect; menu.addItem(item)
+        busy = true; progress = "Loading effect…"; message = nil
+        task = Task {
+            do {
+                let effects = try await VST3Plugin.effects(in: bundle)
+                try Task.checkCancellation()
+                busy = false; progress = ""
+                if effects.count == 1, let effect = effects.first { add(effect) }
+                else if effects.isEmpty { message = "No audio effects were found in this bundle." }
+                else {
+                    let menu = NSMenu()
+                    for effect in effects {
+                        let item = NSMenuItem(title: effect.name, action: #selector(addClass(_:)), keyEquivalent: "")
+                        item.target = self; item.representedObject = effect; menu.addItem(item)
+                    }
+                    menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
                 }
-                menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+            } catch {
+                guard !Task.isCancelled else { return }
+                busy = false; progress = ""; message = error.localizedDescription
             }
-        } catch { message = error.localizedDescription }
+        }
     }
 
     @objc private func addClass(_ sender: NSMenuItem) {
-        guard let effect = sender.representedObject as? VST3Plugin else { return }
-        do { try add(effect) } catch { message = error.localizedDescription }
+        guard !busy, let effect = sender.representedObject as? VST3Plugin else { return }
+        add(effect)
     }
 
-    private func add(_ effect: VST3Plugin) throws {
-        stopPreview()
-        chain.append(EffectSlot(plugin: effect, parameters: try effect.parameters()))
-        message = nil
+    private func add(_ effect: VST3Plugin) {
+        stopPreview(); busy = true; progress = "Loading effect…"; message = nil
+        task = Task {
+            do {
+                let slot = try await effect.makeSlot()
+                try Task.checkCancellation()
+                chain.append(slot)
+                busy = false; progress = ""
+            } catch {
+                guard !Task.isCancelled else { return }
+                busy = false; progress = ""; message = error.localizedDescription
+            }
+        }
+    }
+
+    func edit(_ id: UUID) {
+        guard !busy, let slot = chain.first(where: { $0.id == id }) else { return }
+        stopPreview(); busy = true; progress = "Close the plug-in window to use your edits."; message = nil
+        task = Task {
+            do {
+                let edited = try await slot.edited()
+                try Task.checkCancellation()
+                guard let index = chain.firstIndex(where: { $0.id == id }) else { return }
+                chain[index] = edited
+                busy = false; progress = ""
+            } catch {
+                guard !Task.isCancelled else { return }
+                busy = false; progress = ""; message = error.localizedDescription
+            }
+        }
     }
 
     func stopPreview() {
@@ -111,7 +145,7 @@ import UniformTypeIdentifiers
                 audio.prepareToPlay()
                 guard audio.play() else { throw VST3Error.message("The rendered preview could not start playing.") }
                 player = audio; previewURL = target
-                busy = false; progress = "Playing \(sample.name)"
+                busy = false; progress = ""
             } catch {
                 try? FileManager.default.removeItem(at: target)
                 guard !Task.isCancelled else { return }
