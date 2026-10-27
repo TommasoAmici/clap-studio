@@ -44,7 +44,7 @@ struct MelodyPanel: View {
             barsMenu
             Button("Clear Notes") { model.melodyPattern.clearNotes(); model.selectedMelodyNote = nil }
                 .disabled(!model.melodyHasNotes)
-            Button { model.showMelody = false } label: { Image(systemName: "xmark.circle.fill") }
+            Button { model.showMelody = false } label: { Image(systemName: "xmark") }
                 .buttonStyle(.borderless).help("Close the melody")
         }
         .controlSize(.small)
@@ -92,8 +92,6 @@ struct MelodyPanel: View {
             toggle("S", on: track.solo, color: .yellow, help: "Solo") { model.melodyPattern.tracks[index].solo.toggle() }
             Slider(value: Binding(get: { Double(track.volume) }, set: { model.melodyPattern.tracks[index].volume = Float($0) }), in: 0...1)
                 .frame(width: 70).controlSize(.mini)
-            Button { model.removeMelodyTrack(at: index) } label: { Image(systemName: "minus.circle") }
-                .buttonStyle(.borderless).help("Remove this track")
         }
         .controlSize(.small)
         .padding(.horizontal, 12).padding(.bottom, 6)

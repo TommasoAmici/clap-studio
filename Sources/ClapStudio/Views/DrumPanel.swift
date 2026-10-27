@@ -133,7 +133,7 @@ struct DrumPanel: View {
             lengthControl
             Button("Clear Steps") { model.drumPattern.clearHits() }
                 .disabled(model.drumPattern.tracks.isEmpty)
-            Button { model.showDrums = false; model.drumMachine.stop() } label: { Image(systemName: "xmark.circle.fill") }
+            Button { model.showDrums = false; model.drumMachine.stop() } label: { Image(systemName: "xmark") }
                 .buttonStyle(.borderless).help("Close the drum machine")
         }
         .controlSize(.small)

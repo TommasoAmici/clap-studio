@@ -77,19 +77,24 @@ struct MultiSelectionInspector: View {
     private var categoryRow: some View {
         GridRow {
             Text("Category").foregroundStyle(.secondary)
-            Menu {
-                ForEach(SoundCategories.names, id: \.self) { name in
-                    Button(name) { model.setCategory(ids, name) }
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach(SoundCategories.names, id: \.self) { name in
+                        Button(name) { model.setCategory(ids, name) }
+                    }
+                    if samples.contains(where: { $0.categoryManual != nil }) {
+                        Divider()
+                        Button("Use automatic") { model.setCategory(ids, nil) }
+                    }
+                } label: {
+                    Text(shared { $0.effectiveCategory ?? "None" } ?? Self.mixed)
                 }
+                .menuStyle(.borderlessButton).fixedSize()
                 if samples.contains(where: { $0.categoryManual != nil }) {
-                    Divider()
-                    Button("Use automatic") { model.setCategory(ids, nil) }
+                    Button("Use automatic") { model.setCategory(ids, nil) }.controlSize(.mini)
+                        .help("Go back to the category found automatically for each sample")
                 }
-            } label: {
-                Text((shared { $0.effectiveCategory ?? "None" } ?? Self.mixed)
-                     + (samples.contains { $0.categoryManual != nil } ? " ✎" : ""))
             }
-            .menuStyle(.borderlessButton).fixedSize()
         }
     }
 
@@ -97,27 +102,34 @@ struct MultiSelectionInspector: View {
     private var moodRow: some View {
         GridRow {
             Text("Mood").foregroundStyle(.secondary)
-            Menu {
-                ForEach(SoundMoods.names, id: \.self) { name in
-                    let count = samples.filter { $0.moods.contains(name) }.count
-                    let onForAll = count == samples.count
-                    Button {
-                        model.changeMoods(ids, named: onForAll ? "Remove Mood \(name)" : "Add Mood \(name)") { moods in
-                            onForAll ? moods.filter { $0 != name } : (moods.contains(name) ? moods : moods + [name])
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach(SoundMoods.names, id: \.self) { name in
+                        let count = samples.filter { $0.moods.contains(name) }.count
+                        let onForAll = count == samples.count
+                        Button {
+                            model.changeMoods(ids, named: onForAll ? "Remove Mood \(name)" : "Add Mood \(name)") { moods in
+                                onForAll ? moods.filter { $0 != name } : (moods.contains(name) ? moods : moods + [name])
+                            }
+                        } label: {
+                            if count == 0 { Text(name) }
+                            else { Label(name, systemImage: onForAll ? "checkmark" : "minus") }
                         }
-                    } label: {
-                        if count == 0 { Text(name) }
-                        else { Label(name, systemImage: onForAll ? "checkmark" : "minus") }
                     }
+                    if samples.contains(where: { $0.moodsManual != nil }) {
+                        Divider()
+                        Button("Use automatic") { model.changeMoods(ids, named: "Use Automatic Moods") { _ in nil } }
+                    }
+                } label: {
+                    Text(moodSummary)
                 }
+                .menuStyle(.borderlessButton).fixedSize()
                 if samples.contains(where: { $0.moodsManual != nil }) {
-                    Divider()
                     Button("Use automatic") { model.changeMoods(ids, named: "Use Automatic Moods") { _ in nil } }
+                        .controlSize(.mini)
+                        .help("Go back to the moods found automatically for each sample")
                 }
-            } label: {
-                Text(moodSummary + (samples.contains { $0.moodsManual != nil } ? " ✎" : ""))
             }
-            .menuStyle(.borderlessButton).fixedSize()
         }
     }
 

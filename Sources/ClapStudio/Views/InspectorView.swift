@@ -188,8 +188,8 @@ private struct CueRow: View {
             Image(systemName: cue.fileSynced ? "doc.badge.checkmark" : "internaldrive")
                 .foregroundStyle(cue.fileSynced ? Color.green : Color.orange).imageScale(.small)
                 .help(cue.fileSynced ? "Stored in the file" : "App only")
-            Button { model.removeCue(cue.id) } label: { Image(systemName: "trash") }
-                .buttonStyle(.borderless).imageScale(.small)
+            Button { model.removeCue(cue.id) } label: { Image(systemName: "minus.circle") }
+                .buttonStyle(.borderless).imageScale(.small).help("Remove cue")
         }
         .onAppear { label = cue.label }
         .onChange(of: cue.label) { _, new in label = new }

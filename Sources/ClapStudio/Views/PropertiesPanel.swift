@@ -61,18 +61,24 @@ struct PropertiesPanel: View {
     private var categoryRow: some View {
         GridRow {
             Text("Category").foregroundStyle(.secondary)
-            Menu {
-                ForEach(SoundCategories.names, id: \.self) { name in
-                    Button(name) { model.setCategory(sample.id, name) }
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach(SoundCategories.names, id: \.self) { name in
+                        Button(name) { model.setCategory(sample.id, name) }
+                    }
+                    if sample.categoryManual != nil {
+                        Divider()
+                        Button("Use automatic" + (sample.category.map { " (\($0))" } ?? "")) { model.setCategory(sample.id, nil) }
+                    }
+                } label: {
+                    Text(sample.effectiveCategory ?? "None")
                 }
+                .menuStyle(.borderlessButton).fixedSize()
                 if sample.categoryManual != nil {
-                    Divider()
-                    Button("Use automatic" + (sample.category.map { " (\($0))" } ?? "")) { model.setCategory(sample.id, nil) }
+                    Button("Use automatic") { model.setCategory(sample.id, nil) }.controlSize(.mini)
+                        .help("Detected: \(sample.category ?? "none")")
                 }
-            } label: {
-                Text((sample.effectiveCategory ?? "None") + (sample.categoryManual != nil ? " ✎" : ""))
             }
-            .menuStyle(.borderlessButton).fixedSize()
         }
     }
 
@@ -80,26 +86,33 @@ struct PropertiesPanel: View {
     private var moodRow: some View {
         GridRow {
             Text("Mood").foregroundStyle(.secondary)
-            Menu {
-                ForEach(SoundMoods.names, id: \.self) { name in
-                    Toggle(name, isOn: Binding(
-                        get: { sample.moods.contains(name) },
-                        set: { on in
-                            model.changeMoods([sample.id], named: on ? "Add Mood \(name)" : "Remove Mood \(name)") { moods in
-                                on ? (moods.contains(name) ? moods : moods + [name]) : moods.filter { $0 != name }
-                            }
-                        }))
-                }
-                if sample.moodsManual != nil {
-                    Divider()
-                    Button("Use automatic" + (sample.moodsAuto.isEmpty ? "" : " (\(sample.moodsAuto.joined(separator: ", ")))")) {
-                        model.changeMoods([sample.id], named: "Use Automatic Moods") { _ in nil }
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach(SoundMoods.names, id: \.self) { name in
+                        Toggle(name, isOn: Binding(
+                            get: { sample.moods.contains(name) },
+                            set: { on in
+                                model.changeMoods([sample.id], named: on ? "Add Mood \(name)" : "Remove Mood \(name)") { moods in
+                                    on ? (moods.contains(name) ? moods : moods + [name]) : moods.filter { $0 != name }
+                                }
+                            }))
                     }
+                    if sample.moodsManual != nil {
+                        Divider()
+                        Button("Use automatic" + (sample.moodsAuto.isEmpty ? "" : " (\(sample.moodsAuto.joined(separator: ", ")))")) {
+                            model.changeMoods([sample.id], named: "Use Automatic Moods") { _ in nil }
+                        }
+                    }
+                } label: {
+                    Text(sample.moods.isEmpty ? "None" : sample.moodText)
                 }
-            } label: {
-                Text((sample.moods.isEmpty ? "None" : sample.moodText) + (sample.moodsManual != nil ? " ✎" : ""))
+                .menuStyle(.borderlessButton).fixedSize()
+                if sample.moodsManual != nil {
+                    Button("Use automatic") { model.changeMoods([sample.id], named: "Use Automatic Moods") { _ in nil } }
+                        .controlSize(.mini)
+                        .help("Detected: \(sample.moodsAuto.isEmpty ? "none" : sample.moodsAuto.joined(separator: ", "))")
+                }
             }
-            .menuStyle(.borderlessButton).fixedSize()
         }
     }
 

@@ -1,3 +1,4 @@
+import AppKit
 import ClapCore
 import SwiftUI
 
@@ -51,17 +52,14 @@ struct MultiEditPanel: View {
 
     // MARK: rows
 
-    /// A checkbox that can also be "some of them".
+    /// A native macOS checkbox that also shows mixed state when only some of the samples are reversed.
     private var reverseRow: some View {
         let state = shared(\.reverse)
-        let symbol = state == .same(true) ? "checkmark.square.fill" : state == .same(false) ? "square" : "minus.square.fill"
-        return Button {
+        let controlState: NSControl.StateValue = state == .same(true) ? .on : state == .same(false) ? .off : .mixed
+        return MixedStateCheckbox(title: "Reverse", state: controlState) {
             let turnOn = state != .same(true)
             model.changeEdits(ids) { $0.reverse = turnOn }
-        } label: {
-            Label("Reverse", systemImage: symbol)
         }
-        .buttonStyle(.borderless)
     }
 
     private func slider(_ title: String, _ part: Part, range: ClosedRange<Double>, current: Shared<Double>,
@@ -113,5 +111,31 @@ struct MultiEditPanel: View {
     private func label(_ value: Double?, format: (Double) -> String) -> String {
         guard let value else { return "Mixed" }
         return abs(value) < 0.05 ? "off" : format(value)
+    }
+}
+
+private struct MixedStateCheckbox: NSViewRepresentable {
+    let title: String
+    let state: NSControl.StateValue
+    let action: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(checkboxWithTitle: title, target: context.coordinator, action: #selector(Coordinator.toggle))
+        button.allowsMixedState = true
+        return button
+    }
+
+    func updateNSView(_ button: NSButton, context: Context) {
+        context.coordinator.action = action
+        button.title = title
+        button.state = state
+    }
+
+    final class Coordinator: NSObject {
+        var action: () -> Void
+        init(action: @escaping () -> Void) { self.action = action }
+        @objc func toggle() { action() }
     }
 }
