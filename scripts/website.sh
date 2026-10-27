@@ -19,6 +19,11 @@ source = root / "website"
 if output == root or output == source or output in source.parents or source in output.parents:
     raise SystemExit("Choose an output folder outside the website source.")
 html = (source / "index.html").read_text()
+version = re.search(r"<key>CFBundleShortVersionString</key><string>([^<]+)</string>",
+                    (root / "scripts/bundle.sh").read_text())
+if not version:
+    raise SystemExit("Missing app version in scripts/bundle.sh.")
+version = version.group(1)
 site_url = os.environ.get("WEBSITE_URL", "").strip()
 if site_url:
     parsed = urlsplit(site_url)
@@ -29,6 +34,9 @@ if site_url:
                         f'property="og:url" content="{escape(site_url, quote=True)}"')
     html = html.replace('content="og-image.png"',
                         f'content="{escape(urljoin(site_url, "og-image.png"), quote=True)}"')
+# Gallery code must refresh too: an older script would discard the image query.
+html = re.sub(r'((?:src|srcset|href|content)="[^"]+\.(?:png|svg)|src="site\.js)(")',
+              lambda match: f'{match[1]}?v={escape(version, quote=True)}{match[2]}', html)
 share_image = source / "og-image.png"
 if not share_image.is_file() or share_image.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
     raise SystemExit("Missing image: website/og-image.png. Render the social preview before building.")

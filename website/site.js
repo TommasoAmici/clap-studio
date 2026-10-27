@@ -7,6 +7,7 @@ if (gallery) {
   const caption = document.querySelector("#music-caption");
   const description = document.querySelector("#music-description");
   const mediaFolder = image.getAttribute("src").replace(/[^/]+$/, "");
+  const imageQuery = new URL(image.getAttribute("src"), document.baseURI).search;
   const views = {
     drums: {
       caption: "Drum machine / find your groove",
@@ -32,8 +33,8 @@ if (gallery) {
       const name = button.dataset.view;
       const view = views[name];
       if (!view) return;
-      darkSource.srcset = `${mediaFolder}${name}-dark.png`;
-      image.src = `${mediaFolder}${name}-light.png`;
+      darkSource.srcset = `${mediaFolder}${name}-dark.png${imageQuery}`;
+      image.src = `${mediaFolder}${name}-light.png${imageQuery}`;
       image.alt = view.alt;
       caption.textContent = view.caption;
       description.textContent = view.description;
