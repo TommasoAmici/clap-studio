@@ -64,6 +64,7 @@ extension AppModel {
         if samples.contains(where: canWriteTags) {
             menu.append(.action("Write Tags into Files…") { [unowned self] in tagWriteTargets = ids.filter { sampleByID[$0].map(canWriteTags) == true } })
         }
+        menu.append(.action("VST3 Effects…") { [unowned self] in openEffects(ids: ids) })
         menu.append(.action("Copy To…") { [unowned self] in openExport(ids: ids) })
         menu.append(.divider)
         let poolEntries = samples.compactMap { poolEntry(of: $0) }

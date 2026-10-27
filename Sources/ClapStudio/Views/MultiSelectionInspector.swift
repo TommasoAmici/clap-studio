@@ -30,6 +30,7 @@ struct MultiSelectionInspector: View {
                 .font(.caption)
             }
             MultiEditPanel(samples: samples)
+            Button("VST3 Effects…") { model.openEffects(ids: ids) }
             if !fieldRecordings.isEmpty { locationSection }
             tags
             fileActions

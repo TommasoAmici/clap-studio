@@ -108,6 +108,7 @@ final class AppModel {
     var kitSlots: [KitSlot] = []
     var kitChoice: [String: Int] = [:]
     var trims: [Int64: SampleTrim] = [:]   // non-destructive start/end per sample
+    @ObservationIgnored let effects = EffectsWorkbench()
     var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
     var showDrums = false { didSet { if showDrums != oldValue { storeDrumPattern() } } }
     /// The groove picked in the drum machine (remembered between launches); nil uses the plain starter rhythms.
