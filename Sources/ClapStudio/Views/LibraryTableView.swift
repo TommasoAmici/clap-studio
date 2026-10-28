@@ -6,7 +6,8 @@ struct LibraryTableView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        LibraryList(model: model, revision: model.visibleRevision, selection: model.tableSelection,
+        LibraryList(model: model, revision: model.visibleRevision, joinedLinksRevision: model.joinedLinksRevision,
+                    selection: model.tableSelection,
                     sortOrder: model.sortOrder, drumTracks: model.drumTracks, segmentMatches: model.segmentMatches,
                     shuffleSeed: model.shuffleSeed, pool: model.poolLayout)
             .overlay {

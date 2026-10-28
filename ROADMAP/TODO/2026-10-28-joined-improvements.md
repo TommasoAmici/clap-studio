@@ -10,7 +10,7 @@ I'd like to be able to expand a joined sample row and see all the sub samples it
 - [x] Track the source and bounds of every piece in each joined file.
 - [x] Keep source links for joined files, including files outside indexed folders.
 - [x] Show joined samples separately from other sample types.
-- [ ] Expand a joined sample row to show its source samples.
+- [x] Expand a joined sample row to show its source samples.
 
 ## Implementation context
 
@@ -55,3 +55,13 @@ At 100,000 synthetic rows and 32 embedding dimensions, `scripts/bench.sh`
 reopened the library in 0.160 s with either no joined paths or 1,000 joined
 paths. Unchanged rescans took 0.086 s and 0.165 s respectively. A warm 50 MiB
 joined-file digest took 0.029 s on this Mac (temporary instrumentation).
+
+The library table uses native disclosure controls and retains the order and
+duplicates of source pieces. Sources can be selected or auditioned when present;
+removed sources retain their name. Link fetching is cached, cancellable, and
+refreshed on library changes. Collapsing a selected child keeps selection on the
+remaining rows or the parent. Inspected snapshots include expanded and missing
+sources; native accessibility automation successfully opened a disclosure and
+exposed both source rows, but did not expose selected-row state for arrow-key
+verification. Tested on macOS 26.7.2; macOS 14 runtime was not available.
+Live Apple guidance could not be fetched because DNS was unavailable.

@@ -62,6 +62,7 @@ final class AppModel {
     var sampleByID: [Int64: SampleRecord] = [:]
     var visible: [SampleRecord] = [] { didSet { visibleRevision &+= 1 } }
     private(set) var visibleRevision = 0      // changes whenever `visible` does, for views that cannot diff 35k rows
+    var joinedLinksRevision = 0             // changes when source links may have changed
     var filterVersion = 0       // bumps whenever `visible` is recomputed (the map follows it)
     var filtersActive = false
     var folderTree: [FolderNode] = []
@@ -358,6 +359,7 @@ final class AppModel {
         trims = store.trims()
         locations = store.locations()
         sampleByID = Dictionary(uniqueKeysWithValues: (samples + usbSamples).map { ($0.id, $0) })
+        joinedLinksRevision &+= 1
         folderTree = FolderNode.build(roots: roots, samples: samples)
         updateCategoryCounts()
         updateMoodCounts()

@@ -7,6 +7,13 @@ extension LibraryListCoordinator {
     /// The sample on a line, nil for a folder heading or a line past the end.
     func sample(at row: Int) -> SampleRecord? {
         guard row >= 0 else { return nil }
+        if let joinedRows {
+            guard row < joinedRows.count else { return nil }
+            switch joinedRows[row] {
+            case .sample(let index): return index < model.visible.count ? model.visible[index] : nil
+            case .part(let part): return part.sourceID.flatMap { model.sampleByID[$0] }
+            }
+        }
         guard let groupedRows else { return row < model.visible.count ? model.visible[row] : nil }
         guard row < groupedRows.count, case .sample(let index) = groupedRows[row], index < model.visible.count else { return nil }
         return model.visible[index]
@@ -23,9 +30,10 @@ extension LibraryListCoordinator {
         let visible = model.visible
         guard let pool else {
             groupedRows = nil
-            rowOfID = Dictionary(visible.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+            rebuildJoinedRows(visible)
             return
         }
+        joinedRows = nil
         let items = visible.enumerated().map { index, sample -> (folder: [String], item: Int) in
             if case .pool(let folders) = SquidLayout.location(ofRelativePath: sample.relPath) { return (folders, index) }
             return ([], index)
@@ -54,7 +62,9 @@ extension LibraryListCoordinator {
     func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool { folder(at: row) != nil }
 
     /// Headings open and close; they are never part of a selection.
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { folder(at: row) == nil }
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+        folder(at: row) == nil && (joinedPart(at: row) == nil || sample(at: row) != nil)
+    }
 }
 
 /// A folder heading: an arrow, the folder's name and how many samples it holds. A click anywhere on it opens or closes it.

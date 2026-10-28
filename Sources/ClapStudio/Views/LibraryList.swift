@@ -10,6 +10,7 @@ struct LibraryList: NSViewRepresentable {
     let model: AppModel
     /// Inputs the list draws from. SwiftUI re-runs `updateNSView` when any of them change.
     let revision: Int
+    let joinedLinksRevision: Int
     let selection: Set<Int64>
     let sortOrder: [KeyPathComparator<SampleRecord>]
     let drumTracks: [Int64: Int]
@@ -31,7 +32,8 @@ struct LibraryList: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        context.coordinator.update(revision: revision, selection: selection, sortOrder: sortOrder,
+        context.coordinator.update(revision: revision, joinedLinksRevision: joinedLinksRevision,
+                                   selection: selection, sortOrder: sortOrder,
                                    shuffleSeed: shuffleSeed, pool: pool)
     }
 }
@@ -107,14 +109,23 @@ final class LibraryNSTableView: NSTableView {
 @MainActor
 final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
     let model: AppModel
-    private weak var table: LibraryNSTableView?
+    weak var table: LibraryNSTableView?
     var rowOfID: [Int64: Int] = [:]
     /// The Pool's lines, with folder headings (`.sample` holds an index into `model.visible`); nil for the plain list.
     var groupedRows: [PoolRow<Int>]?
+    var joinedRows: [JoinedTableRow]?
+    var expandedJoined = Set<Int64>()
+    var joinedParts: [Int64: [JoinedPart]] = [:]
+    var joinedRefreshVersion = 0
+    var joinedRefreshTask: Task<Void, Never>?
+    private var joinedLinksRevision = -1
+    #if DEBUG
+    var requestedJoinedSnapshot = false
+    #endif
     var pool: PoolLayout?
     private var revision = -1
     private var shuffleSeed: UInt64?
-    private var changingSelection = false       // our own selection updates must not loop back into the model
+    var changingSelection = false       // our own selection updates must not loop back into the model
     private var changingSort = false
     private static let hiddenKey = "libraryList.hiddenColumns"
 
@@ -169,10 +180,15 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
 
     // MARK: updating from the model
 
-    func update(revision: Int, selection: Set<Int64>, sortOrder: [KeyPathComparator<SampleRecord>], shuffleSeed: UInt64?,
-                pool: PoolLayout?) {
+    func update(revision: Int, joinedLinksRevision: Int, selection: Set<Int64>,
+                sortOrder: [KeyPathComparator<SampleRecord>], shuffleSeed: UInt64?, pool: PoolLayout?) {
         guard let table else { return }
-        if revision != self.revision || pool != self.pool {
+        let linksChanged = joinedLinksRevision != self.joinedLinksRevision
+        if linksChanged {
+            self.joinedLinksRevision = joinedLinksRevision
+            refreshExpandedJoinedParts(invalidate: true)
+        }
+        if revision != self.revision || pool != self.pool || linksChanged {
             self.revision = revision
             self.pool = pool
             rebuildRows()
@@ -193,8 +209,12 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
         }
     }
 
-    private func applySelection(_ ids: Set<Int64>, in table: NSTableView) {
-        let rows = IndexSet(ids.compactMap { rowOfID[$0] })
+    func applySelection(_ ids: Set<Int64>, in table: NSTableView) {
+        var retained: [Int64: Int] = [:]
+        for row in table.selectedRowIndexes {
+            if let id = sample(at: row)?.id { retained[id] = row }
+        }
+        let rows = IndexSet(ids.compactMap { retained[$0] ?? rowOfID[$0] })
         guard rows != table.selectedRowIndexes else { return }
         changingSelection = true
         table.selectRowIndexes(rows, byExtendingSelection: false)
@@ -212,16 +232,22 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
 
     // MARK: data source
 
-    func numberOfRows(in tableView: NSTableView) -> Int { groupedRows?.count ?? model.visible.count }
+    func numberOfRows(in tableView: NSTableView) -> Int { groupedRows?.count ?? joinedRows?.count ?? model.visible.count }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         if let folder = folder(at: row) { return folderView(folder, in: tableView) }
-        guard let tableColumn, let sample = sample(at: row), let spec = LibraryColumn.column(id: tableColumn.identifier.rawValue) else { return nil }
+        guard let tableColumn, let spec = LibraryColumn.column(id: tableColumn.identifier.rawValue) else { return nil }
+        if let part = joinedPart(at: row), spec.id == LibraryColumn.name {
+            return joinedPartView(part, in: tableView)
+        }
+        guard let sample = sample(at: row) else { return nil }
         switch spec.id {
         case LibraryColumn.name:
             let cell = tableView.makeView(withIdentifier: tableColumn.identifier, owner: nil) as? LibraryNameCell ?? LibraryNameCell()
             cell.identifier = tableColumn.identifier
-            cell.configure(sample, drumTrack: model.drumTracks[sample.id], match: model.segmentMatches[sample.id])
+            cell.configure(sample, drumTrack: model.drumTracks[sample.id], match: model.segmentMatches[sample.id],
+                           joinedExpanded: sample.isJoined ? expandedJoined.contains(sample.id) : nil,
+                           onToggle: { [weak self] in self?.toggleJoined(sample) })
             return cell
         default:
             let cell = tableView.makeView(withIdentifier: tableColumn.identifier, owner: nil) as? LibraryTextCell ?? LibraryTextCell()
@@ -235,7 +261,8 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard !changingSelection, let table else { return }
-        let ids = table.selectedRowIndexes.compactMap { sample(at: $0)?.id }
+        var seen = Set<Int64>()
+        let ids = table.selectedRowIndexes.compactMap { sample(at: $0)?.id }.filter { seen.insert($0).inserted }
         if ids.count == 1 { model.select(ids[0], play: true); return }
         // Adding to a selection (shift or command click, shift-arrow) plays the sample that was just added.
         let added = Set(ids).subtracting(model.tableSelection)
@@ -330,143 +357,4 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
             model.playCue(number: number); return true
         }
     }
-}
-
-// MARK: - cells
-
-/// The name, with the icon for what the sample is and the badges that go with it.
-final class LibraryNameCell: NSTableCellView {
-    private let icon = NSImageView()
-    private let label = NSTextField(labelWithString: "")
-    private let match = PillLabel()
-    private let star = NSImageView()
-    private let spinner = NSProgressIndicator()
-
-    init() {
-        super.init(frame: .zero)
-        label.lineBreakMode = .byTruncatingTail
-        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        icon.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-        star.image = NSImage(systemSymbolName: "star.fill", accessibilityDescription: "Favorite")
-        star.symbolConfiguration = .init(pointSize: 10, weight: .regular)
-        star.contentTintColor = .systemYellow
-        spinner.style = .spinning
-        spinner.controlSize = .mini
-        spinner.isIndeterminate = true
-        let stack = NSStackView(views: [icon, label, match, star, spinner])
-        stack.spacing = 6
-        stack.alignment = .centerY
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 3),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -3),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-        textField = label
-        wantsLayer = true
-        layer?.cornerRadius = 4
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    func configure(_ sample: SampleRecord, drumTrack: Int?, match found: SegmentMatch?) {
-        label.stringValue = sample.name
-        if let drumTrack {
-            icon.image = NSImage(systemSymbolName: "circle.grid.3x3.fill", accessibilityDescription: "Loaded in the drum machine")
-            icon.contentTintColor = .systemOrange
-            icon.toolTip = "Loaded in the drum machine (track \(drumTrack))"
-            layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.22).cgColor
-        } else {
-            icon.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: nil)
-            icon.contentTintColor = .secondaryLabelColor
-            icon.toolTip = nil
-            layer?.backgroundColor = nil
-        }
-        if let found {
-            match.set("at \(Format.timestamp(found.start))", tip: "Best match in this recording")
-            match.isHidden = false
-        } else { match.isHidden = true }
-        star.isHidden = !sample.favorite
-        if sample.status == .pending { spinner.isHidden = false; spinner.startAnimation(nil) }
-        else { spinner.isHidden = true; spinner.stopAnimation(nil) }
-    }
-}
-
-/// A single line of text in a column; the uses column gets a tinted badge behind it.
-final class LibraryTextCell: NSTableCellView {
-    private let label = NSTextField(labelWithString: "")
-    private let badge = NSView()
-
-    init() {
-        super.init(frame: .zero)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        badge.translatesAutoresizingMaskIntoConstraints = false
-        badge.wantsLayer = true
-        badge.layer?.cornerRadius = 8
-        addSubview(badge)
-        addSubview(label)
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            badge.leadingAnchor.constraint(equalTo: label.leadingAnchor, constant: -5),
-            badge.trailingAnchor.constraint(equalTo: label.trailingAnchor, constant: 5),
-            badge.centerYAnchor.constraint(equalTo: label.centerYAnchor),
-            badge.heightAnchor.constraint(equalToConstant: 16),
-        ])
-        textField = label
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    func configure(_ spec: LibraryColumn, sample: SampleRecord) {
-        label.stringValue = spec.text(sample)
-        label.font = spec.monospacedDigits ? .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-                                           : .systemFont(ofSize: NSFont.systemFontSize)
-        label.lineBreakMode = spec.truncatesHead ? .byTruncatingHead : .byTruncatingTail
-        let used = spec.id == LibraryColumn.uses && sample.useCount > 0
-        label.textColor = spec.id == LibraryColumn.uses && !used ? .tertiaryLabelColor : .secondaryLabelColor
-        badge.isHidden = !used
-        if used {
-            badge.layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(min(0.15 + Double(sample.useCount) * 0.05, 0.6)).cgColor
-        }
-    }
-}
-
-/// Small rounded tag, like the "at 2:05" shown next to a field recording that matched a search.
-private final class PillLabel: NSView {
-    private let label = NSTextField(labelWithString: "")
-
-    init() {
-        super.init(frame: .zero)
-        label.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(label)
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 5),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
-            label.topAnchor.constraint(equalTo: topAnchor, constant: 1),
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
-        ])
-        wantsLayer = true
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    func set(_ text: String, tip: String) {
-        label.stringValue = text
-        toolTip = tip
-    }
-
-    override func layout() {
-        super.layout()
-        layer?.cornerRadius = bounds.height / 2
-    }
-
-    override func updateLayer() {
-        layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.18).cgColor
-    }
-
-    override var wantsUpdateLayer: Bool { true }
 }

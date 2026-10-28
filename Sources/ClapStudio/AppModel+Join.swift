@@ -100,6 +100,7 @@ extension AppModel {
                                                                                  onCancel: { worker.cancel() })
                 let files = outputs.map(\.url)
                 if let joinedPaths {
+                    joinedLinksRevision &+= 1
                     let changed = JoinedLibrary.markJoined(in: &samples, pathsByRoot: joinedPaths)
                     for id in changed { sampleByID[id]?.isJoined = true }
                     if !changed.isEmpty { refilter() }
