@@ -3,7 +3,7 @@ import Foundation
 /// Filters on measured properties, applied together with the sidebar and search filters.
 public struct DescriptorFilter: Equatable, Sendable {
     public enum Kind: String, CaseIterable, Sendable {
-        case any = "All", oneShot = "One-shots", loop = "Loops", fieldRecording = "Field recordings"
+        case any = "All", oneShot = "One-shots", loop = "Loops", fieldRecording = "Field recordings", joined = "Joined"
     }
 
     public var kind: Kind = .any
@@ -25,9 +25,10 @@ public struct DescriptorFilter: Equatable, Sendable {
         switch kind {
         case .any: break
         // Field recordings are neither: they have no single tempo and are not played as one hit.
-        case .oneShot: if s.isLoop == true || s.isFieldRecording { return false }
-        case .loop: if s.isLoop != true || s.isFieldRecording { return false }
-        case .fieldRecording: if !s.isFieldRecording { return false }
+        case .oneShot: if s.isJoined || s.isLoop == true || s.isFieldRecording { return false }
+        case .loop: if s.isJoined || s.isLoop != true || s.isFieldRecording { return false }
+        case .fieldRecording: if s.isJoined || !s.isFieldRecording { return false }
+        case .joined: if !s.isJoined { return false }
         }
         if bpmMin != nil || bpmMax != nil {
             guard let bpm = s.effectiveBPM else { return false }

@@ -55,4 +55,20 @@ extension LibraryStore {
                            name: $0.text(2), sourceStartFrame: $0.int(3), startFrame: $0.int(4), endFrame: $0.int(5))
             }) ?? []
     }
+    /// Resolve each root once so large libraries can compare relative paths cheaply.
+    public func joinedRelativePathsByRoot() -> [Int64: Set<String>] {
+        let paths = (try? db.query("SELECT path FROM joined_files") { $0.text(0) }) ?? []
+        guard !paths.isEmpty else { return [:] }
+        let roots = (try? db.query("SELECT id, path FROM roots") { ($0.int(0), $0.text(1)) }) ?? []
+        var found: [Int64: Set<String>] = [:]
+        for (id, path) in roots {
+            let root = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL.path
+            let prefix = root == "/" ? "/" : root + "/"
+            for joined in paths where joined.hasPrefix(prefix) {
+                found[id, default: []].insert(String(joined.dropFirst(prefix.count)))
+            }
+        }
+        return found
+    }
+
 }

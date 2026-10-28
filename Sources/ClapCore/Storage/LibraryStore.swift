@@ -100,6 +100,9 @@ public final class LibraryStore: @unchecked Sendable {
         }
         let byPath = Dictionary(uniqueKeysWithValues: existing.map { ($0.relPath, $0) })
         let scannedPaths = Set(scanned.map(\.relPath))
+        let rootURL = try db.query("SELECT path FROM roots WHERE id = ?", [.int(rootID)]) {
+            URL(fileURLWithPath: $0.text(0), isDirectory: true)
+        }.first
 
         var vanished: [String: [Existing]] = [:]
         for e in existing where !scannedPaths.contains(e.relPath) {
@@ -126,6 +129,14 @@ public final class LibraryStore: @unchecked Sendable {
                 let fp = fingerprint(file.relPath)
                 if let fp, let match = vanished[fp]?.first(where: { !claimed.contains($0.id) }) {
                     claimed.insert(match.id)
+                    if let rootURL {
+                        let oldPath = rootURL.appendingPathComponent(match.relPath).standardizedFileURL.path
+                        let newPath = rootURL.appendingPathComponent(file.relPath).standardizedFileURL.path
+                        try db.run("""
+                            UPDATE joined_files SET path = ? WHERE path = ?
+                                AND NOT EXISTS (SELECT 1 FROM joined_files WHERE path = ?)
+                            """, [.text(newPath), .text(oldPath), .text(newPath)])
+                    }
                     try db.run("UPDATE samples SET rel_path = ?, name = ?, ext = ?, size = ?, mtime = ? WHERE id = ?",
                                [.text(file.relPath), .text(Self.baseName(file.relPath)),
                                 .text(Self.ext(file.relPath)), .int(file.size), .double(file.mtime), .int(match.id)])
@@ -240,7 +251,8 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     private func querySamples(extraFilter: String, params: [SQLValue]) -> [SampleRecord] {
-        (try? db.query("""
+        let joinedPaths = joinedRelativePathsByRoot()
+        return (try? db.query("""
             SELECT s.id, s.root_id, r.path, s.rel_path, s.name, s.ext,
                    COALESCE(s.duration, 0), COALESCE(s.sample_rate, 0), COALESCE(s.channels, 0),
                    s.size, s.mtime, s.status,
@@ -276,6 +288,7 @@ public final class LibraryStore: @unchecked Sendable {
             record.moodsManual = $0.isNull(31) ? nil : SoundMoods.sorted($0.text(31).split(separator: "\u{1F}").map(String.init))
             record.moods = record.moodsManual ?? record.moodsAuto
             record.isRegularSample = $0.int(32) != 0
+            record.isJoined = joinedPaths[record.rootID]?.contains(record.relPath) ?? false
             return record
         }) ?? []
     }

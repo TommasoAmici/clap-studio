@@ -87,20 +87,22 @@ extension AppModel {
         joinTask = Task {
             defer { isJoining = false; joinTask = nil }
             let store = self.store
-            let worker = Task.detached(priority: .userInitiated) { () throws -> ([JoinedOutput], [SampleRecord]?) in
+            let worker = Task.detached(priority: .userInitiated) { () throws -> ([JoinedOutput], [Int64: Set<String>]?) in
                 let outputs = try JoinExporter.exportWithRegions(sources, settings: settings, to: folder)
                 do {
                     guard let store else { return (outputs, nil) }
                     try store.recordJoinedOutputs(outputs, sources: sources)
-                    return (outputs, store.loadSamples())
+                    return (outputs, store.joinedRelativePathsByRoot())
                 } catch { return (outputs, nil) }
             }
             do {
-                let (outputs, loadedSamples) = try await withTaskCancellationHandler(operation: { try await worker.value },
+                let (outputs, joinedPaths) = try await withTaskCancellationHandler(operation: { try await worker.value },
                                                                                  onCancel: { worker.cancel() })
                 let files = outputs.map(\.url)
-                if let loadedSamples {
-                    reloadSamples(preloaded: loadedSamples)
+                if let joinedPaths {
+                    let changed = JoinedLibrary.markJoined(in: &samples, pathsByRoot: joinedPaths)
+                    for id in changed { sampleByID[id]?.isJoined = true }
+                    if !changed.isEmpty { refilter() }
                     statusMessage = "Saved \(files.count) joined \(files.count == 1 ? "file" : "files")."
                 } else {
                     errorMessage = "Joined files were saved, but their source links could not be saved. Source files were not changed."
