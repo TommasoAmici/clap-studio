@@ -16,6 +16,7 @@
 #     --join-folder capture the native folder chooser without saving files (needs existing screen capture access)
 #     --effects-save with --effects: show the native Save dialog for one sample
 #     --effects-plugin PATH  with --effects: load a test VST3 bundle
+#     --effects-amplifier  with --effects: add the built-in amplifier
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
 #     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
@@ -67,6 +68,7 @@ while [ $# -gt 0 ]; do
     --join-folder) export CLAP_SNAPSHOT_JOIN=1; export CLAP_SNAPSHOT_JOIN_FOLDER=1 ;;
     --effects-save) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_SAVE=1 ;;
     --effects-plugin) shift; export CLAP_SNAPSHOT_EFFECTS_PLUGIN="$1" ;;
+    --effects-amplifier) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_AMPLIFIER=1 ;;
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
     --map-selection) export CLAP_SNAPSHOT_MAP_SELECTION=1 ;;

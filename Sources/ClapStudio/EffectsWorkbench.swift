@@ -54,6 +54,10 @@ import UniformTypeIdentifiers
         }
     }
 
+    func addBuiltIn(_ effect: BuiltInEffect) {
+        changeChain { [self] in chain.append(effect.makeSlot()) }
+    }
+
     func addBundle(_ bundle: URL) {
         guard !busy else { return }
         busy = true; progress = "Loading effect…"; message = nil

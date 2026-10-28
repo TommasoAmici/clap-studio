@@ -7,6 +7,7 @@ import Foundation
     private var recipe: [EffectSlot]
     private var editors: [VST3EditorSession] = []
     private var instances: [UUID: VST3Instance] = [:]
+    private var builtIns: [UUID: any BuiltInProcessor] = [:]
     public let sampleRate: Double
     public private(set) var tailFrames = 0
 
@@ -14,6 +15,12 @@ import Foundation
         self.recipe = chain; self.sampleRate = sampleRate
         do {
             for slot in chain {
+                if let kind = slot.plugin.builtIn {
+                    let processor = kind.processor(sampleRate: sampleRate, parameters: slot.parameters)
+                    builtIns[slot.id] = processor
+                    tailFrames += min(processor.tailFrames, Int(sampleRate * EffectBounce.maximumTailSeconds))
+                    continue
+                }
                 let instance = try VST3Instance(slot: slot)
                 instances[slot.id] = instance
                 try instance.prepare(rate: sampleRate, live: true)
@@ -32,6 +39,7 @@ import Foundation
             throw VST3Error.message("The effects chain changed. Start a new preview session.")
         }
         for slot in chain {
+            if let processor = builtIns[slot.id] { processor.update(parameters: slot.parameters); continue }
             guard let instance = instances[slot.id] else { continue }
             for parameter in slot.parameters {
                 let value = parameter.value.isFinite ? min(1, max(0, parameter.value)) : 0
@@ -39,6 +47,10 @@ import Foundation
             }
         }
         recipe = chain
+        tailFrames = chain.reduce(0) { total, slot in
+            let tail = builtIns[slot.id]?.tailFrames ?? instances[slot.id].map { Int(clap_vst3_tail($0.effect)) } ?? 0
+            return total + min(max(0, tail), Int(sampleRate * EffectBounce.maximumTailSeconds))
+        }
     }
 
     /// Processes at most 512 frames at a time; playback never waits for the rest of the file.
@@ -47,11 +59,14 @@ import Foundation
             throw VST3Error.message("Invalid preview audio block.")
         }
         for slot in recipe where !slot.bypass {
-            guard let instance = instances[slot.id] else { continue }
-            let parameters = instance.parameterValues()
-            let ids = parameters.map(\.id), values = parameters.map(\.value)
-            guard clap_vst3_process(instance.effect, &left, &right, Int32(left.count), ids, values, Int32(ids.count)) != 0 else {
-                throw VST3Error.message("The effect could not play this sample. Original files are unchanged.")
+            if let processor = builtIns[slot.id] {
+                processor.process(left: &left, right: &right)
+            } else if let instance = instances[slot.id] {
+                let parameters = instance.parameterValues()
+                let ids = parameters.map(\.id), values = parameters.map(\.value)
+                guard clap_vst3_process(instance.effect, &left, &right, Int32(left.count), ids, values, Int32(ids.count)) != 0 else {
+                    throw VST3Error.message("The effect could not play this sample. Original files are unchanged.")
+                }
             }
             guard left.allSatisfy(\.isFinite), right.allSatisfy(\.isFinite) else {
                 throw VST3Error.message("The effect produced invalid audio and was stopped.")
@@ -70,7 +85,7 @@ import Foundation
 
     /// Poll small controller values without repeatedly serializing large presets.
     public func parameterValues() -> [[VST3Parameter]] {
-        recipe.map { instances[$0.id]?.parameterValues() ?? [] }
+        recipe.map { instances[$0.id]?.parameterValues() ?? $0.parameters }
     }
 
     public func snapshot() throws -> [EffectSlot] {
@@ -85,6 +100,6 @@ import Foundation
         guard !closed else { return }; closed = true
         for editor in editors { editor.close() }; editors.removeAll()
         for instance in instances.values { instance.close() }
-        instances.removeAll()
+        instances.removeAll(); builtIns.removeAll()
     }
 }

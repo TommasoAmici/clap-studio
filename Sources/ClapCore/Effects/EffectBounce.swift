@@ -49,6 +49,14 @@ public enum EffectBounce {
         }
         for slot in chain where !slot.bypass {
             try Task.checkCancellation()
+            if let kind = slot.plugin.builtIn {
+                let processor = kind.processor(sampleRate: audio.rate, parameters: slot.parameters)
+                let extraTail = tailSeconds.isFinite ? min(maximumTailSeconds, max(0, tailSeconds)) : 2
+                let tail = min(max(processor.tailFrames, Int(audio.rate * extraTail)), Int(audio.rate * maximumTailSeconds))
+                let input = audio
+                audio = try await offMain { try process(input, builtIn: processor, tail: tail, heartbeat: heartbeat) }
+                continue
+            }
             let instance = try VST3Instance(slot: slot)
             defer { instance.close() }
             try instance.prepare(rate: audio.rate)
@@ -114,6 +122,31 @@ public enum EffectBounce {
             }
         }
         return StereoAudio(left: Array(left.dropFirst(latency)), right: Array(right.dropFirst(latency)), rate: input.rate)
+    }
+
+    private static func process(_ input: StereoAudio, builtIn: any BuiltInProcessor, tail: Int, heartbeat: URL?) throws -> StereoAudio {
+        let total = input.left.count + tail
+        var left = [Float](repeating: 0, count: total), right = left
+        var lastHeartbeat = Date.distantPast
+        for start in stride(from: 0, to: total, by: 512) {
+            try Task.checkCancellation()
+            let frames = min(512, total - start)
+            var blockL = [Float](repeating: 0, count: frames), blockR = blockL
+            if start < input.left.count {
+                let count = min(frames, input.left.count - start)
+                blockL.replaceSubrange(0..<count, with: input.left[start..<start + count])
+                blockR.replaceSubrange(0..<count, with: input.right[start..<start + count])
+            }
+            builtIn.process(left: &blockL, right: &blockR)
+            guard blockL.allSatisfy(\.isFinite), blockR.allSatisfy(\.isFinite) else {
+                throw VST3Error.message("The effect produced invalid audio. Nothing was saved.")
+            }
+            left.replaceSubrange(start..<start + frames, with: blockL); right.replaceSubrange(start..<start + frames, with: blockR)
+            if let heartbeat, Date().timeIntervalSince(lastHeartbeat) >= 1 {
+                try Data().write(to: heartbeat, options: .atomic); lastHeartbeat = Date()
+            }
+        }
+        return StereoAudio(left: left, right: right, rate: input.rate)
     }
 
     /// Keep quiet ringing and a short release, without saving the unused tail allowance.

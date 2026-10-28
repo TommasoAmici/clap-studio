@@ -43,7 +43,7 @@ struct EffectRow: View {
                         }
                     }
                 }
-                .frame(maxHeight: 66)
+                .frame(maxHeight: 90)
                 if slot.parameters.isEmpty {
                     Text("This effect exposes no editable parameters.").font(.caption).foregroundStyle(.secondary)
                 }
