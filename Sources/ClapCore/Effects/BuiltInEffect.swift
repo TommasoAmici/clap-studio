@@ -2,11 +2,14 @@ import Foundation
 
 /// An effect supplied with Clap Studio, available alongside installed plug-ins.
 public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
-    case amplifier
-    case lowPass
+    case amplifier, lowPass, erosion
 
     public var name: String {
-        switch self { case .amplifier: "Amplifier"; case .lowPass: "Low-pass Filter" }
+        switch self {
+        case .amplifier: "Amplifier"
+        case .lowPass: "Low-pass Filter"
+        case .erosion: "Erosion"
+        }
     }
 
     public func makeSlot() -> EffectSlot {
@@ -14,6 +17,7 @@ public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
         switch self {
         case .amplifier: return EffectSlot(plugin: plugin, parameters: AmpProcessor.defaults)
         case .lowPass: return EffectSlot(plugin: plugin, parameters: BuiltInLowPass.defaultParameters)
+        case .erosion: return EffectSlot(plugin: plugin, parameters: BuiltinErosion.defaults)
         }
     }
 
@@ -21,6 +25,7 @@ public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
         switch self {
         case .amplifier: return AmpProcessor(sampleRate: sampleRate, parameters: parameters)
         case .lowPass: return BuiltInLowPass(sampleRate: sampleRate, parameters: parameters)
+        case .erosion: return BuiltinErosion(sampleRate: sampleRate, parameters: parameters)
         }
     }
 }
