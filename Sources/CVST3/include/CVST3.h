@@ -29,6 +29,7 @@ int32_t clap_vst3_editor_key(ClapVST3Editor editor, uint16_t character, int16_t 
 void clap_vst3_editor_focus(ClapVST3Editor editor, int32_t focused);
 void clap_vst3_editor_destroy(ClapVST3Editor editor);
 int32_t clap_vst3_prepare(ClapVST3Effect effect, double rate);
+int32_t clap_vst3_prepare_live(ClapVST3Effect effect, double rate);
 uint32_t clap_vst3_latency(ClapVST3Effect effect);
 uint32_t clap_vst3_tail(ClapVST3Effect effect);
 int32_t clap_vst3_process(ClapVST3Effect effect, float *left, float *right, int32_t frames, const uint32_t *ids, const double *values, int32_t parameterCount);

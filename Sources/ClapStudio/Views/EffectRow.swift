@@ -7,39 +7,53 @@ struct EffectRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(slot.plugin.name).font(.headline)
-                Spacer()
-                Toggle("Bypass", isOn: $slot.bypass).toggleStyle(.checkbox)
-                Button { move(by: -1) } label: { Image(systemName: "arrow.up") }
+            HStack(spacing: 6) {
+                Text(slot.plugin.name).font(.headline).lineLimit(1).help(slot.plugin.name)
+                Spacer(minLength: 0)
+                Button { move(by: -1) } label: { Image(systemName: "chevron.left") }
                     .accessibilityLabel("Move effect earlier").help("Move effect earlier")
                     .disabled(workbench.chain.first?.id == slot.id)
-                Button { move(by: 1) } label: { Image(systemName: "arrow.down") }
+                Button { move(by: 1) } label: { Image(systemName: "chevron.right") }
                     .accessibilityLabel("Move effect later").help("Move effect later")
                     .disabled(workbench.chain.last?.id == slot.id)
                 Button { remove() } label: { Image(systemName: "minus.circle") }
                     .accessibilityLabel("Remove effect").help("Remove effect")
             }
-            if slot.hasEditor {
-                Button("Open Editor…") { workbench.edit(slot.id) }
-                    .help("Open the plug-in’s own controls. Close its window to use your edits.")
-            } else {
-                ForEach($slot.parameters) { $parameter in
-                    HStack {
-                        Text(parameter.name).frame(width: 140, alignment: .leading).lineLimit(2)
-                        Slider(value: $parameter.value, in: 0...1, step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
-                            .accessibilityLabel(parameter.name)
-                        Text(parameter.value, format: .percent.precision(.fractionLength(0)))
-                            .monospacedDigit().frame(width: 45, alignment: .trailing)
-                    }
-                    .font(.caption)
+            HStack {
+                Toggle("Bypass", isOn: $slot.bypass).toggleStyle(.checkbox)
+                Spacer()
+                if slot.hasEditor {
+                    Button("Open Editor…") { workbench.edit(slot.id) }
+                        .help("Hear parameter changes while auditioning sounds in the Library or Map")
                 }
+            }
+            if !slot.hasEditor {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(slot.parameters) { parameter in
+                            HStack(spacing: 6) {
+                                Text(parameter.name).frame(width: 100, alignment: .leading).lineLimit(2)
+                                Slider(value: parameterBinding(parameter), in: 0...1,
+                                       step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
+                                    .accessibilityLabel(parameter.name)
+                                Text(parameter.value, format: .percent.precision(.fractionLength(0)))
+                                    .monospacedDigit().frame(width: 35, alignment: .trailing)
+                            }
+                            .font(.caption)
+                        }
+                    }
+                }
+                .frame(maxHeight: 66)
                 if slot.parameters.isEmpty {
                     Text("This effect exposes no editable parameters.").font(.caption).foregroundStyle(.secondary)
                 }
+            } else {
+                Text("Play a sound while its editor is open to hear your changes.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .contextMenu {
             if slot.hasEditor { Button("Open Editor…") { workbench.edit(slot.id) } }
             Button("Move Effect Earlier") { move(by: -1) }.disabled(workbench.chain.first?.id == slot.id)
@@ -49,12 +63,21 @@ struct EffectRow: View {
         }
     }
 
-    private func move(by offset: Int) {
-        guard let index = workbench.chain.firstIndex(where: { $0.id == slot.id }) else { return }
-        let next = index + offset
-        guard workbench.chain.indices.contains(next) else { return }
-        workbench.chain.swapAt(index, next)
+    private func parameterBinding(_ fallback: VST3Parameter) -> Binding<Double> {
+        Binding(get: { slot.parameters.first(where: { $0.id == fallback.id })?.value ?? fallback.value },
+                set: { value in
+                    guard let index = slot.parameters.firstIndex(where: { $0.id == fallback.id }) else { return }
+                    slot.parameters[index].value = value
+                })
     }
 
-    private func remove() { workbench.chain.removeAll { $0.id == slot.id } }
+    private func move(by offset: Int) {
+        let id = slot.id
+        workbench.moveEffect(id, by: offset)
+    }
+
+    private func remove() {
+        let id = slot.id
+        workbench.removeEffect(id)
+    }
 }

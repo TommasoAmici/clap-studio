@@ -11,9 +11,13 @@ import CVST3
     private var completion: CheckedContinuation<VST3HostReply, any Error>?
     private var heartbeat: Timer?
     private var closing = false
+    private let preview: (() -> Void)?
+    private let stop: (() -> Void)?
 
-    static func run(_ request: VST3HostRequest) async throws -> VST3HostReply {
-        let editor = try NativeEditor(request)
+    static func run(_ request: VST3HostRequest, session: VST3EditorSession? = nil,
+                    preview: (() -> Void)? = nil, stop: (() -> Void)? = nil, windowSink: ((NSWindow) -> Void)? = nil) async throws -> VST3HostReply {
+        let editor = try NativeEditor(request, session: session, preview: preview, stop: stop)
+        windowSink?(editor.window)
         let reply = try await withCheckedThrowingContinuation { continuation in
             editor.completion = continuation
             do { try editor.show() }
@@ -23,17 +27,18 @@ import CVST3
         return reply
     }
 
-    private init(_ request: VST3HostRequest) throws {
+    private init(_ request: VST3HostRequest, session: VST3EditorSession?, preview: (() -> Void)?, stop: (() -> Void)?) throws {
         guard let slot = request.slot else { throw VST3Error.message("Missing effect settings.") }
-        session = try VST3EditorSession(slot: slot); self.request = request
-        container = EditorContainer(editor: session.editor)
+        self.session = try session ?? VST3EditorSession(slot: slot); self.request = request
+        self.preview = preview; self.stop = stop
+        container = EditorContainer(editor: self.session.editor)
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         super.init()
         window.title = "\(slot.plugin.name) — Clap Studio"
         window.isReleasedWhenClosed = false; window.delegate = self
         window.contentView = container
-        if clap_vst3_editor_can_resize(session.editor) != 0 { window.styleMask.insert(.resizable) }
+        if clap_vst3_editor_can_resize(self.session.editor) != 0 { window.styleMask.insert(.resizable) }
     }
 
     private func show() throws {
@@ -100,6 +105,15 @@ import CVST3
         let finish = NSMenuItem(title: "Close Plug-in Editor", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "q")
         finish.target = window; appMenu.addItem(finish)
         application.submenu = appMenu; menu.addItem(application)
+        if preview != nil {
+            let playback = NSMenuItem(title: "Sample", action: nil, keyEquivalent: "")
+            let sampleMenu = NSMenu(title: "Sample")
+            let play = NSMenuItem(title: "Preview Sample", action: #selector(previewSample), keyEquivalent: " ")
+            play.keyEquivalentModifierMask = []; play.target = self; sampleMenu.addItem(play)
+            let halt = NSMenuItem(title: "Stop Sample", action: #selector(stopSample), keyEquivalent: ".")
+            halt.target = self; sampleMenu.addItem(halt)
+            playback.submenu = sampleMenu; menu.addItem(playback)
+        }
         let editing = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
         let editMenu = NSMenu(title: "Edit")
         for (title, action, key) in [("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
@@ -112,6 +126,9 @@ import CVST3
         close.target = window; windowMenu.addItem(close)
         windows.submenu = windowMenu; menu.addItem(windows); NSApp.mainMenu = menu
     }
+
+    @objc private func previewSample() { preview?() }
+    @objc private func stopSample() { stop?() }
 
     #if DEBUG
     private func capture(to output: URL) {

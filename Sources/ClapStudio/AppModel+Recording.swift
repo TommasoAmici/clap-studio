@@ -21,7 +21,7 @@ extension AppModel {
             defer { recordingStarting = false }
             do {
                 try await AudioRecorder.requestAccess()
-                player.stop()                     // a preview would be heard by the microphone
+                stopAudition()                    // a preview would be heard by the microphone
                 drumMachine.stop()
                 try recorder.start()
                 recordingLevel = 0; recordingSeconds = 0

@@ -1,13 +1,17 @@
 import ClapCore
 import SwiftUI
 
+/// A nonmodal chain beside the library, so different sounds can be tried quickly.
 struct EffectsView: View {
+    @Environment(AppModel.self) private var model
     @Bindable var workbench: EffectsWorkbench
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("\(workbench.samples.count) selected sample\(workbench.samples.count == 1 ? "" : "s")").font(.headline)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Label("Effects", systemImage: "slider.horizontal.3").font(.headline)
+                Toggle("Enabled", isOn: $workbench.enabled).toggleStyle(.checkbox)
+                    .help("Play Library and Map auditions through this chain")
                 Spacer()
                 Menu("Add Effect") {
                     ForEach(workbench.bundles, id: \.self) { bundle in
@@ -15,58 +19,63 @@ struct EffectsView: View {
                     }
                     if workbench.bundles.isEmpty { Text("No VST3 plugins installed") }
                 }
-                .disabled(workbench.busy || workbench.scanning)
+                .disabled(workbench.busy || workbench.scanning).fixedSize()
                 Button { workbench.rescan() } label: { Image(systemName: "arrow.clockwise") }
-                    .accessibilityLabel("Rescan plugins").help("Rescan the standard VST3 folders").disabled(workbench.busy || workbench.scanning)
+                    .accessibilityLabel("Rescan plugins").help("Rescan the standard VST3 folders")
+                    .disabled(workbench.busy || workbench.scanning)
+                Button { model.showEffects = false } label: { Image(systemName: "xmark") }
+                    .accessibilityLabel("Close effects drawer").help("Close effects and return to dry auditions")
             }
-            Text("The chain runs from top to bottom, after each sample’s trim and sound edits. Originals are only read.")
-                .font(.caption).foregroundStyle(.secondary)
             if workbench.chain.isEmpty {
-                ContentUnavailableView("Add a VST3 effect", systemImage: "slider.horizontal.3",
-                                       description: Text("Install effects in ~/Library/Audio/Plug-Ins/VST3 or /Library/Audio/Plug-Ins/VST3, then rescan."))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text("Add a VST3 effect, then select sounds in the Library or Map to hear the chain.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 54)
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach($workbench.chain) { $slot in
-                            EffectRow(slot: $slot, workbench: workbench)
+                ScrollView(.horizontal) {
+                    HStack(alignment: .top, spacing: 10) {
+                        ForEach(workbench.chain) { slot in
+                            EffectRow(slot: binding(for: slot), workbench: workbench)
+                                .frame(width: 300)
                         }
                     }
+                    .padding(.vertical, 2).frame(height: 141, alignment: .top)
                 }
+                .frame(height: 145)
                 .disabled(workbench.busy)
             }
-            HStack {
-                Text("Extra tail")
-                Slider(value: $workbench.tailSeconds, in: 0...10, step: 0.5).frame(maxWidth: 160)
-                    .accessibilityLabel("Extra effect tail in seconds")
-                Text("\(workbench.tailSeconds, specifier: "%.1f") s").monospacedDigit()
-            }
-            .font(.caption).disabled(workbench.busy)
-            Text("Reported effect tails are included, up to 10 seconds per effect. Extra tail helps plugins that report none.")
-                .font(.caption2).foregroundStyle(.secondary)
-            HStack {
-                Picker("Sample", selection: $workbench.previewID) {
-                    ForEach(workbench.samples) { sample in Text(sample.name).tag(Optional(sample.id)) }
-                }
-                .frame(maxWidth: 240).disabled(workbench.busy)
-                Button("Preview") { workbench.preview() }.disabled(workbench.busy || workbench.chain.isEmpty)
-                Button(workbench.busy ? "Cancel" : "Stop") { workbench.cancel() }
+            HStack(spacing: 10) {
+                Text("Left to right · originals are only read").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button(workbench.samples.count > 1 ? "Bounce All…" : "Bounce…") { workbench.bounce() }
+                Text("Extra tail").font(.caption)
+                Slider(value: $workbench.tailSeconds, in: 0...10).frame(width: 90)
+                    .accessibilityLabel("Extra effect tail in seconds")
+                    .help("Allow more time for effects that report no ringing tail; silent padding is removed from bounces")
+                    .disabled(workbench.busy)
+                Text("\(workbench.tailSeconds, specifier: "%.1f") s").font(.caption).monospacedDigit().frame(width: 32)
+                Button("Preview") { workbench.preview() }
                     .disabled(workbench.busy || workbench.chain.isEmpty || workbench.samples.isEmpty)
+                Button(workbench.busy ? "Cancel" : "Stop") { model.stopAudition(); workbench.cancel() }
+                Button(workbench.samples.count > 1 ? "Bounce All…" : "Bounce…") {
+                    model.refreshEffectsSelection(forBounce: true); workbench.bounce()
+                }
+                .disabled(workbench.busy || workbench.chain.isEmpty || workbench.samples.isEmpty)
             }
-            Text(workbench.progress.isEmpty ? " " : workbench.progress)
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                .frame(height: 16, alignment: .leading)
-            if let message = workbench.message {
-                ScrollView { Text(message).font(.caption).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
-                    .frame(maxHeight: 80)
+            if !workbench.progress.isEmpty {
+                Text(workbench.progress).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
-        .padding(16)
-        .onChange(of: workbench.chain) { workbench.cancel() }
-        .onChange(of: workbench.previewID) { workbench.cancel() }
-        .onChange(of: workbench.tailSeconds) { workbench.cancel() }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .controlSize(.small)
+        .onChange(of: model.effectsActionTargets) { model.refreshEffectsSelection() }
+        .onAppear { model.refreshEffectsSelection() }
     }
 
+    /// A removed card can finish its last render without reading an invalid array index.
+    private func binding(for fallback: EffectSlot) -> Binding<EffectSlot> {
+        Binding(get: { workbench.chain.first(where: { $0.id == fallback.id }) ?? fallback },
+                set: { updated in
+                    guard let index = workbench.chain.firstIndex(where: { $0.id == fallback.id }) else { return }
+                    workbench.chain[index] = updated
+                })
+    }
 }

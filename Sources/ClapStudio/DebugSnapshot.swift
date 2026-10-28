@@ -136,10 +136,19 @@ enum DebugSnapshot {
             }
         }
         if env["CLAP_SNAPSHOT_EFFECTS"] == "1" {
-            model.openEffects(ids: Array(model.visible.prefix(env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" ? 1 : 2).map(\.id)))
+            let ids = Array(model.visible.prefix(env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" ? 1 : 2).map(\.id))
+            model.tableSelection = Set(ids); model.selectedID = ids.first
+            if model.viewMode == .map { model.mapSelection = ids }
+            model.openEffects(ids: ids)
             if let fixture = env["CLAP_SNAPSHOT_EFFECTS_PLUGIN"] { model.effects.addBundle(URL(fileURLWithPath: fixture)) }
-            if let panel = model.effects.panel, let width = env["CLAP_SNAPSHOT_WIDTH"].flatMap(Double.init) {
-                var frame = panel.frame; frame.size.width = max(panel.minSize.width, width); panel.setFrame(frame, display: true)
+        }
+        if env["CLAP_SNAPSHOT_EFFECTS_EXERCISE"] == "1", let path = env["CLAP_SNAPSHOT_EFFECTS_PLUGIN"] {
+            do { try await DebugEffectsSnapshot.exercise(model: model, bundle: URL(fileURLWithPath: path)) }
+            catch {
+                if let report = env["CLAP_SNAPSHOT_EFFECTS_REPORT"] {
+                    try? Data(error.localizedDescription.utf8).write(to: URL(fileURLWithPath: report), options: .atomic)
+                }
+                NSLog("Could not exercise effects: %@", error.localizedDescription); NSApp.terminate(nil); return
             }
         }
         if env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" { model.effects.bounce() }
@@ -151,6 +160,12 @@ enum DebugSnapshot {
             }
         }
         try? await Task.sleep(for: .seconds(3))
+        if env["CLAP_SNAPSHOT_EFFECTS_EXERCISE"] == "1", let report = env["CLAP_SNAPSHOT_EFFECTS_REPORT"] {
+            let detail = "Final error: \(model.errorMessage ?? "none"); effect message: \(model.effects.message ?? "none").\n"
+            if let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: report)) {
+                _ = try? handle.seekToEnd(); try? handle.write(contentsOf: Data(detail.utf8)); try? handle.close()
+            }
+        }
         if env["CLAP_SNAPSHOT_UPDATE_NOTES"] == "long",
            let scroll = model.updateAlert?.accessoryView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView,
            let text = scroll.documentView as? NSTextView {
@@ -234,8 +249,7 @@ enum DebugSnapshot {
     /// The frame view holds the toolbar as well as the content.
     static func windowImage() -> Data? {
         // A sheet is a separate window. Media captures keep the main window around it for website context.
-        let effects = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_EFFECTS"] == "1"
-        guard let main = NSApp.windows.first(where: { $0.isVisible && (!effects || $0.title == "VST3 Effects") }) else { return nil }
+        guard let main = NSApp.windows.first(where: { $0.isVisible && $0.styleMask.contains(.titled) }) else { return nil }
         let composeSheet = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MEDIA"] == "1" && main.attachedSheet != nil
         let window = composeSheet ? main : (main.attachedSheet ?? main)
         // Native glass layers and alert contents can be absent from bitmap caching.

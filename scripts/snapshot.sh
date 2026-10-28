@@ -10,7 +10,7 @@
 #     --update-download  show download activity without contacting GitHub
 #     --update-install  show verification and installation activity without installing
 #     --native  capture native glass layers at the display's resolution (needs existing screen capture access)
-#     --effects open the VST3 Effects panel for two samples (uses a scratch library)
+#     --effects open the VST3 Effects drawer for two samples (uses a scratch library)
 #     --join open the Join Samples sheet for eight samples (use a scratch library)
 #     --join-preset with --join: show the preset name controls
 #     --join-folder capture the native folder chooser without saving files (needs existing screen capture access)

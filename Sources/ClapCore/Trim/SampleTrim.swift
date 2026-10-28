@@ -3,7 +3,7 @@ import Foundation
 /// A non-destructive edit: the part of a file to use and how it sounds (see `SampleEdit`). The file itself is never
 /// changed. A sample that is only edited has a trim that covers the whole file.
 /// Positions are in seconds, so they do not depend on how the file is decoded.
-public struct SampleTrim: Equatable, Sendable {
+public struct SampleTrim: Equatable, Sendable, Codable {
     public static let minimumLength = 0.01
     /// Always applied at both ends of a trimmed sound, to avoid clicks.
     public static let declick = 0.003

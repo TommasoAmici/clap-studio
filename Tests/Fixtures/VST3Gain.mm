@@ -55,10 +55,18 @@ struct Gain : IComponent, IAudioProcessor, IEditController {
     tresult PLUGIN_API getBusArrangement(BusDirection, int32, SpeakerArrangement& a) override { a = SpeakerArr::kStereo; return kResultOk; }
     tresult PLUGIN_API canProcessSampleSize(int32 s) override { return s == kSample32 ? kResultOk : kResultFalse; }
     uint32 PLUGIN_API getLatencySamples() override { return 0; }
-    tresult PLUGIN_API setupProcessing(ProcessSetup&) override { return kResultOk; }
+    tresult PLUGIN_API setupProcessing(ProcessSetup& setup) override {
+#ifdef CLAP_REALTIME_ONLY
+        if (setup.processMode != kRealtime) return kResultFalse;
+#endif
+        return kResultOk;
+    }
     tresult PLUGIN_API setProcessing(TBool) override { return kResultOk; }
     uint32 PLUGIN_API getTailSamples() override { return 0; }
     tresult PLUGIN_API process(ProcessData& d) override {
+#ifdef CLAP_REALTIME_ONLY
+        if (d.processMode != kRealtime) return kResultFalse;
+#endif
         if (d.inputParameterChanges && d.inputParameterChanges->getParameterCount()) {
             auto q = d.inputParameterChanges->getParameterData(0); int32 offset; q->getPoint(0,offset,gain);
         }
@@ -80,6 +88,7 @@ struct Gain : IComponent, IAudioProcessor, IEditController {
     IPlugView* PLUGIN_API createView(FIDString) override;
 };
 
+#ifndef CLAP_NO_EDITOR
 @interface GainControl : NSObject { @public Gain *gain; }
 - (void)change:(NSSlider *)slider;
 @end
@@ -110,7 +119,7 @@ struct View : IPlugView {
         NSSlider *slider = [NSSlider sliderWithValue:gain->gain minValue:0 maxValue:1 target:nil action:nil];
         control = [[GainControl alloc] init]; control->gain = gain; slider.target = control; slider.action = @selector(change:);
         slider.frame = NSMakeRect(24,104,592,32); slider.autoresizingMask = NSViewWidthSizable; [content addSubview:slider];
-        NSTextField *hint = [NSTextField labelWithString:@"Close this window to use these settings in Preview and Bounce."];
+        NSTextField *hint = [NSTextField labelWithString:@"Play a sample while editing; settings are kept for Bounce."];
         hint.frame = NSMakeRect(24,40,592,26); [content addSubview:hint];
         [(NSView *)parent addSubview:content];
         if (frame) frame->resizeView(this,&size);
@@ -127,6 +136,7 @@ struct View : IPlugView {
     tresult PLUGIN_API canResize() override { return kResultOk; }
     tresult PLUGIN_API checkSizeConstraint(ViewRect *r) override { r->right = r->left + std::max(640,r->getWidth()); r->bottom = r->top + std::max(280,r->getHeight()); return kResultOk; }
 };
+#endif
 IPlugView *Gain::createView(FIDString) {
 #ifdef CLAP_NO_EDITOR
     return nullptr;

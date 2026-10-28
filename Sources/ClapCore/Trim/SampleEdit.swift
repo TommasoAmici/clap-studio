@@ -3,7 +3,7 @@ import Foundation
 
 /// Non-destructive changes to the sound of a sample. They are kept with the trim and applied whenever the sample is
 /// played in the drum machine, previewed or exported; the file itself is never changed.
-public struct SampleEdit: Equatable, Sendable {
+public struct SampleEdit: Equatable, Sendable, Codable {
     public static let gainRange = -24.0...12.0
     public static let speedRange = -24.0...24.0
     public static let filterRange = 20.0...20_000.0

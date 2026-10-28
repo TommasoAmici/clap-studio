@@ -24,6 +24,9 @@ import Foundation
                     if request.operation == .editor {
                         application.setActivationPolicy(.accessory)
                         reply = try await NativeEditor.run(request)
+                    } else if request.operation == .live {
+                        application.setActivationPolicy(.accessory)
+                        reply = try await LiveHost.run(request)
                     } else { reply = try await VST3HostWorker.run(request) }
                 } catch { reply = VST3HostReply(error: error.localizedDescription) }
                 do { try JSONEncoder().encode(reply).write(to: output, options: .atomic) }

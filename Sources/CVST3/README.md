@@ -14,11 +14,14 @@ bridge source and C ABI are left alone. Review the diff and run the build and
 full tests after an update.
 
 The C ABI keeps C++ types out of Swift. Lifecycle and controller access belong
-to the main actor; audio processing runs exclusively on a worker task. A plugin
-instance belongs to one bounce and is reset for every selected sample. The
-module stays loaded until its instances have been terminated.
+to the helper main actor. Offline audio processing runs exclusively on a
+worker task; live bounded blocks share the serial helper run loop with their
+editors. Bounce instances reset for every selected sample, while a live chain
+keeps its instances. Reference-counted modules share one factory host context
+and stay loaded until every slot has terminated.
 
-The host supports stereo 32-bit offline effects, native NSView editors with
+The host supports stereo 32-bit effects, offline bounces, live auditions and
+native NSView editors with
 window sizing and focus, generic parameters as a fallback, bypass, ordered
 chains, latency compensation and bounded tails. It does not host instruments,
 MIDI or sidechain audio. The manufacturer’s editor can select its own presets;
@@ -34,3 +37,20 @@ open until the user closes their window. Closing captures settings; cancelling
 kills the session and discards its changes. `VST3Process` supervises each
 Process on one DispatchQueue worker because Foundation launch and wait must
 use the same thread’s run loop.
+
+The live audition helper keeps the processors warm, processes 512-frame blocks
+in real-time mode and queues about 40 ms rather than rendering a complete WAV.
+The helper's serial run loop owns controller and bounded processing calls;
+source decoding and trim/edit DSP run detached. Native editors borrow those
+same processors, so their parameter changes reach the next queued blocks.
+Ordered commands and status files live in a private scratch directory. A
+main-loop heartbeat gives the supervisor a 30-second inactivity deadline.
+Replacing a chain cancels and reaps its old helper; the app process never owns plug-in pointers.
+
+The app's status monitor checks file modification time and size before reading
+changed replies, and performs reads/JSON decoding on a detached utility task.
+Large component/controller state is not decoded repeatedly on the UI thread.
+Live parameter updates omit state blobs. The helper polls small controller
+values, capturing complete presets only when they change, the editor closes,
+or an explicit bounce snapshot is requested. That last request captures hidden
+state even when normalized parameters did not change.

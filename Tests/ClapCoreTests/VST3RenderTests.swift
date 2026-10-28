@@ -76,6 +76,39 @@ import Testing
         #expect(try Data(contentsOf: target) == Data(contentsOf: second), "Each helper starts the same fresh recipe")
     }
 
+    @Test func silentEffectPaddingIsRemovedWithoutCuttingTheSound() async throws {
+        let folder = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let plugin = try #require(try await VST3Plugin.effects(in: VST3Fixture.bundle(in: folder)).first)
+        let slot = try await plugin.makeSlot()
+        let source = folder.appendingPathComponent("source.wav"), target = folder.appendingPathComponent("bounce.wav")
+        try writeTestWav(source, seconds: 0.05) { _ in 0.25 }
+        try await EffectBounce.write(source: source, trim: nil, chain: [slot], to: target, tailSeconds: 2)
+        let info = try AudioDecoder.fileInfo(url: target)
+        #expect(info.duration >= 0.05 && info.duration < 0.06,
+                "An effect that emits no tail keeps its sound but loses the two seconds of silent padding")
+    }
+
+    @Test func quietRingingIsKeptAndAnAllSilentBounceIsStillReadable() async throws {
+        let folder = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let plugin = try #require(try await VST3Plugin.effects(in: VST3Fixture.bundle(in: folder)).first)
+        let slot = try await plugin.makeSlot()
+        for level: Float in [0.000_1, 0] {
+            let source = folder.appendingPathComponent("source-\(level).wav")
+            let target = folder.appendingPathComponent("bounce-\(level).wav")
+            try writeTestWav(source, seconds: 0.1) { _ in level }
+            try await EffectBounce.write(source: source, trim: nil, chain: [slot], to: target, tailSeconds: 0.2)
+            let info = try AudioDecoder.fileInfo(url: target)
+            if level > 0 {
+                #expect(info.duration >= 0.1 && info.duration < 0.11,
+                        "Quiet audio above -100 dB is kept instead of mistaken for silence")
+            } else {
+                #expect(info.duration > 0 && info.duration < 0.01, "Silent output remains a valid short audio file")
+            }
+        }
+    }
+
     @Test func officialDelayCanBeLoadedAndRenderedWhenFixtureIsAvailable() async throws {
         guard let path = ProcessInfo.processInfo.environment["CLAP_VST3_TEST_PLUGIN"] else { return }
         let plugins = try await VST3Plugin.effects(in: URL(fileURLWithPath: path))

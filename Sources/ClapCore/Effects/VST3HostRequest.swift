@@ -2,7 +2,7 @@ import Foundation
 
 /// File-based messages keep plug-in output away from the app's process.
 public struct VST3HostRequest: Codable, Sendable {
-    public enum Operation: String, Codable, Sendable { case inspect, parameters, render, editor }
+    public enum Operation: String, Codable, Sendable { case inspect, parameters, render, editor, live }
     public var operation: Operation
     public var bundle: URL?
     public var plugin: VST3Plugin?
@@ -11,10 +11,12 @@ public struct VST3HostRequest: Codable, Sendable {
     public var source: URL?
     public var destination: URL?
     public var tailSeconds: Double?
+    public var sessionDirectory: URL?
     public var heartbeat: URL?
     #if DEBUG
     public var editorCloseAfter: Double?
     public var editorSnapshot: URL?
+    public var liveSnapshot: URL?
     #endif
 
     public init(operation: Operation, bundle: URL? = nil, plugin: VST3Plugin? = nil, slot: EffectSlot? = nil, chain: [EffectSlot]? = nil,
@@ -30,7 +32,7 @@ public struct VST3HostRequest: Codable, Sendable {
         defer { try? FileManager.default.removeItem(at: folder) }
         let input = folder.appendingPathComponent("request.json"), output = folder.appendingPathComponent("reply.json")
         var request = request
-        if request.operation == .render || request.operation == .editor { request.heartbeat = folder.appendingPathComponent("heartbeat") }
+        if request.operation == .render || (request.operation == .editor || request.operation == .live) { request.heartbeat = folder.appendingPathComponent("heartbeat") }
         try JSONEncoder().encode(request).write(to: input, options: .atomic)
         try await VST3Process.run(executable: VST3Process.helperURL(), arguments: [input.path, output.path], timeout: timeout, heartbeat: request.heartbeat, startupTimeout: request.operation == .editor ? 30 : nil)
         let size = try output.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
@@ -61,7 +63,7 @@ public enum VST3HostWorker {
         case .parameters:
             guard let plugin = request.plugin else { throw VST3Error.message("Missing plug-in class.") }
             return VST3HostReply(slot: try plugin.slotInProcess())
-        case .editor:
+        case .editor, .live:
             throw VST3Error.message("Native editors require the window host.")
         case .render:
             guard let source = request.source, let destination = request.destination, let chain = request.chain else {
