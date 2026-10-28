@@ -13,9 +13,19 @@ public struct JoinSource: Sendable {
     }
 }
 
+/// A published file and the source pieces written to it, in playback order.
+public struct JoinedOutput: Sendable {
+    public let url: URL
+    public let regions: [JoinedRegion]
+}
+
 /// Writes new joined WAV files; sources and existing destination files are only read.
 public enum JoinExporter {
     public static func export(_ sources: [JoinSource], settings: JoinSettings, to folder: URL) throws -> [URL] {
+        try exportWithRegions(sources, settings: settings, to: folder).map(\.url)
+    }
+
+    public static func exportWithRegions(_ sources: [JoinSource], settings: JoinSettings, to folder: URL) throws -> [JoinedOutput] {
         try Task.checkCancellation()
         guard settings.isValid, !sources.isEmpty else { throw JoinError.invalidSettings }
         let fm = FileManager.default
@@ -66,7 +76,7 @@ public enum JoinExporter {
             for output in published { try? fm.removeItem(at: output) }
             throw error
         }
-        return published
+        return zip(published, plans).map { JoinedOutput(url: $0.0, regions: $0.1.regions) }
     }
 
     private static func preflight(_ source: JoinSource) throws -> JoinSource {
