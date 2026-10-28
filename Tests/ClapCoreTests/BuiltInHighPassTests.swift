@@ -57,4 +57,60 @@ import Testing
         filter.process(left: &left, right: &right)
         #expect((left + right).allSatisfy { $0.isFinite }, "Invalid settings must never create invalid audio")
     }
+
+    @Test @MainActor func previewRespondsToSettingsAndBypass() throws {
+        var slot = BuiltInEffect.highPass.makeSlot()
+        slot.parameters[0].value = log(1_000.0 / 20) / log(1_000)
+        let processor = try VST3LiveProcessor(chain: [slot], sampleRate: rate)
+        defer { processor.close() }
+        let tone = (0..<512).map { Float(sin(2 * .pi * 100 * Double($0) / rate) * 0.5) }
+        var left = tone, right = tone
+        try processor.process(left: &left, right: &right)
+        #expect((left.suffix(256).map { abs($0) }.max() ?? 1) < 0.03,
+                "A high cutoff removes low frequencies from the preview")
+        slot.bypass = true
+        try processor.update([slot])
+        left = tone; right = tone
+        try processor.process(left: &left, right: &right)
+        #expect(left == tone && right == tone, "Bypass restores the dry preview")
+        slot.bypass = false; slot.parameters[3].value = 0
+        try processor.update([slot])
+        left = tone; right = tone
+        try processor.process(left: &left, right: &right)
+        #expect(left == tone && right == tone, "Updated mix reaches the next preview block")
+        #expect(try processor.snapshot().first == slot, "The latest settings survive a snapshot")
+    }
+
+    @Test func helperBounceFiltersWithoutChangingTheOriginal() async throws {
+        let folder = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.wav"), target = folder.appendingPathComponent("filtered.wav")
+        try writeTestWav(source, seconds: 0.1) { Float(sin(2 * .pi * 100 * $0) * 0.5) }
+        let original = try Data(contentsOf: source)
+        var slot = BuiltInEffect.highPass.makeSlot()
+        slot.parameters[0].value = log(1_000.0 / 20) / log(1_000)
+        try await EffectBounce.write(source: source, trim: nil, chain: [slot], to: target, tailSeconds: 0)
+        let samples = try AudioDecoder.decode(url: target, start: 0.02, seconds: 0.04, sampleRate: 44_100)
+        #expect((samples.map { abs($0) }.max() ?? 1) < 0.03, "The helper uses the chosen cutoff")
+        #expect(try Data(contentsOf: source) == original, "A bounce leaves the source file unchanged")
+    }
+
+    @Test func filterControlsShowFrequencyAndSlope() {
+        for effect in [BuiltInEffect.lowPass, .highPass] {
+            var slot = effect.makeSlot()
+            slot.parameters[0].value = 0
+            #expect(effect.displayValue(for: slot.parameters[0]) == "20 Hz", "The lowest cutoff is shown in hertz")
+            slot.parameters[0].value = log(1_000.0 / 20) / log(1_000)
+            #expect(effect.displayValue(for: slot.parameters[0]) == "1 kHz", "The cutoff is shown in kilohertz")
+            slot.parameters[0].value = 1
+            #expect(effect.displayValue(for: slot.parameters[0]) == "20 kHz", "The highest cutoff is shown in kilohertz")
+            #expect(effect.displayValue(for: slot.parameters[2]) == "12 dB", "The first slope is named in decibels")
+            slot.parameters[2].value = 1
+            #expect(effect.displayValue(for: slot.parameters[2]) == "24 dB", "The steeper slope is named in decibels")
+            #expect(effect.displayValue(for: slot.parameters[1]) == nil, "Other controls retain the normal percentage display")
+        }
+        #expect(BuiltInEffect.amplifier.displayValue(for: BuiltInEffect.amplifier.makeSlot().parameters[0]) == nil,
+                "Other effects retain their own control display")
+    }
+
 }
