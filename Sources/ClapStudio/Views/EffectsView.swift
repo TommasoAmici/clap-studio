@@ -43,9 +43,9 @@ struct EffectsView: View {
                                 .frame(width: 300)
                         }
                     }
-                    .padding(.vertical, 2).frame(height: 165, alignment: .top)
+                    .padding(.vertical, 2).frame(height: 235, alignment: .top)
                 }
-                .frame(height: 169)
+                .frame(height: 239)
                 .disabled(workbench.busy)
             }
             HStack(spacing: 10) {

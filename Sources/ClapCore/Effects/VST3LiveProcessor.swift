@@ -18,7 +18,7 @@ import Foundation
                 if let kind = slot.plugin.builtIn {
                     let processor = kind.processor(sampleRate: sampleRate, parameters: slot.parameters)
                     builtIns[slot.id] = processor
-                    tailFrames += min(processor.tailFrames, Int(sampleRate * EffectBounce.maximumTailSeconds))
+                    if !slot.bypass { tailFrames += min(processor.tailFrames, Int(sampleRate * EffectBounce.maximumTailSeconds)) }
                     continue
                 }
                 let instance = try VST3Instance(slot: slot)
@@ -28,7 +28,7 @@ import Foundation
                 guard Double(latency) <= sampleRate * 30 else {
                     throw VST3Error.message("This effect reports more than 30 seconds of latency.")
                 }
-                tailFrames += min(Int(clap_vst3_tail(instance.effect)), Int(sampleRate * EffectBounce.maximumTailSeconds))
+                if !slot.bypass { tailFrames += min(Int(clap_vst3_tail(instance.effect)), Int(sampleRate * EffectBounce.maximumTailSeconds)) }
             }
         } catch { close(); throw error }
     }
@@ -48,6 +48,7 @@ import Foundation
         }
         recipe = chain
         tailFrames = chain.reduce(0) { total, slot in
+            guard !slot.bypass else { return total }
             let tail = builtIns[slot.id]?.tailFrames ?? instances[slot.id].map { Int(clap_vst3_tail($0.effect)) } ?? 0
             return total + min(max(0, tail), Int(sampleRate * EffectBounce.maximumTailSeconds))
         }

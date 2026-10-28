@@ -5,7 +5,7 @@ Please add a built-in reverb that can be used in the VST effects chain.
 Check https://www.ableton.com/en/manual/live-audio-effect-reference/
 
 - [x] Build and test the stereo reverb processor.
-- [ ] Add reverb to the effects chain for auditions and bounces.
+- [x] Add reverb to the effects chain for auditions and bounces.
 
 ## Implementation context
 
@@ -21,7 +21,10 @@ Check https://www.ableton.com/en/manual/live-audio-effect-reference/
   Changing size adjusts delay taps immediately and can produce a transition
   artifact; smoothing may be worthwhile if live size automation is added.
 - `BuiltInReverbTests` covers decay at different sample rates, finite settings,
-  stereo width, predelay, room controls, dry mix and block continuity. It does
-  not yet cover integration with the live helper or rendered bounces.
-- The processor is not yet available in the app. Chain registration awaits the
-  shared built-in effects infrastructure.
+  stereo width, predelay, room controls, dry mix and block continuity.
+  `BuiltInReverbChainTests` checks live updates, dynamic tails, bypass and helper
+  bounces, including fresh state and original file protection.
+- `LiveHost` extends an active audition when a control increases its tail.
+  An earlier final-buffer callback is ignored when that length has changed.
+- `BuiltInEffect.reverb` registers this processor with the shared effects chain;
+  see [the effects guide](../../README.md) for the available controls.

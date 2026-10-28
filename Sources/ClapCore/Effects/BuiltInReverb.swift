@@ -1,7 +1,7 @@
 import Foundation
 
 /// A stereo room made from decaying reflections and diffusion delays.
-final class BuiltInReverb: @unchecked Sendable {
+final class BuiltInReverb: BuiltInProcessor, @unchecked Sendable {
     static let defaultParameters = [
         VST3Parameter(id: 0, name: "Predelay", value: 0.1, steps: 0),
         VST3Parameter(id: 1, name: "Size", value: 0.5, steps: 0),
