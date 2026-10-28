@@ -94,6 +94,12 @@ extension AppModel {
             errorMessage = "\(sample.name) is not available (is the volume mounted?)"
             return
         }
+        if usesEffects {
+            auditionEffects(sample, trim: SampleTrim(start: start, end: end ?? sample.duration,
+                                                    fadeOut: fadeOut, edit: activeTrim(for: sample)?.edit ?? SampleEdit()))
+            return
+        }
+        effects.stopPreview()
         let fit = adjustment(for: sample)
         player.playRegion(sampleID: sample.id, url: sample.url, start: start, end: end, fadeOut: fadeOut,
                           edit: activeTrim(for: sample)?.edit, rate: fit.rate,

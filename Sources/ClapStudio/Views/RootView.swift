@@ -28,6 +28,10 @@ struct RootView: View {
                     case .places: PlacesPanel()
                     }
                 }
+                if model.showEffects {
+                    Divider()
+                    EffectsView(workbench: model.effects)
+                }
                 MelodyPanel()
                 DrumPanel()
                 if model.isInstallingUpdate {

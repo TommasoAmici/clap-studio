@@ -68,6 +68,11 @@ import Foundation
         return editor
     }
 
+    /// Poll small controller values without repeatedly serializing large presets.
+    public func parameterValues() -> [[VST3Parameter]] {
+        recipe.map { instances[$0.id]?.parameterValues() ?? [] }
+    }
+
     public func snapshot() throws -> [EffectSlot] {
         guard !closed else { throw VST3Error.message("The effects session was closed.") }
         return try recipe.map { slot in

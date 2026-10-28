@@ -111,6 +111,16 @@ extension AppModel {
     /// the user picked (clicking the waveform, a cue) or `fullFile` is set. Spots beyond what the preview
     /// cache holds in very long files are read from disk.
     func playSample(_ sample: SampleRecord, from seconds: Double = 0, fullFile: Bool = false) {
+        if usesEffects {
+            let trim: SampleTrim?
+            if seconds == 0, !fullFile { trim = activeTrim(for: sample) }
+            else if seconds > 0 || (!fullFile && activeTrim(for: sample)?.edit.isNeutral == false) {
+                trim = SampleTrim(start: seconds, end: sample.duration, edit: fullFile ? SampleEdit() : activeTrim(for: sample)?.edit ?? SampleEdit())
+            } else { trim = nil }
+            auditionEffects(sample, trim: trim)
+            return
+        }
+        effects.stopPreview()
         if seconds == 0, !fullFile, let trim = activeTrim(for: sample) {
             playRegion(of: sample, start: trim.start, end: trim.end, fadeOut: trim.effectiveFadeOut)
             return
@@ -136,7 +146,7 @@ extension AppModel {
     }
 
     func togglePlayback() {
-        if playback.sampleID != nil { player.stop(); return }
+        if playback.sampleID != nil { stopAudition(); return }
         if let s = selectedSample { playSample(s, from: startMarkerSeconds ?? 0) }
     }
 

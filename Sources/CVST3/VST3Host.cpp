@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unordered_map>
+#include <string>
+#include <limits.h>
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 namespace {
@@ -80,6 +82,7 @@ struct Handler : IComponentHandler {
     tresult PLUGIN_API restartComponent(int32) override { return kResultOk; }
 };
 struct Module {
+    std::string path; int references = 1;
     Host host; CFBundleRef bundle = nullptr; IPluginFactory *factory = nullptr; bool entered = false;
     ~Module() {
         if (factory) factory->release();
@@ -90,6 +93,8 @@ struct Module {
         }
     }
 };
+// Several slots can share a bundle; its factory context must outlive every slot.
+std::unordered_map<std::string, Module *> modules;
 struct Effect {
     Host host; Handler handler; IComponent *component = nullptr; IAudioProcessor *processor = nullptr;
     IEditController *controller = nullptr; bool initialized = false, separateController = false, active = false, processing = false;
@@ -111,7 +116,11 @@ struct Effect {
 extern "C" {
 ClapVST3Module clap_vst3_module_open(const char *path) {
     if (!path) return nullptr;
-    auto m = new Module;
+    char resolved[PATH_MAX];
+    std::string key = realpath(path, resolved) ? resolved : path;
+    auto found = modules.find(key);
+    if (found != modules.end()) { ++found->second->references; return found->second; }
+    auto m = new Module; m->path = key;
     auto url = CFURLCreateFromFileSystemRepresentation(nullptr, reinterpret_cast<const UInt8 *>(path), strlen(path), true);
     m->bundle = url ? CFBundleCreate(nullptr, url) : nullptr; if (url) CFRelease(url);
     if (!m->bundle || !CFBundleLoadExecutable(m->bundle)) { delete m; return nullptr; }
@@ -124,9 +133,13 @@ ClapVST3Module clap_vst3_module_open(const char *path) {
     if (m->factory->queryInterface(INLINE_UID_OF(IPluginFactory3), reinterpret_cast<void **>(&factory3)) == kResultOk && factory3) {
         factory3->setHostContext(&m->host); factory3->release();
     }
+    modules.emplace(key, m);
     return m;
 }
-void clap_vst3_module_close(ClapVST3Module m) { delete static_cast<Module *>(m); }
+void clap_vst3_module_close(ClapVST3Module module) {
+    auto m = static_cast<Module *>(module); if (!m || --m->references > 0) return;
+    modules.erase(m->path); delete m;
+}
 int32_t clap_vst3_class_count(ClapVST3Module m) { return m ? static_cast<Module *>(m)->factory->countClasses() : 0; }
 int32_t clap_vst3_class_info(ClapVST3Module m, int32_t index, char *id, char *name) {
     PClassInfo info{}; if (!m || static_cast<Module *>(m)->factory->getClassInfo(index, &info) != kResultOk || strcmp(info.category, kVstAudioEffectClass)) return 0;

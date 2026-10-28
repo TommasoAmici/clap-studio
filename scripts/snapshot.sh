@@ -10,7 +10,7 @@
 #     --update-download  show download activity without contacting GitHub
 #     --update-install  show verification and installation activity without installing
 #     --native  capture native glass layers at the display's resolution (needs existing screen capture access)
-#     --effects open the VST3 Effects panel for two samples (uses a scratch library)
+#     --effects open the VST3 Effects drawer for two samples (uses a scratch library)
 #     --effects-save with --effects: show the native Save dialog for one sample
 #     --effects-plugin PATH  with --effects: load a test VST3 bundle
 #     --select  select the first sample (shows the inspector's contents)

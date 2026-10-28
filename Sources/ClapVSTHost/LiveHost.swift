@@ -20,11 +20,13 @@ import ClapCore
     private var sampleID: Int64?
     private var duration: Double = 0
     private var previousRecipe: [EffectSlot]?
+    private var previousParameters: [[VST3Parameter]] = []
     private var generation = UUID()
     private var decodeTask: Task<Void, Never>?
     private var lastPlay: VST3LiveCommand?
     private var editorTask: Task<Void, Never>?
     private var editorID: UUID?
+    private var editorWindow: NSWindow?
     private var lastHeartbeat = Date.distantPast
 
     static func run(_ request: VST3HostRequest) async throws -> VST3HostReply {
@@ -46,6 +48,7 @@ import ClapCore
 
     private func start() {
         previousRecipe = try? processor.snapshot()
+        previousParameters = processor.parameterValues()
         publish(VST3LiveStatus(chain: previousRecipe))
         let timer = Timer(timeInterval: 0.005, repeats: true) { [self] _ in
             MainActor.assumeIsolated { tick() }
@@ -61,10 +64,12 @@ import ClapCore
                 if let heartbeat = request.heartbeat { try Data().write(to: heartbeat, options: .atomic) }
                 lastHeartbeat = Date()
                 if editorID != nil {
-                    let recipe = try processor.snapshot()
-                    if recipe != previousRecipe {
+                    let parameters = processor.parameterValues()
+                    if parameters != previousParameters {
+                        previousParameters = parameters
+                        let recipe = try processor.snapshot()
                         previousRecipe = recipe
-                        publish(VST3LiveStatus(sampleID: sampleID, duration: duration, chain: recipe))
+                        publish(VST3LiveStatus(sampleID: sampleID, duration: duration, chain: recipe, playbackToken: sampleID == nil ? nil : generation))
                     }
                 }
             }
@@ -89,7 +94,13 @@ import ClapCore
         switch command.operation {
         case .stop: stop(); publish(VST3LiveStatus())
         case .play: play(command)
+        case .closeEditor: editorWindow?.performClose(nil)
         case .volume: engine.mainMixerNode.outputVolume = min(1, max(0, command.volume))
+        case .snapshot:
+            guard let id = command.requestID else { throw VST3Error.message("Missing settings request.") }
+            let status = VST3LiveStatus(sampleID: sampleID, duration: duration, chain: try processor.snapshot(),
+                                       requestID: id, playbackToken: sampleID == nil ? nil : generation)
+            try JSONEncoder().encode(status).write(to: directory.appendingPathComponent("reply-\(id).json"), options: .atomic)
         case .update:
             if let chain = command.chain { try processor.update(chain) }
         case .edit:
@@ -105,10 +116,12 @@ import ClapCore
                     editorRequest.editorSnapshot = request.editorSnapshot
                     #endif
                     _ = try await NativeEditor.run(editorRequest, session: session,
-                                                   preview: { [weak self] in self?.replay() }, stop: { [weak self] in self?.stop(); self?.publish(VST3LiveStatus()) })
-                    publish(VST3LiveStatus(sampleID: sampleID, chain: try processor.snapshot()))
+                                                   preview: { [weak self] in self?.replay() }, stop: { [weak self] in self?.stop(); self?.publish(VST3LiveStatus()) },
+                                                   windowSink: { [weak self] in self?.editorWindow = $0 })
+                    publish(VST3LiveStatus(sampleID: sampleID, duration: duration, chain: try processor.snapshot(),
+                                           playbackToken: sampleID == nil ? nil : generation))
                 } catch { publish(VST3LiveStatus(sampleID: sampleID, error: error.localizedDescription)) }
-                editorTask = nil; editorID = nil
+                editorTask = nil; editorID = nil; editorWindow = nil
             }
         }
     }
@@ -141,7 +154,7 @@ import ClapCore
                 try pump()
                 player.play()
                 duration = Double(totalFrames) / format.sampleRate / Double(command.rate)
-                publish(VST3LiveStatus(sampleID: sampleID, duration: duration))
+                publish(VST3LiveStatus(sampleID: sampleID, duration: duration, playbackToken: generation))
             } catch {
                 guard !Task.isCancelled, generation == token else { return }
                 stop(); publish(VST3LiveStatus(error: error.localizedDescription))

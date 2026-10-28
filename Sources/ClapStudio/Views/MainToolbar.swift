@@ -10,6 +10,8 @@ struct MainToolbar: ToolbarContent {
         // The project button's text would otherwise read as part of the icon buttons beside it.
         if #available(macOS 26.0, *) { ToolbarSpacer(.fixed) }
         ToolbarItemGroup {
+            ModelToggle("Effects", systemImage: "slider.horizontal.3", isOn: \.showEffects,
+                        help: "Show effects: audition sounds through a VST3 chain")
             ModelToggle("Drum Machine", systemImage: "square.grid.4x3.fill", isOn: \.showDrums,
                         help: "Show the drum machine")
             ModelToggle("Melody", systemImage: "pianokeys", isOn: \.showMelody,

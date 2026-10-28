@@ -35,6 +35,7 @@ struct ClapStudioApp: App {
                 Button("Map") { model.show(.map) }.keyboardShortcut("2")
                 Button("Places") { model.show(.places) }.keyboardShortcut("3")
                 Divider()
+                Toggle("Show Effects", isOn: $model.showEffects)
                 Toggle("Show Drum Machine", isOn: $model.showDrums)
                     .keyboardShortcut("d", modifiers: [.command, .option])
                 Toggle("Show Melody", isOn: $model.showMelody)
@@ -98,9 +99,9 @@ struct ClapStudioApp: App {
                     .disabled(model.selectedID == nil)
                 Button("Build a Kit From This…") { if let id = model.selectedID { model.buildKit(around: id) } }
                     .disabled(model.selectedID == nil)
-                Button("VST3 Effects…") { model.openEffects(ids: model.actionTargets) }
+                Button("VST3 Effects…") { model.openEffects(ids: model.effectsActionTargets) }
                     .keyboardShortcut("e", modifiers: [.command, .option])
-                    .disabled(model.actionTargets.isEmpty)
+                    .disabled(model.effectsActionTargets.isEmpty)
                 Button("Add to Drum Machine") { model.addToDrums(model.actionTargets) }
                     .disabled(model.actionTargets.isEmpty || model.drumPattern.isFull)
                 Button("Add to Melody") { model.addToMelody(model.actionTargets) }

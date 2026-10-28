@@ -109,8 +109,9 @@ final class AppModel {
     var kitChoice: [String: Int] = [:]
     var trims: [Int64: SampleTrim] = [:]   // non-destructive start/end per sample
     @ObservationIgnored let effects = EffectsWorkbench()
+
     var exportIDs: [Int64]?                // set when the export sheet was opened for specific samples
-    var showDrums = false { didSet { if showDrums != oldValue { storeDrumPattern() } } }
+    var showDrums = false { didSet { if showDrums != oldValue { if showDrums { showEffects = false }; storeDrumPattern() } } }
     /// The groove picked in the drum machine (remembered between launches); nil uses the plain starter rhythms.
     var drumPresetID: String? { didSet { storeDrumGrooves() } }
     /// Grooves the user saved from their own patterns.
@@ -128,7 +129,7 @@ final class AppModel {
     var drumBar = 0                        // zero-based bar the drum grid follows during playback
     @ObservationIgnored var midiImportTask: Task<Void, Never>?
     var drumPlaying = false
-    var showMelody = false { didSet { if showMelody != oldValue { storeMelodyPattern() } } }
+    var showMelody = false { didSet { if showMelody != oldValue { if showMelody { showEffects = false }; storeMelodyPattern() } } }
     var melodyPattern = MelodyPattern() { didSet { if melodyPattern != oldValue { pushMelodyPattern(); storeMelodyPatternSoon() } } }
     @ObservationIgnored var melodySourcesReady = false      // the saved melody's sounds have been matched to the library
     @ObservationIgnored var melodyStoreTask: Task<Void, Never>?
@@ -215,7 +216,7 @@ final class AppModel {
     var autoplay = true
     var project = ProjectSettings() { didSet { saveProjectSettings(); if project.bpm != oldValue.bpm { drumMachine.bpm = drumTempo } } }
     var hoverPlay = true
-    var volume: Float = 0.9 { didSet { player.volume = volume } }
+    var volume: Float = 0.9 { didSet { player.volume = volume; effects.setVolume(volume) } }
 
     // MARK: map and analysis
     var snapshot: AnalysisSnapshot?
@@ -247,7 +248,10 @@ final class AppModel {
     init() {
         player.volume = volume
         player.onStateChange = { [weak self] state in
-            Task { @MainActor in self?.playback = state }
+            Task { @MainActor in
+                guard let self, !self.usesEffects || state.sampleID != nil else { return }
+                self.playback = state
+            }
         }
     }
 

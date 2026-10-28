@@ -73,7 +73,7 @@ struct InspectorView: View {
     private func transport(_ s: SampleRecord) -> some View {
         HStack {
             Button {
-                if model.playback.sampleID == s.id { model.player.stop() } else { model.playSample(s) }
+                if model.playback.sampleID == s.id { model.stopAudition() } else { model.playSample(s) }
             } label: {
                 Image(systemName: model.playback.sampleID == s.id ? "stop.fill" : "play.fill").frame(width: 20)
             }

@@ -15,8 +15,9 @@ import CVST3
     private let stop: (() -> Void)?
 
     static func run(_ request: VST3HostRequest, session: VST3EditorSession? = nil,
-                    preview: (() -> Void)? = nil, stop: (() -> Void)? = nil) async throws -> VST3HostReply {
+                    preview: (() -> Void)? = nil, stop: (() -> Void)? = nil, windowSink: ((NSWindow) -> Void)? = nil) async throws -> VST3HostReply {
         let editor = try NativeEditor(request, session: session, preview: preview, stop: stop)
+        windowSink?(editor.window)
         let reply = try await withCheckedThrowingContinuation { continuation in
             editor.completion = continuation
             do { try editor.show() }
