@@ -1,7 +1,7 @@
 import Foundation
 
 /// Adds grain by modulating a short delay with a sine and filtered noise.
-final class BuiltinErosion: @unchecked Sendable {
+final class BuiltinErosion: BuiltInProcessor, @unchecked Sendable {
     static let defaults: [VST3Parameter] = [
         VST3Parameter(id: 0, name: "Frequency", value: 0.6, steps: 0),
         VST3Parameter(id: 1, name: "Amount", value: 0.4, steps: 0),

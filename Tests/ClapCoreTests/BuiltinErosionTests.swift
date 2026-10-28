@@ -80,4 +80,43 @@ import Testing
             #expect(whole.tailFrames > 0 && Double(whole.tailFrames) / rate < 0.01, "The reported tail covers only the short delay")
         }
     }
+    @Test @MainActor func chainUpdatesErosionAndBypassKeepsAudioDry() throws {
+        var slot = BuiltInEffect.erosion.makeSlot()
+        let processor = try VST3LiveProcessor(chain: [slot], sampleRate: 44_100)
+        defer { processor.close() }
+        let input = signal(512)
+        var left = input, right = input
+        slot.bypass = true
+        try processor.update([slot])
+        try processor.process(left: &left, right: &right)
+        #expect(left == input && right == input, "Bypass keeps the selected sample dry")
+
+        slot.bypass = false
+        slot.parameters[1].value = 1
+        slot.parameters[2].value = 0
+        try processor.update([slot])
+        left = input; right = input
+        try processor.process(left: &left, right: &right)
+        #expect(zip(left, input).contains { abs($0 - $1) > 0.01 }, "The next preview block uses the changed amount")
+        #expect(try processor.snapshot() == [slot], "The current erosion settings survive a live snapshot")
+    }
+
+    @Test @MainActor func helperBouncesErosionWithoutChangingTheOriginal() async throws {
+        let folder = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.wav")
+        let dry = folder.appendingPathComponent("dry.wav"), wet = folder.appendingPathComponent("erosion.wav")
+        try writeTestWav(source, seconds: 0.1) { Float(sin(2 * .pi * 5_000 * $0)) * 0.5 }
+        let original = try Data(contentsOf: source)
+        var slot = BuiltInEffect.erosion.makeSlot()
+        slot.parameters[1].value = 1; slot.parameters[2].value = 0
+        try await EffectBounce.write(source: source, trim: nil, chain: [slot], to: wet, tailSeconds: 0)
+        slot.bypass = true
+        try await EffectBounce.write(source: source, trim: nil, chain: [slot], to: dry, tailSeconds: 0)
+        let altered = try AudioDecoder.decode(url: wet, start: 0, seconds: 0.08, sampleRate: 44_100)
+        let unaltered = try AudioDecoder.decode(url: dry, start: 0, seconds: 0.08, sampleRate: 44_100)
+        #expect(zip(altered, unaltered).contains { abs($0 - $1) > 0.01 }, "The helper applies erosion to the independent bounce")
+        #expect(try Data(contentsOf: source) == original, "The original sample remains unchanged")
+    }
+
 }
