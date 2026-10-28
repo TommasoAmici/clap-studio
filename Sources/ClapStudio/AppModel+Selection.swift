@@ -19,6 +19,7 @@ extension AppModel {
         if !keepSelection, tableSelection != (id.map { [$0] } ?? []) { tableSelection = id.map { [$0] } ?? [] }
         selectedCueID = nil
         guard let id, let sample = sampleByID[id] else {
+            similarTask?.cancel()
             similar = []; similarRows = []; cues = []; waveform = []
             return
         }
@@ -35,11 +36,29 @@ extension AppModel {
     }
 
     func updateSimilar(for id: Int64) {
+        similarTask?.cancel()
         guard let snap = snapshot, let reference = sampleByID[id] else { similar = []; similarRows = []; return }
-        let neighbors = AspectSimilarity.rank(reference: reference, index: snap.index, weights: aspectWeights, limit: 50) { [sampleByID] in sampleByID[$0] }
-        similarRows = neighbors.map(\.row)
-        similar = neighbors.compactMap { n in
-            sampleByID[snap.index.ids[n.row]].map { SimilarResult(sample: $0, score: n.score) }
+        let index = snap.index, weights = aspectWeights, samples = sampleByID
+        similar = []; similarRows = []
+        let search = Task.detached(priority: .userInitiated) {
+            // A quick run of arrow keys only needs the last sample's neighbours.
+            try? await Task.sleep(for: .milliseconds(25))
+            guard !Task.isCancelled else { return [(row: Int, score: Float)]() }
+            return AspectSimilarity.rank(reference: reference, index: index, weights: weights, limit: 50,
+                                         isCancelled: { Task.isCancelled }) { samples[$0] }
+        }
+        similarTask = Task { [weak self] in
+            let neighbors = await withTaskCancellationHandler {
+                await search.value
+            } onCancel: {
+                search.cancel()
+            }
+            guard let self, !Task.isCancelled, self.selectedID == id,
+                  self.snapshot?.index === index, self.aspectWeights == weights else { return }
+            self.similarRows = neighbors.map(\.row)
+            self.similar = neighbors.compactMap { n in
+                self.sampleByID[index.ids[n.row]].map { SimilarResult(sample: $0, score: n.score) }
+            }
         }
     }
 
@@ -274,7 +293,9 @@ extension AppModel {
     func reloadCues() {
         guard let store, let id = selectedID else { cues = []; return }
         cues = store.cues(sampleID: id)
-        mutate(id) { $0.cueCount = self.cues.count }
+        if sampleByID[id]?.cueCount != cues.count {
+            mutate(id) { $0.cueCount = self.cues.count }
+        }
     }
 
     func addCue(atSeconds seconds: Double) {

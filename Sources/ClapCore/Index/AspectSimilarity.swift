@@ -57,19 +57,24 @@ public enum AspectSimilarity {
 
     /// The best matches for `reference`, closest first. `lookup` supplies the records for the index's ids.
     public static func rank(reference: SampleRecord, index: VectorIndex, weights: AspectWeights, limit: Int,
+                            isCancelled: () -> Bool = { false },
                             lookup: (Int64) -> SampleRecord?) -> [(row: Int, score: Float)] {
-        guard let referenceRow = index.row(forID: reference.id) else { return [] }
+        guard !isCancelled(), let referenceRow = index.row(forID: reference.id) else { return [] }
         if weights.isDefault {
-            return index.similar(toRow: referenceRow, limit: limit).map { ($0.row, $0.score) }
+            let neighbors = index.similar(toRow: referenceRow, limit: limit)
+            return isCancelled() ? [] : neighbors.map { ($0.row, $0.score) }
         }
         let cosines = index.topK(query: index.vector(row: referenceRow), limit: index.count, excluding: referenceRow)
+        guard !isCancelled() else { return [] }
         var scored: [(row: Int, score: Float)] = []
         scored.reserveCapacity(cosines.count)
         for n in cosines {
+            guard !isCancelled() else { return [] }
             guard let other = lookup(index.ids[n.row]) else { continue }
             scored.append((n.row, score(cosine: n.score, reference: reference, other: other, weights: weights)))
         }
+        guard !isCancelled() else { return [] }
         scored.sort { $0.score > $1.score }
-        return Array(scored.prefix(limit))
+        return isCancelled() ? [] : Array(scored.prefix(limit))
     }
 }
