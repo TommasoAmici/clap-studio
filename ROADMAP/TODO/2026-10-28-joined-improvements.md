@@ -8,7 +8,7 @@ I'd like to be able to expand a joined sample row and see all the sub samples it
 ## Work
 
 - [x] Track the source and bounds of every piece in each joined file.
-- [ ] Keep source links for joined files, including files outside indexed folders.
+- [x] Keep source links for joined files, including files outside indexed folders.
 - [ ] Show joined samples separately from other sample types.
 - [ ] Expand a joined sample row to show its source samples.
 
@@ -22,3 +22,8 @@ repeated source selections.
 
 `JoinExporter.exportWithRegions` returns each published URL with the exact
 `JoinPlanner` regions; the existing URL-only export API remains available.
+
+`LibraryStore+Joined.swift` stores published paths and ordered pieces in schema
+version 15. Source IDs use `ON DELETE SET NULL`; when an export finishes, its source path is
+checked as well because a removed sample ID can be reused. Names and paths survive
+removing a source folder. Export reports a separate error if persistence fails.

@@ -350,9 +350,9 @@ final class AppModel {
 
     // MARK: data loading
 
-    func reloadSamples() {
+    func reloadSamples(preloaded: [SampleRecord]? = nil) {
         guard let store else { return }
-        samples = store.loadSamples()
+        samples = preloaded ?? store.loadSamples()
         usbSamples = squidEnabled ? store.loadTransientSamples() : []
         usbSampleIDs = Set(usbSamples.map(\.id))
         trims = store.trims()

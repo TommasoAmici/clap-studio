@@ -5,11 +5,13 @@ public struct JoinSource: Sendable {
     public var url: URL
     public var trim: SampleTrim?
     public var name: String
+    public var sampleID: Int64?
 
-    public init(url: URL, trim: SampleTrim? = nil, name: String? = nil) {
+    public init(url: URL, trim: SampleTrim? = nil, name: String? = nil, sampleID: Int64? = nil) {
         self.url = url
         self.trim = trim
         self.name = name ?? url.deletingPathExtension().lastPathComponent
+        self.sampleID = sampleID
     }
 }
 
