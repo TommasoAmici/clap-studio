@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 14
+    static let currentVersion = 16
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -20,7 +20,28 @@ enum Schema {
         if version < 12 { try v12(db) }
         if version < 13 { try v13(db) }
         if version < 14 { try v14(db) }
+        if version < 15 { try v15(db) }
+        if version < 16 { try v16(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
+    }
+
+    /// Verify that a joined path still contains the file that was exported.
+    private static func v16(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE joined_files ADD COLUMN fingerprint TEXT")
+        try db.exec("ALTER TABLE joined_files ADD COLUMN verified INTEGER NOT NULL DEFAULT 0")
+    }
+
+    /// Published joined files and their ordered source pieces, kept even before indexing.
+    private static func v15(_ db: SQLiteDB) throws {
+        try db.exec("""
+        CREATE TABLE joined_files(path TEXT PRIMARY KEY);
+        CREATE TABLE joined_parts(
+            joined_path TEXT NOT NULL REFERENCES joined_files(path) ON UPDATE CASCADE ON DELETE CASCADE,
+            ordinal INTEGER NOT NULL, source_id INTEGER REFERENCES samples(id) ON DELETE SET NULL,
+            source_path TEXT NOT NULL, name TEXT NOT NULL,
+            source_start INTEGER NOT NULL, start_frame INTEGER NOT NULL, end_frame INTEGER NOT NULL,
+            PRIMARY KEY(joined_path, ordinal));
+        """)
     }
 
     /// An explicit exception to automatic field-recording detection.

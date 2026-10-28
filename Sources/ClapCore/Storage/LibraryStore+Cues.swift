@@ -91,9 +91,10 @@ extension LibraryStore {
         let attrs = try FileManager.default.attributesOfItem(atPath: sample.url.path)
         let size = (attrs[.size] as? NSNumber)?.int64Value ?? sample.size
         let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? sample.mtime
+        let fingerprint = FileFingerprint.compute(url: sample.url)
+        let joined = try joinedFingerprintForWrite(sampleID: sample.id, fingerprint: fingerprint)
         try db.transaction {
-            try updateFileAttributes(sampleID: sample.id, size: size, mtime: mtime,
-                                     fingerprint: FileFingerprint.compute(url: sample.url))
+            try updateFileAttributes(sampleID: sample.id, size: size, mtime: mtime, fingerprint: fingerprint, joined: joined)
             try db.run("UPDATE cue_points SET file_synced = 1, source = 'file' WHERE sample_id = ?", [.int(sample.id)])
             try db.run("UPDATE samples SET cues_dirty = 0 WHERE id = ?", [.int(sample.id)])
         }

@@ -181,3 +181,24 @@ import Testing
         #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
     }
 }
+
+@Suite struct JoinedOutputTests {
+    @Test func identifiesTheSourceAndBoundsOfEveryPublishedPiece() throws {
+        let dir = TestSupport.tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let short = dir.appendingPathComponent("short.wav")
+        let long = dir.appendingPathComponent("long.wav")
+        try writeTestWav(short, seconds: 0.05) { _ in 0.2 }
+        try writeTestWav(long, seconds: 0.2) { _ in 0.4 }
+        let outputs = try JoinExporter.exportWithRegions(
+            [JoinSource(url: short), JoinSource(url: long)],
+            settings: JoinSettings(maxSeconds: 0.1, silenceSeconds: 0), to: dir.appendingPathComponent("out"))
+        #expect(outputs.count == 3, "A long sound can continue over several joined files.")
+        #expect(outputs.map { $0.regions.map(\.sourceIndex) } == [[0, 1], [1], [1]],
+                "Each output identifies only the source pieces it contains, in order.")
+        #expect(outputs.map { $0.regions.map(\.sourceStartFrame) } == [[0, 0], [2_205], [6_615]],
+                "Continuations identify their offsets in the rendered source.")
+        #expect(outputs.allSatisfy { FileManager.default.fileExists(atPath: $0.url.path) },
+                "The regions refer to the published files, not staging files.")
+    }
+}

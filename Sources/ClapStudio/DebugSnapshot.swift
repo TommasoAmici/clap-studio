@@ -14,6 +14,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_UPDATE_NOTES=long|none exercise scrolling or missing release notes
 ///   CLAP_SNAPSHOT_UPDATE_PROGRESS=download|install show update activity without downloading or installing
 ///   CLAP_SNAPSHOT_SELECT=1         select the first sample in the list first
+///   CLAP_SNAPSHOT_JOINED_EXPAND=1  open the first joined sample's source rows
 ///   CLAP_SNAPSHOT_MAP=1            show the Map tab
 ///   CLAP_SNAPSHOT_EDIT=1           with SELECT: give the selected sample a sample edit (changes the library: use a copy)
 ///   CLAP_PERF=cat.Kick,cat.Snare   switch the sidebar through these tags and log how long the main thread is busy each time
@@ -60,6 +61,7 @@ enum DebugSnapshot {
             do { try await DebugSnapshotSquid.prepare(model: model, env: env) }
             catch { NSLog("Could not prepare the Squid media view: %@", error.localizedDescription); NSApp.terminate(nil); return }
         }
+        if env["CLAP_SNAPSHOT_JOINED_EXPAND"] == "1" { model.descriptorFilter.kind = .joined }
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }
         if env["CLAP_SNAPSHOT_PLACES"] == "1" { model.viewMode = .places }
         if env["CLAP_SNAPSHOT_DRUMS"] == "1" {

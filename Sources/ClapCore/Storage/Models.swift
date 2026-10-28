@@ -42,6 +42,8 @@ public struct SampleRecord: Identifiable, Hashable, Sendable {
     public var categoryManual: String? = nil
     /// The user chose to process this file as one sound, even when it is long.
     public var isRegularSample = false
+    /// This file was made by joining other samples in this library.
+    public var isJoined = false
     public var favorite: Bool = false
     public var hidden: Bool = false
     /// The user's own labels, sorted.

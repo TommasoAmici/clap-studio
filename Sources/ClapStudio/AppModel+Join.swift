@@ -38,7 +38,7 @@ extension AppModel {
         let included = Set(ordered.map(\.id))
         ordered += ids.compactMap { included.contains($0) ? nil : sampleByID[$0] }
         guard ordered.count > 1 else { return }
-        joinSources = ordered.map { JoinSource(url: $0.url, trim: activeTrim(for: $0), name: $0.name) }
+        joinSources = ordered.map { JoinSource(url: $0.url, trim: activeTrim(for: $0), name: $0.name, sampleID: $0.id) }
         showJoin = true
     }
 
@@ -86,13 +86,28 @@ extension AppModel {
         isJoining = true
         joinTask = Task {
             defer { isJoining = false; joinTask = nil }
-            let worker = Task.detached(priority: .userInitiated) {
-                try JoinExporter.export(sources, settings: settings, to: folder)
+            let store = self.store
+            let worker = Task.detached(priority: .userInitiated) { () throws -> ([JoinedOutput], [Int64: Set<String>]?) in
+                let outputs = try JoinExporter.exportWithRegions(sources, settings: settings, to: folder)
+                do {
+                    guard let store else { return (outputs, nil) }
+                    try store.recordJoinedOutputs(outputs, sources: sources)
+                    return (outputs, store.joinedRelativePathsByRoot())
+                } catch { return (outputs, nil) }
             }
             do {
-                let files = try await withTaskCancellationHandler(operation: { try await worker.value },
-                                                                 onCancel: { worker.cancel() })
-                statusMessage = "Saved \(files.count) joined \(files.count == 1 ? "file" : "files")."
+                let (outputs, joinedPaths) = try await withTaskCancellationHandler(operation: { try await worker.value },
+                                                                                 onCancel: { worker.cancel() })
+                let files = outputs.map(\.url)
+                if let joinedPaths {
+                    joinedLinksRevision &+= 1
+                    let changed = JoinedLibrary.markJoined(in: &samples, pathsByRoot: joinedPaths)
+                    for id in changed { sampleByID[id]?.isJoined = true }
+                    if !changed.isEmpty { refilter() }
+                    statusMessage = "Saved \(files.count) joined \(files.count == 1 ? "file" : "files")."
+                } else {
+                    errorMessage = "Joined files were saved, but their source links could not be saved. Source files were not changed."
+                }
                 NSWorkspace.shared.activateFileViewerSelecting(files)
             } catch is CancellationError {
                 statusMessage = "Joining cancelled. Source files were not changed."
