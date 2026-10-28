@@ -8,18 +8,20 @@ disable-model-invocation: true
 
 A push to `main` runs `.github/workflows/release.yml`, which publishes only when the app version exceeds the latest published version. This skill is the only place a push happens. Naming it is the user's go-ahead to push; do not push any other way.
 
+When a build, test, media capture, or release check fails, diagnose the cause, fix the release scripts or other in-scope issues, and rerun the affected checks. Commit verified fixes separately before release preparation. Continue only after the required checks pass; if an external condition or permission prevents progress, report the blocker. Never bypass a failed version check or a rejected push.
+
 ## Steps
 
 1. **Check the tree.** On `main`, with no uncommitted changes to tracked files (untracked `.cursor/` is fine, never commit it). If anything else is dirty, stop and tell the user what; do not commit it for them.
-2. **Check the work.** Run `scripts/build.sh` (no new warnings) and the full `scripts/test.sh`. Stop on any failure.
-3. **Regenerate the screenshots.** Run `scripts/media-kit.sh` and let it finish before the release commit; it rebuilds the debug app and a release seeder, then captures all eighteen 3200 × 2000 PNGs and two looping GIFs into `media/` from a scratch demo library. Stop on failure; the captures never touch the user's samples or library, and they only write under `media/`. It takes a few minutes, so run it once the build and tests passed and before anything is committed.
+2. **Check the work.** Run `scripts/build.sh` (no new warnings) and the full `scripts/test.sh`.
+3. **Regenerate the screenshots.** Run `scripts/media-kit.sh` and let it finish before the release commit; it rebuilds the debug app and a release seeder, then captures all eighteen 3200 × 2000 PNGs and two looping GIFs into `media/` from a scratch demo library. The captures never touch the user's samples or library, and they only write under `media/`. It takes a few minutes, so run it once the build and tests passed and before anything is committed.
 4. **Pick the version.** Read the current one from `CFBundleShortVersionString` in `scripts/bundle.sh`, and the commits since the last bump:
    `git log --oneline $(git log -1 --format=%H --grep='^chore(release)')..HEAD`
    - any `feat` (or `refactor`/`perf` that users will notice): minor, `0.19.0` becomes `0.20.0` (what past releases did)
    - only `fix`, `docs`, `test`, `chore`: patch, `0.19.0` becomes `0.19.1`
    - the user named a specific number: use it
    - nothing since the last bump: stop, there is nothing to release
-   Run `python3 scripts/test-release-version.py` and check the chosen version with `python3 scripts/check-release-version.py --version X.Y.Z` using the existing GitHub credentials. The check must return `true`; stop on `false` or a failed lookup before committing release notes or the bump.
+   Run `python3 scripts/test-release-version.py` and check the chosen version with `python3 scripts/check-release-version.py --version X.Y.Z` using the existing GitHub credentials. The check must return `true` before committing release notes or the bump; resolve a failed lookup and choose an appropriate higher version if it returns `false`.
 5. **Prepare the changelog.** Read `CHANGELOG.md` and the commits from step 4. Describe features, fixes, and other changes a musician will notice in plain English. Add any missing changes to `## Unreleased`, then move those entries into a new `## X.Y.Z` section below an empty `## Unreleased`; preserve earlier sections. Check the new version's notes with `python3 scripts/release-notes.py X.Y.Z` and `python3 scripts/test-release-notes.py`. Commit the changelog separately as `docs: release notes`.
 6. **Bump.** Change only `CFBundleShortVersionString` in `scripts/bundle.sh`. Leave `CFBundleVersion` alone.
 7. **Commit** on its own, nothing else in it: `chore(release): bump to X.Y.Z` (the fixed subject from `AGENTS.md`, longer than 25 characters on purpose; no body needed). Screenshots that step 3 refreshed and that changed files under `media/` go into this commit, since they are the release's own; when the run changed none, the commit holds only the version bump.
