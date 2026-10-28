@@ -34,8 +34,7 @@ struct EffectRow: View {
                             ForEach(slot.parameters) { parameter in
                                 HStack(spacing: 6) {
                                     Text(parameter.name).frame(width: 100, alignment: .leading).lineLimit(2)
-                                    Slider(value: parameterBinding(parameter), in: 0...1,
-                                           step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
+                                    parameterSlider(parameter)
                                         .accessibilityLabel(parameter.name)
                                         .accessibilityValue(Text(displayValue(for: parameter)))
                                     Text(displayValue(for: parameter))
@@ -72,6 +71,15 @@ struct EffectRow: View {
             Button("Move Effect Later") { move(by: 1) }.disabled(workbench.chain.last?.id == slot.id)
             Button(slot.bypass ? "Enable Effect" : "Bypass Effect") { slot.bypass.toggle() }
             Button("Remove Effect") { remove() }
+        }
+    }
+
+    @ViewBuilder
+    private func parameterSlider(_ parameter: VST3Parameter) -> some View {
+        if parameter.steps > 0 {
+            Slider(value: parameterBinding(parameter), in: 0...1, step: 1 / Double(parameter.steps))
+        } else {
+            Slider(value: parameterBinding(parameter), in: 0...1)
         }
     }
 
