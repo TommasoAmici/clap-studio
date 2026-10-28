@@ -5,6 +5,13 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+## 0.31.0
+
+- Shape sounds with built-in amplifier, low-pass, high-pass, erosion and room
+  effects. Combine them with VST3 plug-ins for auditions and bounces.
+- Room reverb keeps its tail when decay changes during playback. Bounces keep
+  the original samples untouched.
+
 ## 0.30.0
 
 - Join selected sounds into WAV files with named cues, adjustable silence and
