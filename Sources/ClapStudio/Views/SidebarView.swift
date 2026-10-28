@@ -81,6 +81,7 @@ struct SidebarView: View {
                         .tag(node.id)
                         .contextMenu {
                             if node.path.isEmpty, let root = model.roots.first(where: { $0.id == node.rootID }) {
+                                Button("Rescan") { model.startIndexing(scanning: root) }.disabled(model.isIndexing)
                                 Button("Reveal in Finder") { NSWorkspace.shared.open(URL(fileURLWithPath: root.path)) }
                                 Button("Remove from Library", role: .destructive) { model.removeRoot(root) }
                             }
