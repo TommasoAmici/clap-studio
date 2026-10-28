@@ -32,6 +32,7 @@ struct LibraryList: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.update(revision: revision, selection: selection, sortOrder: sortOrder,
+                                   drumTracks: drumTracks, segmentMatches: segmentMatches,
                                    shuffleSeed: shuffleSeed, pool: pool)
     }
 }
@@ -113,6 +114,8 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
     var groupedRows: [PoolRow<Int>]?
     var pool: PoolLayout?
     private var revision = -1
+    private var drumTracks: [Int64: Int] = [:]
+    private var segmentMatches: [Int64: SegmentMatch] = [:]
     private var shuffleSeed: UInt64?
     private var changingSelection = false       // our own selection updates must not loop back into the model
     private var changingSort = false
@@ -169,15 +172,19 @@ final class LibraryListCoordinator: NSObject, NSTableViewDataSource, NSTableView
 
     // MARK: updating from the model
 
-    func update(revision: Int, selection: Set<Int64>, sortOrder: [KeyPathComparator<SampleRecord>], shuffleSeed: UInt64?,
+    func update(revision: Int, selection: Set<Int64>, sortOrder: [KeyPathComparator<SampleRecord>],
+                drumTracks: [Int64: Int], segmentMatches: [Int64: SegmentMatch], shuffleSeed: UInt64?,
                 pool: PoolLayout?) {
         guard let table else { return }
+        let rowDetailsChanged = drumTracks != self.drumTracks || segmentMatches != self.segmentMatches
+        self.drumTracks = drumTracks
+        self.segmentMatches = segmentMatches
         if revision != self.revision || pool != self.pool {
             self.revision = revision
             self.pool = pool
             rebuildRows()
             table.reloadData()
-        } else {
+        } else if rowDetailsChanged {
             // Something a row shows changed without the list changing (drum tracks, search matches).
             let visible = table.rows(in: table.visibleRect)
             if visible.length > 0 {

@@ -2,14 +2,14 @@ import ClapCore
 import Foundation
 
 extension AppModel {
-    /// Scans every root (incremental), embeds new or changed files, then refreshes the map.
+    /// Scans one root or the whole library, then indexes changes and refreshes the map.
     /// Safe to call repeatedly; it resumes from whatever is still pending in the database.
-    func startIndexing() {
+    func startIndexing(scanning root: RootRecord? = nil) {
         guard !isIndexing, let store, let analyzer else { return }
         isIndexing = true
         cancelToken = CancelToken()
         let token = cancelToken
-        let roots = self.roots + (squidEnabled ? store.transientRoots() : [])
+        let roots = root.map { [$0] } ?? (self.roots + (squidEnabled ? store.transientRoots() : []))
 
         Task {
             statusMessage = "Loading embedding model"

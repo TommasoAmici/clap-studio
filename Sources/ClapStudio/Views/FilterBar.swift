@@ -42,7 +42,7 @@ struct FilterBar: View {
         return Picker("Type", selection: $model.descriptorFilter.kind) {
             ForEach(DescriptorFilter.Kind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
         }
-        .pickerStyle(.segmented).labelsHidden().frame(width: 300)
+        .pickerStyle(.segmented).labelsHidden().fixedSize()
     }
 
     private var propertyFilters: some View {
