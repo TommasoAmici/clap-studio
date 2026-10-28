@@ -19,6 +19,7 @@
 #     --effects-amplifier  with --effects: add the built-in amplifier
 #     --effects-low-pass  with --effects: add the built-in low-pass filter
 #     --effects-erosion  with --effects: add the built-in erosion
+#     --effects-high-pass  with --effects: add the built-in high-pass filter
 #     --select  select the first sample (shows the inspector's contents)
 #     --map     show the Map tab
 #     --edit    with --select: edit the selected sample (reversed, -3 dB, low-pass; changes the library, so set CLAP_DATA_DIR to a copy)
@@ -73,6 +74,7 @@ while [ $# -gt 0 ]; do
     --effects-amplifier) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_AMPLIFIER=1 ;;
     --effects-low-pass) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_LOW_PASS=1 ;;
     --effects-erosion) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_EROSION=1 ;;
+    --effects-high-pass) export CLAP_SNAPSHOT_EFFECTS=1; export CLAP_SNAPSHOT_EFFECTS_HIGH_PASS=1 ;;
     --select) export CLAP_SNAPSHOT_SELECT=1 ;;
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
     --map-selection) export CLAP_SNAPSHOT_MAP_SELECTION=1 ;;

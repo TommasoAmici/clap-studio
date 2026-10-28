@@ -36,8 +36,9 @@ struct EffectRow: View {
                                 Slider(value: parameterBinding(parameter), in: 0...1,
                                        step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
                                     .accessibilityLabel(parameter.name)
-                                Text(parameter.value, format: .percent.precision(.fractionLength(0)))
-                                    .monospacedDigit().frame(width: 35, alignment: .trailing)
+                                    .accessibilityValue(Text(displayValue(for: parameter)))
+                                Text(displayValue(for: parameter))
+                                    .monospacedDigit().frame(width: parameterWidth, alignment: .trailing)
                             }
                             .font(.caption)
                         }
@@ -61,6 +62,15 @@ struct EffectRow: View {
             Button(slot.bypass ? "Enable Effect" : "Bypass Effect") { slot.bypass.toggle() }
             Button("Remove Effect") { remove() }
         }
+    }
+
+    private var parameterWidth: CGFloat {
+        slot.plugin.builtIn == .lowPass || slot.plugin.builtIn == .highPass ? 58 : 35
+    }
+
+    private func displayValue(for parameter: VST3Parameter) -> String {
+        slot.plugin.builtIn?.displayValue(for: parameter)
+            ?? parameter.value.formatted(.percent.precision(.fractionLength(0)))
     }
 
     private func parameterBinding(_ fallback: VST3Parameter) -> Binding<Double> {
