@@ -5,6 +5,17 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+## 0.30.0
+
+- Join selected sounds into WAV files with named cues, adjustable silence and
+  length limits, saved presets, and an ALM Squid Salmple preset. Long sounds
+  continue across files without losing audio; originals stay untouched.
+- Audition Library and Map sounds through the Effects drawer. Playback starts
+  sooner, and changes in a plug-in's editor can be heard while playing.
+- Effect bounces remove unused silence while keeping quiet tails.
+- Long melodies have more room in the piano roll while keeping sideways
+  scrolling and playback follow.
+
 ## 0.29.0
 
 - Publish app updates only when the version increases, avoiding repeat releases
