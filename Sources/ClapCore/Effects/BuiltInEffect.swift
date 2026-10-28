@@ -3,18 +3,25 @@ import Foundation
 /// An effect supplied with Clap Studio, available alongside installed plug-ins.
 public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
     case amplifier
+    case lowPass
 
     public var name: String {
-        switch self { case .amplifier: "Amplifier" }
+        switch self { case .amplifier: "Amplifier"; case .lowPass: "Low-pass Filter" }
     }
 
     public func makeSlot() -> EffectSlot {
         let plugin = VST3Plugin(bundle: URL(fileURLWithPath: "/clap-studio/built-in"), classID: rawValue, name: name, builtIn: self)
-        switch self { case .amplifier: return EffectSlot(plugin: plugin, parameters: AmpProcessor.defaults) }
+        switch self {
+        case .amplifier: return EffectSlot(plugin: plugin, parameters: AmpProcessor.defaults)
+        case .lowPass: return EffectSlot(plugin: plugin, parameters: BuiltInLowPass.defaultParameters)
+        }
     }
 
     func processor(sampleRate: Double, parameters: [VST3Parameter]) -> any BuiltInProcessor {
-        switch self { case .amplifier: return AmpProcessor(sampleRate: sampleRate, parameters: parameters) }
+        switch self {
+        case .amplifier: return AmpProcessor(sampleRate: sampleRate, parameters: parameters)
+        case .lowPass: return BuiltInLowPass(sampleRate: sampleRate, parameters: parameters)
+        }
     }
 }
 
