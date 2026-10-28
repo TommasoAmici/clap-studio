@@ -28,25 +28,36 @@ struct EffectRow: View {
                 }
             }
             if !slot.hasEditor {
-                ScrollView {
-                    VStack(spacing: 6) {
-                        ForEach(slot.parameters) { parameter in
-                            HStack(spacing: 6) {
-                                Text(parameter.name).frame(width: 100, alignment: .leading).lineLimit(2)
-                                Slider(value: parameterBinding(parameter), in: 0...1,
-                                       step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
-                                    .accessibilityLabel(parameter.name)
-                                    .accessibilityValue(Text(displayValue(for: parameter)))
-                                Text(displayValue(for: parameter))
-                                    .monospacedDigit().frame(width: parameterWidth, alignment: .trailing)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 6) {
+                            ForEach(slot.parameters) { parameter in
+                                HStack(spacing: 6) {
+                                    Text(parameter.name).frame(width: 100, alignment: .leading).lineLimit(2)
+                                    Slider(value: parameterBinding(parameter), in: 0...1,
+                                           step: parameter.steps > 0 ? 1 / Double(parameter.steps) : 0.001)
+                                        .accessibilityLabel(parameter.name)
+                                        .accessibilityValue(Text(displayValue(for: parameter)))
+                                    Text(displayValue(for: parameter))
+                                        .monospacedDigit().frame(width: parameterWidth, alignment: .trailing)
+                                }
+                                .font(.caption).id(parameter.id)
                             }
-                            .font(.caption)
                         }
                     }
+                    .frame(maxHeight: 140)
+                    #if DEBUG
+                    .onAppear {
+                        guard ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_EFFECTS_LAST"] == "1",
+                              let last = slot.parameters.last?.id else { return }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { proxy.scrollTo(last, anchor: .bottom) }
+                    }
+                    #endif
                 }
-                .frame(maxHeight: 90)
                 if slot.parameters.isEmpty {
                     Text("This effect exposes no editable parameters.").font(.caption).foregroundStyle(.secondary)
+                } else if slot.parameters.count > 6 {
+                    Text("Scroll for more controls").font(.caption2).foregroundStyle(.secondary)
                 }
             } else {
                 Text("Play a sound while its editor is open to hear your changes.")

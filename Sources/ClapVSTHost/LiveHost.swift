@@ -102,7 +102,19 @@ import ClapCore
                                        requestID: id, playbackToken: sampleID == nil ? nil : generation)
             try JSONEncoder().encode(status).write(to: directory.appendingPathComponent("reply-\(id).json"), options: .atomic)
         case .update:
-            if let chain = command.chain { try processor.update(chain) }
+            if let chain = command.chain {
+                try processor.update(chain)
+                // A longer tail must also extend a sample already being auditioned.
+                if let input, let play = lastPlay {
+                    let extra = play.tailSeconds.isFinite ? min(10, max(0, play.tailSeconds)) : 2
+                    let revised = Int(input.frameLength) + max(processor.tailFrames, Int(format.sampleRate * extra))
+                    if revised > totalFrames {
+                        totalFrames = revised
+                        duration = Double(totalFrames) / format.sampleRate / Double(play.rate)
+                        publish(VST3LiveStatus(sampleID: sampleID, duration: duration, playbackToken: generation))
+                    }
+                }
+            }
         case .edit:
             guard editorTask == nil, let id = command.effectID else { return }
             let session = try processor.editor(for: id)
@@ -190,11 +202,11 @@ import ClapCore
             left.withUnsafeBufferPointer { output[0].update(from: $0.baseAddress!, count: count) }
             right.withUnsafeBufferPointer { output[1].update(from: $0.baseAddress!, count: count) }
             position += count; scheduledFrames += count
-            let token = generation, final = position == totalFrames
+            let token = generation, final = position == totalFrames, finalFrames = totalFrames
             player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 guard final else { return }
                 Task { @MainActor in
-                    guard let self, self.generation == token else { return }
+                    guard let self, self.generation == token, self.totalFrames == finalFrames else { return }
                     self.input = nil; self.sampleID = nil; self.publish(VST3LiveStatus())
                 }
             }

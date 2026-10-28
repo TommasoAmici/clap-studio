@@ -2,7 +2,7 @@ import Foundation
 
 /// An effect supplied with Clap Studio, available alongside installed plug-ins.
 public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
-    case amplifier, lowPass, highPass, erosion
+    case amplifier, lowPass, highPass, erosion, reverb
 
     public var name: String {
         switch self {
@@ -10,6 +10,7 @@ public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
         case .lowPass: "Low-pass Filter"
         case .highPass: "High-pass Filter"
         case .erosion: "Erosion"
+        case .reverb: "Reverb"
         }
     }
 
@@ -19,6 +20,7 @@ public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
         case .amplifier: return EffectSlot(plugin: plugin, parameters: AmpProcessor.defaults)
         case .lowPass: return EffectSlot(plugin: plugin, parameters: BuiltInLowPass.defaultParameters)
         case .erosion: return EffectSlot(plugin: plugin, parameters: BuiltinErosion.defaults)
+        case .reverb: return EffectSlot(plugin: plugin, parameters: BuiltInReverb.defaultParameters)
         case .highPass: return EffectSlot(plugin: plugin, parameters: BuiltInHighPass.defaultParameters)
         }
     }
@@ -37,6 +39,7 @@ public enum BuiltInEffect: String, CaseIterable, Codable, Sendable {
         case .amplifier: return AmpProcessor(sampleRate: sampleRate, parameters: parameters)
         case .lowPass: return BuiltInLowPass(sampleRate: sampleRate, parameters: parameters)
         case .erosion: return BuiltinErosion(sampleRate: sampleRate, parameters: parameters)
+        case .reverb: return BuiltInReverb(sampleRate: sampleRate, parameters: parameters)
         case .highPass: return BuiltInHighPass(sampleRate: sampleRate, parameters: parameters)
         }
     }

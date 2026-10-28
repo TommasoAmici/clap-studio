@@ -145,6 +145,7 @@ enum DebugSnapshot {
             if env["CLAP_SNAPSHOT_EFFECTS_LOW_PASS"] == "1" { model.effects.addBuiltIn(.lowPass) }
             if env["CLAP_SNAPSHOT_EFFECTS_EROSION"] == "1" { model.effects.addBuiltIn(.erosion) }
             if env["CLAP_SNAPSHOT_EFFECTS_HIGH_PASS"] == "1" { model.effects.addBuiltIn(.highPass) }
+            if env["CLAP_SNAPSHOT_EFFECTS_REVERB"] == "1" { model.effects.addBuiltIn(.reverb) }
         }
         if env["CLAP_SNAPSHOT_EFFECTS_EXERCISE"] == "1", let path = env["CLAP_SNAPSHOT_EFFECTS_PLUGIN"] {
             do { try await DebugEffectsSnapshot.exercise(model: model, bundle: URL(fileURLWithPath: path)) }
