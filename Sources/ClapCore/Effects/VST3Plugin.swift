@@ -13,6 +13,7 @@ public struct VST3Plugin: Identifiable, Sendable, Equatable, Codable {
     public let bundle: URL
     public let classID: String
     public let name: String
+    public var builtIn: BuiltInEffect? = nil
     public var id: String { bundle.path + ":" + classID }
 
     public static func effects(in bundle: URL) async throws -> [VST3Plugin] {
@@ -37,6 +38,7 @@ public struct VST3Plugin: Identifiable, Sendable, Equatable, Codable {
     }
 
     public func makeSlot() async throws -> EffectSlot {
+        if let builtIn { return builtIn.makeSlot() }
         guard let slot = try await VST3HostRequest.send(VST3HostRequest(operation: .parameters, plugin: self)).slot else {
             throw VST3Error.message("The plug-in did not return its settings.")
         }

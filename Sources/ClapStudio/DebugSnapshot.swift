@@ -141,6 +141,7 @@ enum DebugSnapshot {
             if model.viewMode == .map { model.mapSelection = ids }
             model.openEffects(ids: ids)
             if let fixture = env["CLAP_SNAPSHOT_EFFECTS_PLUGIN"] { model.effects.addBundle(URL(fileURLWithPath: fixture)) }
+            if env["CLAP_SNAPSHOT_EFFECTS_AMPLIFIER"] == "1" { model.effects.addBuiltIn(.amplifier) }
         }
         if env["CLAP_SNAPSHOT_EFFECTS_EXERCISE"] == "1", let path = env["CLAP_SNAPSHOT_EFFECTS_PLUGIN"] {
             do { try await DebugEffectsSnapshot.exercise(model: model, bundle: URL(fileURLWithPath: path)) }

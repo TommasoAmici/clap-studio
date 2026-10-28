@@ -14,6 +14,11 @@ struct EffectsView: View {
                     .help("Play Library and Map auditions through this chain")
                 Spacer()
                 Menu("Add Effect") {
+                    Section("Built-in") {
+                        ForEach(BuiltInEffect.allCases, id: \.self) { effect in
+                            Button(effect.name) { workbench.addBuiltIn(effect) }
+                        }
+                    }
                     ForEach(workbench.bundles, id: \.self) { bundle in
                         Button(bundle.deletingPathExtension().lastPathComponent) { workbench.addBundle(bundle) }
                     }
@@ -27,7 +32,7 @@ struct EffectsView: View {
                     .accessibilityLabel("Close effects drawer").help("Close effects and return to dry auditions")
             }
             if workbench.chain.isEmpty {
-                Text("Add a VST3 effect, then select sounds in the Library or Map to hear the chain.")
+                Text("Add an effect, then select sounds in the Library or Map to hear the chain.")
                     .font(.callout).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 54)
             } else {
@@ -38,9 +43,9 @@ struct EffectsView: View {
                                 .frame(width: 300)
                         }
                     }
-                    .padding(.vertical, 2).frame(height: 141, alignment: .top)
+                    .padding(.vertical, 2).frame(height: 165, alignment: .top)
                 }
-                .frame(height: 145)
+                .frame(height: 169)
                 .disabled(workbench.busy)
             }
             HStack(spacing: 10) {
