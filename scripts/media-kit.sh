@@ -2,6 +2,7 @@
 # Regenerates eighteen 3200 × 2000 PNGs and two 1600 × 1000 animated GIFs with synthetic samples.
 # Usage: scripts/media-kit.sh [OUTPUT_DIRECTORY]
 # Runs sequentially: do not run another snapshot or media-kit capture at the same time.
+# Set CLAP_SWIFTPM_DISABLE_SANDBOX=1 when an outer sandbox prevents SwiftPM's sandbox.
 set -e
 . "$(dirname "$0")/env.sh"
 set -u
@@ -15,10 +16,17 @@ export CLAP_DATA_DIR="$SCRATCH/library"
 export CLAP_MODELS_DIR="$SCRATCH/models"
 export CLAP_NO_INDEX=1
 mkdir -p "$CLAP_MODELS_DIR"
-"$SWIFT" build -c release --product ClapMediaSeed
-"$SWIFT" build --product ClapStudio
-BIN="$("$SWIFT" build --show-bin-path)"
-SEED_BIN="$("$SWIFT" build -c release --show-bin-path)"
+swift_build() {
+  if [ "${CLAP_SWIFTPM_DISABLE_SANDBOX:-0}" = 1 ]; then
+    "$SWIFT" build --disable-sandbox "$@"
+  else
+    "$SWIFT" build "$@"
+  fi
+}
+swift_build -c release --product ClapMediaSeed
+swift_build --product ClapStudio
+BIN="$(swift_build --show-bin-path)"
+SEED_BIN="$(swift_build -c release --show-bin-path)"
 "$SEED_BIN/ClapMediaSeed" "$CLAP_DATA_DIR"
 # A separate process name also gives this unbundled demo app its own preference domain.
 # It never reads or changes the installed app's window, tempo or drawer preferences.
