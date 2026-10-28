@@ -1,7 +1,7 @@
 import Foundation
 
 /// A resonant stereo low-pass for the effects chain.
-final class BuiltInLowPass: @unchecked Sendable {
+final class BuiltInLowPass: BuiltInProcessor, @unchecked Sendable {
     static let defaultParameters = [
         VST3Parameter(id: 0, name: "Cutoff", value: 0.8, steps: 0),
         VST3Parameter(id: 1, name: "Resonance", value: 0, steps: 0),
