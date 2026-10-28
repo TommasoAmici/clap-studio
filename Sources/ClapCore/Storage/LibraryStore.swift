@@ -85,12 +85,17 @@ public final class LibraryStore: @unchecked Sendable {
     // MARK: scan sync
 
     /// Reconciles the DB with a fresh scan. `fingerprint` is only invoked for
-    /// paths not yet known, to detect moved or renamed files.
+    /// paths not yet known, and to verify changed or unverified joined files.
     @discardableResult
-    public func sync(rootID: Int64, scanned: [ScannedFile],
+    public func sync(rootID: Int64, scanned: [ScannedFile], isCancelled: () -> Bool = { false },
                      fingerprint: (String) -> String?) throws -> SyncResult {
         struct Existing { let id: Int64; let relPath: String; let size: Int64; let mtime: Double
                           let fingerprint: String?; let status: String }
+        struct Prepared { let cheap: String?; let joined: JoinedFileFingerprint.Snapshot? }
+        func checkCancellation() throws {
+            if isCancelled() || Task.isCancelled { throw CancellationError() }
+        }
+        try checkCancellation()
         var result = SyncResult()
         let existing = try db.query(
             "SELECT id, rel_path, size, mtime, fingerprint, status FROM samples WHERE root_id = ?",
@@ -101,22 +106,58 @@ public final class LibraryStore: @unchecked Sendable {
         let byPath = Dictionary(uniqueKeysWithValues: existing.map { ($0.relPath, $0) })
         let scannedPaths = Set(scanned.map(\.relPath))
         let rootURL = try db.query("SELECT path FROM roots WHERE id = ?", [.int(rootID)]) {
-            URL(fileURLWithPath: $0.text(0), isDirectory: true)
+            URL(fileURLWithPath: $0.text(0), isDirectory: true).standardizedFileURL
         }.first
+        let joinedPaths = joinedRelativePathsByRoot(includeUnverified: true)[rootID] ?? []
 
         var vanished: [String: [Existing]] = [:]
         for e in existing where !scannedPaths.contains(e.relPath) {
             if let fp = e.fingerprint { vanished[fp, default: []].append(e) }
         }
+        // Read fingerprints before taking the SQLite lock, including possible moved joined files.
+        var prepared: [String: Prepared] = [:]
+        for file in scanned {
+            try checkCancellation()
+            let existingFile = byPath[file.relPath]
+            let joinedURL = joinedPaths.contains(file.relPath) ? rootURL?.appendingPathComponent(file.relPath) : nil
+            var needsJoinedCheck = existingFile == nil && joinedURL != nil
+            if let existingFile, let joinedURL, let identity = try joinedIdentity(at: joinedURL) {
+                let changed = existingFile.size != file.size || abs(existingFile.mtime - file.mtime) >= 0.001
+                needsJoinedCheck = changed || !identity.verified || identity.fingerprint == nil
+            }
+            guard existingFile == nil || needsJoinedCheck else { continue }
+            let cheap = fingerprint(file.relPath)
+            let movedJoined = existingFile == nil && cheap.flatMap { vanished[$0] }?.contains {
+                joinedPaths.contains($0.relPath)
+            } == true
+            let digest = (needsJoinedCheck || movedJoined) ? rootURL.flatMap {
+                JoinedFileFingerprint.snapshot(url: $0.appendingPathComponent(file.relPath), isCancelled: isCancelled)
+            } : nil
+            try checkCancellation()
+            prepared[file.relPath] = Prepared(cheap: cheap, joined: digest)
+        }
         var claimed = Set<Int64>()
 
         try db.transaction {
             for file in scanned {
+                try checkCancellation()
+                let joinedURL = joinedPaths.contains(file.relPath) ? rootURL?.appendingPathComponent(file.relPath) : nil
                 if let e = byPath[file.relPath] {
                     if e.size == file.size && abs(e.mtime - file.mtime) < 0.001 {
+                        if let joinedURL, let identity = try joinedIdentity(at: joinedURL),
+                           !identity.verified || identity.fingerprint == nil {
+                            let check = prepared[file.relPath]
+                            try verifyJoinedFile(at: joinedURL, snapshot: check?.joined, scanned: file,
+                                                 previous: e.fingerprint, legacyCurrent: check?.cheap)
+                        }
                         if e.status == SampleStatus.missing.rawValue { try restore(e.id) }
                         result.unchanged += 1
                     } else {
+                        if let joinedURL {
+                            let check = prepared[file.relPath]
+                            try verifyJoinedFile(at: joinedURL, snapshot: check?.joined, scanned: file,
+                                                 previous: e.fingerprint, legacyCurrent: check?.cheap)
+                        }
                         try db.run("""
                             UPDATE samples SET size = ?, mtime = ?, status = 'pending', error = NULL,
                                 desc_version = 0,
@@ -126,16 +167,21 @@ public final class LibraryStore: @unchecked Sendable {
                     }
                     continue
                 }
-                let fp = fingerprint(file.relPath)
+                let check = prepared[file.relPath]
+                let fp = check?.cheap
+                if let joinedURL { try verifyJoinedFile(at: joinedURL, snapshot: check?.joined, scanned: file, legacyCurrent: fp) }
                 if let fp, let match = vanished[fp]?.first(where: { !claimed.contains($0.id) }) {
                     claimed.insert(match.id)
                     if let rootURL {
                         let oldPath = rootURL.appendingPathComponent(match.relPath).standardizedFileURL.path
                         let newPath = rootURL.appendingPathComponent(file.relPath).standardizedFileURL.path
-                        try db.run("""
-                            UPDATE joined_files SET path = ? WHERE path = ?
-                                AND NOT EXISTS (SELECT 1 FROM joined_files WHERE path = ?)
-                            """, [.text(newPath), .text(oldPath), .text(newPath)])
+                        if try joinedIdentity(at: URL(fileURLWithPath: oldPath)) != nil {
+                            // The matched file owns the new path, even if an older output once occupied it.
+                            try db.run("DELETE FROM joined_files WHERE path = ?", [.text(newPath)])
+                            try db.run("UPDATE joined_files SET path = ? WHERE path = ?", [.text(newPath), .text(oldPath)])
+                            try verifyJoinedFile(at: URL(fileURLWithPath: newPath), snapshot: check?.joined,
+                                                 scanned: file, previous: match.fingerprint, legacyCurrent: fp)
+                        }
                     }
                     try db.run("UPDATE samples SET rel_path = ?, name = ?, ext = ?, size = ?, mtime = ? WHERE id = ?",
                                [.text(file.relPath), .text(Self.baseName(file.relPath)),
@@ -153,6 +199,7 @@ public final class LibraryStore: @unchecked Sendable {
                 }
             }
             for e in existing where !scannedPaths.contains(e.relPath) && !claimed.contains(e.id) {
+                try checkCancellation()
                 if e.status != SampleStatus.missing.rawValue {
                     try db.run("UPDATE samples SET status = 'missing' WHERE id = ?", [.int(e.id)])
                 }
@@ -308,7 +355,14 @@ public final class LibraryStore: @unchecked Sendable {
 
     /// Updates stored file attributes after the app itself rewrote a file.
     public func updateFileAttributes(sampleID: Int64, size: Int64, mtime: Double, fingerprint: String?) throws {
+        let joined = try joinedFingerprintForWrite(sampleID: sampleID, fingerprint: fingerprint)
+        try updateFileAttributes(sampleID: sampleID, size: size, mtime: mtime, fingerprint: fingerprint, joined: joined)
+    }
+
+    func updateFileAttributes(sampleID: Int64, size: Int64, mtime: Double, fingerprint: String?,
+                              joined: JoinedFileFingerprint.Snapshot?) throws {
         try db.run("UPDATE samples SET size = ?, mtime = ?, fingerprint = COALESCE(?, fingerprint) WHERE id = ?",
                    [.int(size), .double(mtime), fingerprint.map { .text($0) } ?? .null, .int(sampleID)])
+        try updateJoinedFingerprint(sampleID: sampleID, snapshot: joined)
     }
 }

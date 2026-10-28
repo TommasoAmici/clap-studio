@@ -33,3 +33,25 @@ relative paths. When a rescan recognises a rename by fingerprint,
 `LibraryStore.sync` moves the stored links with the sample. After exporting,
 only the joined flag is updated on current records, preserving edits made while
 the export ran. All includes joined files; other type filters exclude them.
+
+Schema version 16 stores a streaming SHA-256 of each published joined file.
+Scans forget links on a full-content mismatch, including before the output is
+first indexed. Ordinary sample move detection keeps its cheaper fingerprint.
+An unreadable file keeps its links as unverified and is shown as joined only
+after a successful rescan. Version 15 links without an
+old fingerprint use the indexed fingerprint when available; otherwise the first
+readable scan is the baseline. Export, first indexing, changed-file verification,
+and app-authored WAV cue or metadata writes read each affected joined output in
+full before taking the database lock; unchanged verified outputs are not reread.
+Device, inode, size and modification time are checked around hashing and against
+the scan. A same-size, same-time replacement between enumeration and hashing
+cannot be identified as a race because the scan does not record file identity.
+If an app-authored rewrite cannot be fingerprinted, links remain unverified;
+a later mismatch removes them instead of accepting unknown bytes. A move can
+only carry links when the library recognizes it within an indexed root;
+moving an unindexed output or moving between roots is not tracked.
+
+At 100,000 synthetic rows and 32 embedding dimensions, `scripts/bench.sh`
+reopened the library in 0.160 s with either no joined paths or 1,000 joined
+paths. Unchanged rescans took 0.086 s and 0.165 s respectively. A warm 50 MiB
+joined-file digest took 0.029 s on this Mac (temporary instrumentation).

@@ -94,7 +94,7 @@ extension AppModel {
         let rootURL = URL(fileURLWithPath: root.path)
         let files = FolderScanner.scan(root: rootURL, isCancelled: { token.isCancelled })
         guard !token.isCancelled else { return }
-        _ = try? store.sync(rootID: root.id, scanned: files) { rel in
+        _ = try? store.sync(rootID: root.id, scanned: files, isCancelled: { token.isCancelled }) { rel in
             FileFingerprint.compute(url: rootURL.appendingPathComponent(rel))
         }
     }

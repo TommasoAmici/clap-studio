@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 15
+    static let currentVersion = 16
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -21,7 +21,14 @@ enum Schema {
         if version < 13 { try v13(db) }
         if version < 14 { try v14(db) }
         if version < 15 { try v15(db) }
+        if version < 16 { try v16(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
+    }
+
+    /// Verify that a joined path still contains the file that was exported.
+    private static func v16(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE joined_files ADD COLUMN fingerprint TEXT")
+        try db.exec("ALTER TABLE joined_files ADD COLUMN verified INTEGER NOT NULL DEFAULT 0")
     }
 
     /// Published joined files and their ordered source pieces, kept even before indexing.

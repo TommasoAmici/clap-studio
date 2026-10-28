@@ -7,7 +7,7 @@ import Testing
         let (store, dir) = try TestSupport.makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }
         let sourceFolder = dir.appendingPathComponent("sources")
-        let output = dir.appendingPathComponent("unindexed/Joined 1.wav")
+        let output = TestSupport.write([1, 2, 3], to: dir.appendingPathComponent("unindexed/Joined 1.wav"))
         let root = try store.addRoot(path: sourceFolder.path)
         try store.sync(rootID: root.id, scanned: [
             ScannedFile(relPath: "kick.wav", size: 1, mtime: 1),
@@ -41,7 +41,7 @@ import Testing
         let second = try store.addRoot(path: dir.appendingPathComponent("second").path)
         try store.sync(rootID: second.id, scanned: [ScannedFile(relPath: "other.wav", size: 1, mtime: 1)]) { _ in nil }
         #expect(store.loadSamples().first?.id == original.id, "SQLite can reuse the removed sample's ID.")
-        let output = dir.appendingPathComponent("out.wav")
+        let output = TestSupport.write([1, 2, 3], to: dir.appendingPathComponent("out.wav"))
         try store.recordJoinedOutputs([JoinedOutput(url: output, regions: [JoinedRegion(sourceIndex: 0, startFrame: 0, endFrame: 1)])], sources: [source])
         #expect(store.joinedParts(for: output).first?.sourceID == nil,
                 "The new file must not be mistaken for the original source.")
