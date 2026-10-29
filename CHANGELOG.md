@@ -5,6 +5,16 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+## 0.32.0
+
+- Newly joined files remember their source sounds. Once indexed, find them
+  under Joined and expand a row to see and audition its sources in order.
+  Older joined files cannot be linked automatically.
+- Right-click an added folder and choose Rescan to check it for changes.
+- Move through and preview sounds more smoothly with the arrow keys.
+- Library filters and Add Folder no longer overlap other controls, and
+  built-in effect sliders no longer show an extra line.
+
 ## 0.31.0
 
 - Shape sounds with built-in amplifier, low-pass, high-pass, erosion and room
