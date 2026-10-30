@@ -18,6 +18,23 @@ struct NameIssueIcon: View {
     }
 }
 
+/// How many channels a bank still has free. The orange is light in dark mode, so the number is dark there
+/// (white on it was hard to read); in light mode the orange is deep and the number stays white.
+struct FreeSlotsBadge: View {
+    let count: Int
+    var horizontalPadding: CGFloat = 5
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text("\(count)").font(.caption2.bold()).monospacedDigit()
+            .foregroundStyle(colorScheme == .dark ? Color.black.opacity(0.85) : Color.white)
+            .padding(.horizontal, horizontalPadding).padding(.vertical, 1)
+            .background(Color.orange, in: Capsule())
+            .help(count == 1 ? "Room for 1 more sample" : "Room for \(count) more samples")
+            .accessibilityLabel(count == 1 ? "1 free slot" : "\(count) free slots")
+    }
+}
+
 /// A name edited in place, like renaming in Finder: Return keeps it, Escape cancels, clicking away keeps it.
 /// The text is never changed for the user; the icon says what is wrong with it.
 struct SquidRenameField: View {

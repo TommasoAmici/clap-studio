@@ -124,12 +124,7 @@ struct SquidSidebarSection: View {
                 .lineLimit(1)
             if !report.isClean { NameIssueIcon(report: report) }
             Spacer()
-            if bank.freeSlots > 0 {
-                Text("\(bank.freeSlots)").font(.caption2.bold()).monospacedDigit().foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .background(Color.orange, in: Capsule())
-                    .help(bank.freeSlots == 1 ? "Room for 1 more sample" : "Room for \(bank.freeSlots) more samples")
-            }
+            if bank.freeSlots > 0 { FreeSlotsBadge(count: bank.freeSlots) }
         }
         .padding(.leading, 18)
         .tag(UsbSelection(drive: drive.id, area: .bank(set: bank.set, number: bank.number)).tag)

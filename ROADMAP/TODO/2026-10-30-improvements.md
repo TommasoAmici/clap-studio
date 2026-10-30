@@ -1,5 +1,16 @@
 # Misc improvements
 
+## Work
+
+Built in dependency order, smallest first.
+
+- [x] Squid bank badge readable in dark mode.
+- [ ] Joined samples naming: a Name field, files `<name> 01`, `<name> 02`.
+- [ ] Squid sending: pick the channel of each sample, or the same channel in following banks.
+- [ ] Squid sending joined: join the selection before sending, one joined file per bank.
+- [ ] Nested collections: one level of sub-collections.
+- [ ] Send a collection to Squid: banks of a new set, or Pool folders.
+
 ## Squid sending
 
 When sending samples to Squid I'd like to be able to select which channel they go to,
@@ -53,3 +64,12 @@ warning and stop.
 If a collection doesn't have nesting, then it should go to the pool under as a new folder.
 If a collection has too many samples, they should be broken up in nested folders according
 to the Salmple manual so that they work ok in the pool.
+
+## Implementation context
+
+**Bank badge.** The free-channel count was white on `Color.orange` in two places (sidebar bank row,
+bank card). In dark mode the system orange is light, so white on it was hard to read; in light mode it is a
+deep orange and white is fine. Both now use `FreeSlotsBadge` (`Views/SquidNameViews.swift`): near-black number in
+dark mode, white in light mode, same orange fill. Checked with `scripts/snapshot.sh --media --usb Studio
+--appearance dark|light` on a library seeded by `ClapMediaSeed` (the Squid demo stick only exists in a seeded
+media library; copy it first because a snapshot indexes the stick into the library).

@@ -91,13 +91,7 @@ private struct BankCard: View {
                     Text(bank.name).font(.subheadline.monospaced()).foregroundStyle(nameReport.isClean ? Color.secondary : Color.orange)
                     NameIssueIcon(report: nameReport)
                 }
-                if bank.freeSlots > 0 {
-                    Text("\(bank.freeSlots)").font(.caption2.bold()).monospacedDigit().foregroundStyle(.white)
-                        .padding(.horizontal, 6).padding(.vertical, 1)
-                        .background(Color.orange, in: Capsule())
-                        .help(bank.freeSlots == 1 ? "Room for 1 more sample" : "Room for \(bank.freeSlots) more samples")
-                        .accessibilityLabel(bank.freeSlots == 1 ? "1 free slot" : "\(bank.freeSlots) free slots")
-                }
+                if bank.freeSlots > 0 { FreeSlotsBadge(count: bank.freeSlots, horizontalPadding: 6) }
                 Spacer()
                 Button("Try in Drum Machine") { model.loadBankIntoDrums((1...SquidLayout.slotsPerBank).compactMap { samples[$0] }) }
                     .disabled(samples.isEmpty).controlSize(.small)
