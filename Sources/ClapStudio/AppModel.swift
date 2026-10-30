@@ -171,6 +171,7 @@ final class AppModel {
     var squidItems: [Int64] = []                              // what the export sheet will send, in order
     var squidChannels: [Int64: Int] = [:]                     // channels the user picked in the export sheet, by sample
     var squidTarget = SquidTarget()
+    var squidCollectionID: Int64?                            // the collection the "Send to Squid" sheet is for
     @ObservationIgnored var usbSampleIDs: Set<Int64> = []
     @ObservationIgnored var usbObservers: [NSObjectProtocol] = []
     @ObservationIgnored var usbRefreshTask: Task<Void, Never>?

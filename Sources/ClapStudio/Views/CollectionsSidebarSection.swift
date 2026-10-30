@@ -104,6 +104,10 @@ struct CollectionsSidebarSection: View {
                 }
             }
         }
+        if model.squidEnabled {
+            Divider()
+            Button("Send to Squid Salmple…") { model.openSquidCollection(collection.id) }
+        }
         Divider()
         Button("Delete Collection", role: .destructive) {
             if model.subCollectionCount(of: collection.id) > 0 { deleting = collection } else { model.delete(collection: collection.id) }

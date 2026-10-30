@@ -9,7 +9,7 @@ Built in dependency order, smallest first.
 - [x] Squid sending: pick the channel of each sample, or the same channel in following banks.
 - [x] Squid sending joined: join the selection before sending, one joined file per bank.
 - [x] Nested collections: one level of sub-collections.
-- [ ] Send a collection to Squid: banks of a new set, or Pool folders.
+- [x] Send a collection to Squid: banks of a new set, or Pool folders.
 
 ## Squid sending
 
@@ -144,3 +144,23 @@ There is no drop target for samples in the sidebar in this app (samples reach a 
 menus and the map's selection bar), so nothing extra was needed for "drag onto a sub-collection"; those menus
 list sub-collections too. Moving a collection (`Move Into`, `Move to Top Level`) is an addition so the one-level
 rules can be reached from the UI. Snapshot: `scripts/snapshot.sh --media --nested` (scratch library).
+
+**Send collection to Squid.** `SquidCollectionPlan.make` (`Sources/ClapCore/Squid/SquidCollectionPlan.swift`) is
+pure: from the collection's name, own samples, sub-collections (sidebar order) and the stick's contents it gives
+either `.set(name:banks:)` or `.pool(groups:)`, plus `warnings` and `blockers`. `SquidCollectionSender.send`
+writes it: a set goes through `SquidExporter.place` (all banks or none); Pool folders go through
+`exportToPool`, and the top folder is removed again if a later numbered folder fails (safe because the plan
+refuses a Pool folder that already exists, so the send never deletes anything that was there). Decisions where
+the brief was silent: a sub-collection with no samples gets no bank (orange note), the bank numbers stay
+consecutive; the parent's own samples that are not in a sub-collection are ignored with a warning that gives the
+count; more than 8 samples in one sub-collection, no samples at all, more than 99 banks, a set name that exists,
+16 named sets already, and an existing Pool folder of that name all block; a Pool folder name is cleaned by
+`SquidLayout.poolPath(from:)` (letters, digits, space, - and _, 24 characters) and the sheet says so when it
+differs; over 256 samples the folder is `Name/Name 1`, `Name/Name 2`… (256 each, the Pool folder limit). A
+sample that has left the library is left out when the sheet opens. Level matching and trims follow the
+Match levels preference like the normal sheet. The menu item is hidden unless `squidEnabled`; a drive
+removed while the sheet is open gives "The drive is no longer connected." UI: `SquidCollectionSheet`
+(thin), state `AppModel.squidCollectionID`, `AppModel+SquidCollection.swift`. Validation: 18 new tests
+(`SquidCollectionPlanTests`, `SquidCollectionSenderTests`), snapshots
+`scripts/snapshot.sh --media --usb Studio --nested --send-collection [big]` (dark and light).
+Limitation: the sheet does not offer a different set name, so a clash means renaming the collection.
