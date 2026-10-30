@@ -8,7 +8,7 @@ Built in dependency order, smallest first.
 - [x] Joined samples naming: a Name field, files `<name> 01`, `<name> 02`.
 - [x] Squid sending: pick the channel of each sample, or the same channel in following banks.
 - [x] Squid sending joined: join the selection before sending, one joined file per bank.
-- [ ] Nested collections: one level of sub-collections.
+- [x] Nested collections: one level of sub-collections.
 - [ ] Send a collection to Squid: banks of a new set, or Pool folders.
 
 ## Squid sending
@@ -121,3 +121,26 @@ count before rendering, so it shows an estimate from lengths (`JoinPlanner.estim
 writes nothing when the banks run out. Joined mode is for banks only (not the Pool) and does not offer
 "Replace it". File names use `JoinNaming` with the sheet's own File name box (default "Joined"). Snapshot:
 `scripts/snapshot.sh --usb Studio --send-bank 20 --send-join` on a seeded media library.
+
+**Nested collections.** Schema v17 adds `collections.parent_id` (NULL: top level) and an index; there is no foreign
+key, `LibraryStore` keeps the rules (`LibraryStore+NestedCollections.swift`): `createCollection(parentID:)` and
+`setParent(of:to:)` throw `CollectionError.tooDeep` when the parent is itself a child, when a collection with
+children would become a child, or for a collection inside itself. `collectionMembers(id:)` stays the
+collection's own samples (the Squid send needs that split); `collectionTreeMembers(id:)` is own plus
+children's, each once, and drives what the list shows and `CollectionRecord.count` for a parent
+(`ownCount` is the plain number). `deleteCollection` takes the children and their memberships with it, never
+samples; `collectionBackup`/`restoreCollection` put a parent, its children and their ordered members back for
+undo (new ids, so the model keeps a `currentID`). `CollectionNode.tree` / `.menuEntries` build the sidebar tree and
+the "Parent › Child" menu titles; a node with no children has `children == nil`.
+UI: `CollectionsSidebarSection.swift` replaces the old inline section. It uses flat rows with a chevron
+(the same approach as the Squid sets) rather than `OutlineGroup`, so the open state is ours: picking or making a
+sub-collection opens its parent, and the arrow's space is only reserved while some collection has children. Edits
+moved to `AppModel+CollectionEdits.swift`: creating (new and sub), renaming, moving, deleting and adding/removing members
+are each one `LibraryEdit` (creating and renaming were not undoable before; they are now). *Remove from This
+Collection* on a parent also removes from the children, in one step, since picking the parent shows their
+samples. A parent with children asks before deleting (a confirmation dialog that says the sub-collections go
+too and files are not deleted); a plain collection deletes at once as before, still undoable.
+There is no drop target for samples in the sidebar in this app (samples reach a collection from the context
+menus and the map's selection bar), so nothing extra was needed for "drag onto a sub-collection"; those menus
+list sub-collections too. Moving a collection (`Move Into`, `Move to Top Level`) is an addition so the one-level
+rules can be reached from the UI. Snapshot: `scripts/snapshot.sh --media --nested` (scratch library).

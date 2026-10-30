@@ -40,6 +40,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_SEND_BANK=1|pick  with USB: open the Send sheet for a bank with five samples (pick: the second on channel 6)
 ///   CLAP_SNAPSHOT_SEND_JOIN=1       with SEND_BANK: join the samples before sending (SEND_BANK may be a number of samples)
 ///   CLAP_SNAPSHOT_SEND_SAME=N       with SEND_BANK: send to channel N of following banks
+///   CLAP_SNAPSHOT_NESTED=1          make the collection Party #23 with two sub-collections and pick it (use a scratch library)
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
@@ -63,6 +64,15 @@ enum DebugSnapshot {
             model.shuffleSeed = 2026
             do { try await DebugSnapshotSquid.prepare(model: model, env: env) }
             catch { NSLog("Could not prepare the Squid media view: %@", error.localizedDescription); NSApp.terminate(nil); return }
+        }
+        if env["CLAP_SNAPSHOT_NESTED"] == "1" {      // changes the library: use a scratch one
+            let ids = model.visible.map(\.id)
+            model.createCollection(named: "Party #23", with: Array(ids.prefix(2)))
+            if let party = model.collections.first(where: { $0.name == "Party #23" })?.id {
+                model.createCollection(named: "Opening", with: Array(ids.dropFirst(2).prefix(3)), parent: party)
+                model.createCollection(named: "Peak", with: Array(ids.dropFirst(5).prefix(4)), parent: party)
+                model.selectSidebar("col.\(party)")
+            }
         }
         if env["CLAP_SNAPSHOT_JOINED_EXPAND"] == "1" { model.descriptorFilter.kind = .joined }
         if env["CLAP_SNAPSHOT_MAP"] == "1" { model.viewMode = .map }

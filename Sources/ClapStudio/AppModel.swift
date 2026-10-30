@@ -103,6 +103,7 @@ final class AppModel {
     var collectionSelection: Int64? { didSet { if collectionSelection != oldValue { reloadCollections() }; refilter() } }
     var collectionMembers: Set<Int64> = []
     var newCollectionSeed: [Int64]?       // non-nil while the "new collection" prompt is open
+    var newCollectionParent: Int64?       // the collection a new sub-collection goes in, while that prompt is open
     var duplicateGroups: [DuplicateGroup]?
     var duplicateSearchRunning = false
     var showDuplicates = false

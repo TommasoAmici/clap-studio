@@ -204,6 +204,8 @@ import Testing
         // Recreate the version 15 table shape with the existing links intact.
         try store.db.exec("ALTER TABLE joined_files DROP COLUMN verified")
         try store.db.exec("ALTER TABLE joined_files DROP COLUMN fingerprint")
+        try store.db.exec("DROP INDEX collections_parent")
+        try store.db.exec("ALTER TABLE collections DROP COLUMN parent_id")
         try store.db.exec("PRAGMA user_version = 15")
         let migrated = try LibraryStore(path: dir.appendingPathComponent("lib.sqlite").path)
         #expect(!migrated.isJoinedFile(at: output) && migrated.joinedParts(for: output).count == 1,

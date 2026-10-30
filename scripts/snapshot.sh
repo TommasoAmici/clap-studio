@@ -47,6 +47,7 @@
 #              with --usb, show its scratch demonstration Squid stick instead of a connected drive
 #     --animate  write a silent looping GIF of live drums/melody playback (give it a .gif output path)
 # Set CLAP_SNAPSHOT_EXECUTABLE to an already-built debug executable to skip compilation.
+#     --nested  make a collection with two sub-collections and pick it (changes the library: use a scratch one)
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
 #                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut;
 #                 --send Breaks opens the Send sheet for that Pool folder ("-" for the Pool)
@@ -86,6 +87,7 @@ while [ $# -gt 0 ]; do
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
     --map-selection) export CLAP_SNAPSHOT_MAP_SELECTION=1 ;;
     --edit) export CLAP_SNAPSHOT_EDIT=1 ;;
+    --nested) export CLAP_SNAPSHOT_NESTED=1 ;;
     --usb) shift; export CLAP_SNAPSHOT_USB="$1" ;;
     --like) shift; export CLAP_SNAPSHOT_LIKE="$1" ;;
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;

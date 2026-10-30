@@ -263,7 +263,7 @@ private struct MapSelectionBar: View {
             Text("\(model.mapSelection.count) selected").font(.callout.bold())
             Button("Copy To…") { model.openExport(ids: model.mapSelection) }
             Menu("Add to Collection") {
-                ForEach(model.collections) { c in Button(c.name) { model.add(model.mapSelection, toCollection: c.id) } }
+                ForEach(CollectionNode.menuEntries(model.collectionTree), id: \.id) { c in Button(c.title) { model.add(model.mapSelection, toCollection: c.id) } }
                 if !model.collections.isEmpty { Divider() }
                 Button("New Collection…") { model.newCollectionSeed = model.mapSelection }
             }
