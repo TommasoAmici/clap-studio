@@ -103,6 +103,7 @@ final class AppModel {
     var collectionSelection: Int64? { didSet { if collectionSelection != oldValue { reloadCollections() }; refilter() } }
     var collectionMembers: Set<Int64> = []
     var newCollectionSeed: [Int64]?       // non-nil while the "new collection" prompt is open
+    var newCollectionParent: Int64?       // the collection a new sub-collection goes in, while that prompt is open
     var duplicateGroups: [DuplicateGroup]?
     var duplicateSearchRunning = false
     var showDuplicates = false
@@ -168,7 +169,9 @@ final class AppModel {
     var closedPoolFolders: Set<String> = []                   // Pool folders folded shut in the list (`closedPoolKey`)
     var showSquidExport = false
     var squidItems: [Int64] = []                              // what the export sheet will send, in order
+    var squidChannels: [Int64: Int] = [:]                     // channels the user picked in the export sheet, by sample
     var squidTarget = SquidTarget()
+    var squidCollectionID: Int64?                            // the collection the "Send to Squid" sheet is for
     @ObservationIgnored var usbSampleIDs: Set<Int64> = []
     @ObservationIgnored var usbObservers: [NSObjectProtocol] = []
     @ObservationIgnored var usbRefreshTask: Task<Void, Never>?

@@ -96,4 +96,11 @@ public enum JoinPlanner {
         finishFile()
         return files
     }
+
+    /// How many files joining sounds of these lengths (in seconds, as they will play) makes. Only an estimate:
+    /// the real count comes from the rendered audio.
+    public static func estimatedFileCount(seconds: [Double], settings: JoinSettings) -> Int {
+        let frames = seconds.map { max(1, Int64(($0 * sampleRate).rounded())) }
+        return (try? plan(frameCounts: frames, settings: settings).count) ?? 0
+    }
 }

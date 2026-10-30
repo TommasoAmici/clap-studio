@@ -3,7 +3,16 @@ import Foundation
 public struct CollectionRecord: Identifiable, Hashable, Sendable {
     public let id: Int64
     public var name: String
+    /// The samples you see on picking the collection: its own plus its sub-collections', each counted once.
     public var count: Int
+    /// The samples put in this collection itself.
+    public var ownCount: Int
+    /// The collection this one sits inside, nil at the top level.
+    public var parentID: Int64?
+
+    public init(id: Int64, name: String, count: Int, ownCount: Int? = nil, parentID: Int64? = nil) {
+        self.id = id; self.name = name; self.count = count; self.ownCount = ownCount ?? count; self.parentID = parentID
+    }
 }
 
 /// Favorites and named collections. Both live in the index only; the files are never touched.
@@ -14,21 +23,30 @@ extension LibraryStore {
         }
     }
 
+    /// All collections, sorted by name; sub-collections are listed too (see `CollectionNode.tree`).
     public func collections() -> [CollectionRecord] {
-        (try? db.query("""
-            SELECT c.id, c.name, COUNT(i.sample_id) FROM collections c
+        var records = (try? db.query("""
+            SELECT c.id, c.name, COUNT(i.sample_id), c.parent_id FROM collections c
             LEFT JOIN collection_items i ON i.collection_id = c.id
             GROUP BY c.id ORDER BY c.name COLLATE NOCASE
-            """) { CollectionRecord(id: $0.int(0), name: $0.text(1), count: Int($0.int(2))) }) ?? []
+            """) { CollectionRecord(id: $0.int(0), name: $0.text(1), count: Int($0.int(2)), parentID: $0.isNull(3) ? nil : $0.int(3)) }) ?? []
+        for index in records.indices where records.contains(where: { $0.parentID == records[index].id }) {
+            records[index].count = collectionTreeMembers(id: records[index].id).count
+        }
+        return records
     }
 
     @discardableResult
-    public func createCollection(name: String, at date: Date = Date()) throws -> CollectionRecord {
+    public func createCollection(name: String, parentID: Int64? = nil, at date: Date = Date()) throws -> CollectionRecord {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        try db.run("INSERT INTO collections(name, created) VALUES(?, ?)",
-                   [.text(clean.isEmpty ? "Untitled" : clean), .double(date.timeIntervalSince1970)])
+        if let parentID {
+            guard let parent = try parentOf(parentID) else { throw CollectionError.missingParent }
+            guard parent == nil else { throw CollectionError.tooDeep }
+        }
+        try db.run("INSERT INTO collections(name, created, parent_id) VALUES(?, ?, ?)",
+                   [.text(clean.isEmpty ? "Untitled" : clean), .double(date.timeIntervalSince1970), parentID.map { .int($0) } ?? .null])
         let id = try db.scalarInt("SELECT MAX(id) FROM collections") ?? 0
-        return CollectionRecord(id: id, name: clean.isEmpty ? "Untitled" : clean, count: 0)
+        return CollectionRecord(id: id, name: clean.isEmpty ? "Untitled" : clean, count: 0, parentID: parentID)
     }
 
     public func renameCollection(id: Int64, to name: String) throws {
@@ -37,10 +55,14 @@ extension LibraryStore {
         try db.run("UPDATE collections SET name = ? WHERE id = ?", [.text(clean), .int(id)])
     }
 
+    /// Deletes the collection and, if it has any, its sub-collections. The samples themselves are never touched.
     public func deleteCollection(id: Int64) throws {
         try db.transaction {
-            try db.run("DELETE FROM collection_items WHERE collection_id = ?", [.int(id)])
-            try db.run("DELETE FROM collections WHERE id = ?", [.int(id)])
+            let ids = [id] + subCollectionIDs(of: id)
+            for doomed in ids {
+                try db.run("DELETE FROM collection_items WHERE collection_id = ?", [.int(doomed)])
+                try db.run("DELETE FROM collections WHERE id = ?", [.int(doomed)])
+            }
         }
     }
 

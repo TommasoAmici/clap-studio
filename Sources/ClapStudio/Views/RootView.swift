@@ -65,6 +65,9 @@ struct RootView: View {
         .sheet(isPresented: $model.showJoin, onDismiss: { model.joinSheetDismissed() }) { JoinSheet() }
         .sheet(isPresented: $model.showInsights) { InsightsSheet() }
         .sheet(isPresented: $model.showSquidExport) { SquidExportSheet() }
+        .sheet(isPresented: Binding(get: { model.squidCollectionID != nil }, set: { if !$0 { model.squidCollectionID = nil } })) {
+            if let id = model.squidCollectionID { SquidCollectionSheet(collectionID: id) }
+        }
         .onKeyPress(.space) {
             guard !isTypingInTextField else { return .ignored }
             model.togglePlayback()

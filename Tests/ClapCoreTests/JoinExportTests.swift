@@ -90,7 +90,7 @@ import Testing
     @Test func countLimitAndNameClashesKeepExistingFilesUntouched() throws {
         let dir = TestSupport.tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let source = dir.appendingPathComponent("Joined 1.wav")
+        let source = dir.appendingPathComponent("Joined 01.wav")
         try writeTestWav(source, seconds: 0.1) { _ in 0.25 }
         let original = try Data(contentsOf: source)
         let outputs = try JoinExporter.export([JoinSource(url: source), JoinSource(url: source)],

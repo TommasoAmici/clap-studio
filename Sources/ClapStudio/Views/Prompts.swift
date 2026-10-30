@@ -1,22 +1,27 @@
 import ClapCore
 import SwiftUI
 
-/// Asks for a name, then creates the collection with whatever samples triggered the prompt.
+/// Asks for a name, then creates the collection (or sub-collection) with whatever samples triggered the prompt.
 struct NewCollectionPrompt: ViewModifier {
     @Environment(AppModel.self) private var model
     @State private var name = ""
 
     func body(content: Content) -> some View {
-        content.alert("New Collection", isPresented: Binding(get: { model.newCollectionSeed != nil },
-                                                             set: { if !$0 { model.newCollectionSeed = nil } })) {
+        content.alert(model.newCollectionParent == nil ? "New Collection" : "New Sub-collection",
+                      isPresented: Binding(get: { model.newCollectionSeed != nil },
+                                           set: { if !$0 { model.newCollectionSeed = nil; model.newCollectionParent = nil } })) {
             TextField("Name", text: $name)
             Button("Create") {
-                model.createCollection(named: name, with: model.newCollectionSeed ?? [])
+                model.createCollection(named: name, with: model.newCollectionSeed ?? [], parent: model.newCollectionParent)
                 name = ""
             }
             Button("Cancel", role: .cancel) { name = "" }
         } message: {
-            if let seed = model.newCollectionSeed, !seed.isEmpty { Text("Starts with \(seed.count) sample\(seed.count == 1 ? "" : "s").") }
+            if let parent = model.newCollectionParent.flatMap(model.collection) {
+                Text("Goes inside \(parent.name)." + ((model.newCollectionSeed ?? []).isEmpty ? "" : " Starts with \(model.samplesPhrase(model.newCollectionSeed?.count ?? 0))."))
+            } else if let seed = model.newCollectionSeed, !seed.isEmpty {
+                Text("Starts with \(seed.count) sample\(seed.count == 1 ? "" : "s").")
+            }
         }
     }
 }

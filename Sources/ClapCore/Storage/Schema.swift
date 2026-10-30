@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned schema migrations (PRAGMA user_version).
 enum Schema {
-    static let currentVersion = 16
+    static let currentVersion = 17
 
     static func migrate(_ db: SQLiteDB) throws {
         let version = Int(try db.scalarInt("PRAGMA user_version") ?? 0)
@@ -22,7 +22,14 @@ enum Schema {
         if version < 14 { try v14(db) }
         if version < 15 { try v15(db) }
         if version < 16 { try v16(db) }
+        if version < 17 { try v17(db) }
         try db.exec("PRAGMA user_version = \(currentVersion)")
+    }
+
+    /// A collection can sit inside another one (one level only, enforced by `LibraryStore`); NULL means top level.
+    private static func v17(_ db: SQLiteDB) throws {
+        try db.exec("ALTER TABLE collections ADD COLUMN parent_id INTEGER")
+        try db.exec("CREATE INDEX IF NOT EXISTS collections_parent ON collections(parent_id)")
     }
 
     /// Verify that a joined path still contains the file that was exported.

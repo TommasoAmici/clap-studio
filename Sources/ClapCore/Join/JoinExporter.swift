@@ -13,6 +13,12 @@ public struct JoinSource: Sendable {
         self.name = name ?? url.deletingPathExtension().lastPathComponent
         self.sampleID = sampleID
     }
+
+    /// Roughly how long the sound plays once trimmed and sped up or slowed down; used to guess how many files joining makes.
+    public func estimatedSeconds(fileDuration: Double) -> Double {
+        let length = trim.map { min($0.length, max(0, fileDuration - $0.start)) } ?? fileDuration
+        return length / pow(2, (trim?.edit.clamped().speedSemitones ?? 0) / 12)
+    }
 }
 
 /// A published file and the source pieces written to it, in playback order.
@@ -23,11 +29,14 @@ public struct JoinedOutput: Sendable {
 
 /// Writes new joined WAV files; sources and existing destination files are only read.
 public enum JoinExporter {
-    public static func export(_ sources: [JoinSource], settings: JoinSettings, to folder: URL) throws -> [URL] {
-        try exportWithRegions(sources, settings: settings, to: folder).map(\.url)
+    public static func export(_ sources: [JoinSource], settings: JoinSettings, name: String = JoinNaming.defaultName,
+                              to folder: URL) throws -> [URL] {
+        try exportWithRegions(sources, settings: settings, name: name, to: folder).map(\.url)
     }
 
-    public static func exportWithRegions(_ sources: [JoinSource], settings: JoinSettings, to folder: URL) throws -> [JoinedOutput] {
+    /// Files are called `<name> 01.wav`, `<name> 02.wav`, …; a name that is taken gets an extra number.
+    public static func exportWithRegions(_ sources: [JoinSource], settings: JoinSettings, name: String = JoinNaming.defaultName,
+                                         to folder: URL) throws -> [JoinedOutput] {
         try Task.checkCancellation()
         guard settings.isValid, !sources.isEmpty else { throw JoinError.invalidSettings }
         let fm = FileManager.default
@@ -51,10 +60,11 @@ public enum JoinExporter {
         }
         let plans = try JoinPlanner.plan(frameCounts: frames, settings: settings)
         let names = sources.map(\.name)
+        let base = JoinNaming.baseName(name)
         var outputs: [URL] = []
         for (index, plan) in plans.enumerated() {
             try Task.checkCancellation()
-            let destination = staging.appendingPathComponent("Joined \(index + 1).wav")
+            let destination = staging.appendingPathComponent(JoinNaming.fileName(base: base, number: index + 1))
             try write(plan, sources: converted, format: format, to: destination)
             try JoinedCueWriter.write(regions: plan.regions, names: names, to: destination)
             let check = try AVAudioFile(forReading: destination)

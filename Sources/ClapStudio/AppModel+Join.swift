@@ -38,6 +38,7 @@ extension AppModel {
         let included = Set(ordered.map(\.id))
         ordered += ids.compactMap { included.contains($0) ? nil : sampleByID[$0] }
         guard ordered.count > 1 else { return }
+        join.name = JoinNaming.defaultName
         joinSources = ordered.map { JoinSource(url: $0.url, trim: activeTrim(for: $0), name: $0.name, sampleID: $0.id) }
         showJoin = true
     }
@@ -52,7 +53,7 @@ extension AppModel {
     func joinSheetDismissed() {
         guard let settings = pendingJoinSettings else { joinSources = []; return }
         pendingJoinSettings = nil
-        let sources = joinSources
+        let sources = joinSources, name = join.name
         Task { [self] in
             await Task.yield()
             let panel = NSOpenPanel()
@@ -71,7 +72,7 @@ extension AppModel {
                     return
                 }
                 self.joinSources = []
-                self.startJoining(sources, settings: settings, to: folder)
+                self.startJoining(sources, settings: settings, name: name, to: folder)
             }
             if let window = NSApp.mainWindow ?? NSApp.keyWindow {
                 panel.beginSheetModal(for: window, completionHandler: completed)
@@ -81,14 +82,14 @@ extension AppModel {
         }
     }
 
-    private func startJoining(_ sources: [JoinSource], settings: JoinSettings, to folder: URL) {
+    private func startJoining(_ sources: [JoinSource], settings: JoinSettings, name: String, to folder: URL) {
         joinTask?.cancel()
         isJoining = true
         joinTask = Task {
             defer { isJoining = false; joinTask = nil }
             let store = self.store
             let worker = Task.detached(priority: .userInitiated) { () throws -> ([JoinedOutput], [Int64: Set<String>]?) in
-                let outputs = try JoinExporter.exportWithRegions(sources, settings: settings, to: folder)
+                let outputs = try JoinExporter.exportWithRegions(sources, settings: settings, name: name, to: folder)
                 do {
                     guard let store else { return (outputs, nil) }
                     try store.recordJoinedOutputs(outputs, sources: sources)

@@ -47,9 +47,14 @@
 #              with --usb, show its scratch demonstration Squid stick instead of a connected drive
 #     --animate  write a silent looping GIF of live drums/melody playback (give it a .gif output path)
 # Set CLAP_SNAPSHOT_EXECUTABLE to an already-built debug executable to skip compilation.
+#     --send-collection [big]  with --nested and --usb: open Send to Squid for that collection (big: nine samples in one sub-collection)
+#     --nested  make a collection with two sub-collections and pick it (changes the library: use a scratch one)
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
 #                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut;
 #                 --send Breaks opens the Send sheet for that Pool folder ("-" for the Pool)
+#                 --send-bank [pick|N] opens the Send sheet for a bank with five (or N) samples (pick: the second on channel 6);
+#                 --send-join with it: join the samples before sending;
+#                 --send-same N with it: send to channel N of the following banks
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
 set -e
@@ -83,6 +88,7 @@ while [ $# -gt 0 ]; do
     --map) export CLAP_SNAPSHOT_MAP=1 ;;
     --map-selection) export CLAP_SNAPSHOT_MAP_SELECTION=1 ;;
     --edit) export CLAP_SNAPSHOT_EDIT=1 ;;
+    --nested) export CLAP_SNAPSHOT_NESTED=1 ;;
     --usb) shift; export CLAP_SNAPSHOT_USB="$1" ;;
     --like) shift; export CLAP_SNAPSHOT_LIKE="$1" ;;
     --words) shift; export CLAP_SNAPSHOT_WORDS="$1" ;;
@@ -111,6 +117,12 @@ while [ $# -gt 0 ]; do
     --animate) export CLAP_SNAPSHOT_ANIMATE=1 ;;
     --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;
     --send) shift; export CLAP_SNAPSHOT_SEND="$1" ;;
+    --send-bank) export CLAP_SNAPSHOT_SEND_BANK=1
+      case "${2:-}" in pick|[0-9]*) export CLAP_SNAPSHOT_SEND_BANK="$2"; shift ;; esac ;;
+    --send-collection) export CLAP_SNAPSHOT_SEND_COLLECTION=1
+      case "${2:-}" in big) export CLAP_SNAPSHOT_SEND_COLLECTION=big; shift ;; esac ;;
+    --send-join) export CLAP_SNAPSHOT_SEND_JOIN=1 ;;
+    --send-same) shift; export CLAP_SNAPSHOT_SEND_SAME="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
     --delay) shift; DELAY="$1" ;;
     *) echo "unknown option $1" >&2; exit 2 ;;

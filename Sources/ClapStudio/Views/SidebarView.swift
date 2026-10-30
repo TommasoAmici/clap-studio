@@ -3,8 +3,6 @@ import SwiftUI
 
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
-    @State private var renaming: CollectionRecord?
-    @State private var renameText = ""
 
     private var selection: Binding<String?> {
         Binding(get: { model.sidebarTag }, set: { if let new = $0 { model.selectSidebar(new) } })
@@ -18,22 +16,7 @@ struct SidebarView: View {
                         Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
                     }
                 }
-                Section("Collections") {
-                    ForEach(model.collections) { collection in
-                        HStack {
-                            Label(collection.name, systemImage: "rectangle.stack")
-                            Spacer()
-                            Text("\(collection.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
-                        }
-                        .tag("col.\(collection.id)")
-                        .contextMenu {
-                            Button("Rename…") { renaming = collection; renameText = collection.name }
-                            Button("Delete Collection", role: .destructive) { model.delete(collection: collection.id) }
-                        }
-                    }
-                    Button { model.newCollectionSeed = [] } label: { Label("New Collection", systemImage: "plus") }
-                        .buttonStyle(.borderless).foregroundStyle(.secondary)
-                }
+                CollectionsSidebarSection()
                 if !model.categoryCounts.isEmpty {
                     Section("Categories") {
                         ForEach(model.categoryCounts, id: \.name) { item in
@@ -104,11 +87,6 @@ struct SidebarView: View {
                     .disabled(model.samples.isEmpty)
             }
             .buttonStyle(.borderless).padding(10)
-        }
-        .alert("Rename Collection", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            TextField("Name", text: $renameText)
-            Button("Rename") { if let renaming { model.rename(collection: renaming.id, to: renameText) } }
-            Button("Cancel", role: .cancel) {}
         }
     }
 }

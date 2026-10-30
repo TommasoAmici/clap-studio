@@ -25,7 +25,7 @@ extension AppModel {
         menu.append(.action("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting(samples.map(\.url)) })
         menu.append(.divider)
         menu.append(.action(samples.allSatisfy(\.favorite) ? "Remove from Favorites" : "Add to Favorites") { [unowned self] in toggleFavorite(ids) })
-        var collectionItems = collections.map { c in SampleMenuEntry.action(c.name) { [unowned self] in add(ids, toCollection: c.id) } }
+        var collectionItems = CollectionNode.menuEntries(collectionTree).map { c in SampleMenuEntry.action(c.title) { [unowned self] in add(ids, toCollection: c.id) } }
         if !collectionItems.isEmpty { collectionItems.append(.divider) }
         collectionItems.append(.action("New Collection…") { [unowned self] in newCollectionSeed = ids })
         menu.append(.submenu("Add to Collection", collectionItems))
