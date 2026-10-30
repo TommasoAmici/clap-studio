@@ -50,7 +50,8 @@
 #     --usb NAME  show a set ("default" or its name) of the first Squid drive; --rename edits its first bank's name;
 #                 "pool" shows the Pool and "pool/Breaks/707" a folder of it; --close Breaks/707 folds a Pool folder shut;
 #                 --send Breaks opens the Send sheet for that Pool folder ("-" for the Pool)
-#                 --send-bank [pick] opens the Send sheet for a bank with five samples (pick: the second on channel 6);
+#                 --send-bank [pick|N] opens the Send sheet for a bank with five (or N) samples (pick: the second on channel 6);
+#                 --send-join with it: join the samples before sending;
 #                 --send-same N with it: send to channel N of the following banks
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
@@ -113,7 +114,9 @@ while [ $# -gt 0 ]; do
     --animate) export CLAP_SNAPSHOT_ANIMATE=1 ;;
     --close) shift; export CLAP_SNAPSHOT_CLOSE="$1" ;;
     --send) shift; export CLAP_SNAPSHOT_SEND="$1" ;;
-    --send-bank) export CLAP_SNAPSHOT_SEND_BANK=1; [ "${2:-}" = pick ] && { shift; export CLAP_SNAPSHOT_SEND_BANK=pick; } ;;
+    --send-bank) export CLAP_SNAPSHOT_SEND_BANK=1
+      case "${2:-}" in pick|[0-9]*) export CLAP_SNAPSHOT_SEND_BANK="$2"; shift ;; esac ;;
+    --send-join) export CLAP_SNAPSHOT_SEND_JOIN=1 ;;
     --send-same) shift; export CLAP_SNAPSHOT_SEND_SAME="$1" ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
     --delay) shift; DELAY="$1" ;;

@@ -6,17 +6,21 @@ import SwiftUI
 struct SquidExportItems: View {
     @Environment(AppModel.self) private var model
     let toPool: Bool
+    /// The samples are joined first, so rows have no channel of their own: they are sounds in an order.
+    let joining: Bool
     let sameChannel: Bool
     let plan: SquidChannelPlan
     @State private var dropTargeted = false
+
+    private var perSample: Bool { !toPool && !joining }
 
     var body: some View {
         let samples = model.squidItems.compactMap { model.sampleByID[$0] }
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(toPool ? "\(model.samplesPhrase(samples.count))" : "Channels").font(.subheadline.bold())
+                Text(toPool ? "\(model.samplesPhrase(samples.count))" : (joining ? "Sound order" : "Channels")).font(.subheadline.bold())
                 Spacer()
-                if !toPool, !model.squidChannels.isEmpty {
+                if perSample, !model.squidChannels.isEmpty {
                     Button("Automatic Channels") { model.squidChannels = [:] }
                         .controlSize(.small).help("Forget the channels you picked and place the samples in order again.")
                 }
@@ -36,6 +40,15 @@ struct SquidExportItems: View {
                 let new = model.librarySamples(forFiles: urls).map(\.id).filter { !model.squidItems.contains($0) }
                 model.squidItems += new
             }
+            if joining {
+                let files = plan.slots.count
+                let banks = plan.slots.compactMap { $0?.bank }
+                Text(files == 0 ? "" : "Joins into about \(files) \(files == 1 ? "file" : "files")"
+                     + (banks.isEmpty ? "." : ", on channel \(plan.slots.compactMap { $0?.channel }.first ?? 1) of "
+                        + (banks.count == 1 ? "bank \(banks[0])." : "banks \(banks.min()!) to \(banks.max()!)."))
+                     + (files == 0 ? "" : " The exact count is known once they are joined."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if !toPool {
                 ForEach(Array(plan.issues.enumerated()), id: \.offset) { _, issue in
                     Text(issue.message).font(.caption).foregroundStyle(issue.isBlocking ? Color.red : Color.orange)
@@ -45,11 +58,12 @@ struct SquidExportItems: View {
     }
 
     private func row(index: Int, id: Int64) -> some View {
-        let slot = index < plan.slots.count ? plan.slots[index] : nil
-        let overflow = !toPool && slot == nil
+        let slot = perSample && index < plan.slots.count ? plan.slots[index] : nil
+        let overflow = perSample && slot == nil
         return HStack {
-            if !toPool { channelMenu(id: id, slot: slot) }
-            if !toPool, sameChannel, let slot {
+            if joining { Text("\(index + 1)").frame(width: 18).foregroundStyle(.secondary).monospacedDigit() }
+            if perSample { channelMenu(id: id, slot: slot) }
+            if perSample, sameChannel, let slot {
                 Text("Bank \(slot.bank)").font(.caption).foregroundStyle(.secondary).frame(width: 52, alignment: .leading)
             }
             if let sample = model.sampleByID[id] {

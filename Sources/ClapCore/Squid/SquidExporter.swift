@@ -10,8 +10,13 @@ public struct SquidSource: Sendable {
     public var category: String?
     /// Bring the sample to the app's common loudness, so every sample on the stick plays at a similar volume.
     public var matchLevel: Bool
-    public init(file: URL, trim: SampleTrim? = nil, name: String, category: String? = nil, matchLevel: Bool = false) {
+    /// The file is already in the module's format and must stay as it is, like a joined file with its cue markers:
+    /// `SquidExporter.place` copies it instead of converting it (so no trim or level matching is applied).
+    public var keepAudio: Bool
+    public init(file: URL, trim: SampleTrim? = nil, name: String, category: String? = nil, matchLevel: Bool = false,
+                keepAudio: Bool = false) {
         self.file = file; self.trim = trim; self.name = name; self.category = category; self.matchLevel = matchLevel
+        self.keepAudio = keepAudio
     }
 }
 

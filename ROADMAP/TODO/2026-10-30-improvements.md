@@ -7,7 +7,7 @@ Built in dependency order, smallest first.
 - [x] Squid bank badge readable in dark mode.
 - [x] Joined samples naming: a Name field, files `<name> 01`, `<name> 02`.
 - [x] Squid sending: pick the channel of each sample, or the same channel in following banks.
-- [ ] Squid sending joined: join the selection before sending, one joined file per bank.
+- [x] Squid sending joined: join the selection before sending, one joined file per bank.
 - [ ] Nested collections: one level of sub-collections.
 - [ ] Send a collection to Squid: banks of a new set, or Pool folders.
 
@@ -104,3 +104,20 @@ The sheet is split: `SquidExportItems.swift` holds the list with the channel men
 so a sample that left the library still holds its channel. Chosen channels live in `AppModel.squidChannels`
 (by sample, cleared when the sheet opens). Snapshots: `scripts/snapshot.sh --usb Studio --send-bank [pick]
 [--send-same N]` on a seeded media library (see the badge note).
+
+**Squid sending joined.** `SquidJoinedSender.send` (`Sources/ClapCore/Squid/SquidJoinedSender.swift`) joins with
+`JoinExporter.exportWithRegions(settings: .almSalmple, name:)` into a temporary folder, plans the banks with
+`SquidChannelPlan` (`.sameChannel`, so a bank whose channel is taken is skipped), and writes with
+`SquidExporter.place`; the temporary folder is removed on every path and nothing is written unless every
+joined file has a bank. A joined file must reach the stick unchanged, because re-rendering it through
+`TrimExporter` would drop the cue markers that are the point of joining, so `SquidSource.keepAudio` makes `place`
+copy it (the category tag is still appended: it is a trailing `LIST` chunk, which leaves the cues alone). The
+tag is set only when every selected sample has the same category. Decision: level matching is not applied to
+joined files (the switch is greyed out and the sheet says so) because matching would have to be done per
+sound before joining and `JoinSourceRenderer` has no such step. The ALM preset limits are `JoinSettings.almSalmple`
+and are fixed in this sheet; the Join sheet's own presets are not offered here. The sheet cannot know the file
+count before rendering, so it shows an estimate from lengths (`JoinPlanner.estimatedFileCount`,
+`JoinSource.estimatedSeconds`); the authoritative check runs in the sender, which stops with a message and
+writes nothing when the banks run out. Joined mode is for banks only (not the Pool) and does not offer
+"Replace it". File names use `JoinNaming` with the sheet's own File name box (default "Joined"). Snapshot:
+`scripts/snapshot.sh --usb Studio --send-bank 20 --send-join` on a seeded media library.

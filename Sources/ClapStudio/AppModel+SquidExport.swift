@@ -6,6 +6,8 @@ enum SquidPlan {
     /// `slots` has one entry per sheet row (nil: not sent). `replace` writes the first bank afresh after moving the old one to the Trash.
     case banks(set: String?, firstBank: Int, bankName: String, slots: [SquidSlot?], replace: Bool)
     case pool(subfolder: String)
+    /// The samples are joined first (ALM Squid Salmple limits), then sent to `channel` of `firstBank` and the banks after it.
+    case joined(set: String?, firstBank: Int, channel: Int, bankName: String, name: String)
 }
 
 /// Where samples were last sent, so the sheet starts there the next time.
@@ -63,6 +65,8 @@ extension AppModel {
         switch plan {
         case .banks(let set, let firstBank, _, _, _):
             SquidLastDestination(drive: driveID, pool: false, set: set, bank: firstBank, poolFolder: "").save()
+        case .joined(let set, let firstBank, _, _, _):
+            SquidLastDestination(drive: driveID, pool: false, set: set, bank: firstBank, poolFolder: "").save()
         case .pool(let subfolder):
             SquidLastDestination(drive: driveID, pool: true, set: nil, bank: nil, poolFolder: subfolder).save()
         }
@@ -80,6 +84,9 @@ extension AppModel {
 
     /// Writes the plan to the drive, then refreshes what the app shows of it. Returns an error message, or nil on success.
     func sendToSquid(_ plan: SquidPlan, driveID: String) async -> String? {
+        if case .joined(let set, let firstBank, let channel, let bankName, let name) = plan {
+            return await sendJoinedToSquid(set: set, firstBank: firstBank, channel: channel, bankName: bankName, name: name, driveID: driveID)
+        }
         guard let drive = drive(id: driveID) else { return "The drive is no longer connected." }
         let rows = squidItems.map { squidSource(for: $0) }
         guard rows.contains(where: { $0 != nil }) else { return "Add at least one sample." }
@@ -103,10 +110,16 @@ extension AppModel {
                     }
                 case .pool(let subfolder):
                     try SquidExporter.exportToPool(rows.compactMap { $0 }, subfolder: subfolder, toVolume: volume)
+                case .joined: break
                 }
                 return .success(())
             } catch { return .failure(error) }
         }.value
+        return finishSquidWrite(outcome, volume: volume)
+    }
+
+    /// After anything was written to a stick: forget cached audio of replaced files and read the stick again.
+    func finishSquidWrite(_ outcome: Result<Void, Error>, volume: URL) -> String? {
         player.cache.forget(pathPrefix: SquidStick.rootURL(volume: volume).path)      // files may have been replaced
         refreshUsbDrives(settle: false)
         if case .failure(let error) = outcome { return error.localizedDescription }

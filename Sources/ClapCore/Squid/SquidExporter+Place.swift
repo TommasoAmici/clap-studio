@@ -56,8 +56,12 @@ extension SquidExporter {
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
             let target = folder.appendingPathComponent(SquidLayout.cleanFileStem(item.source.name) + ".wav")
             do {
-                try TrimExporter.write(source: item.source.file, trim: item.source.trim, format: SquidLayout.exportFormat, to: target,
-                                       maxSeconds: SquidLayout.maxSeconds, declick: true, matchLevel: item.source.matchLevel)
+                if item.source.keepAudio {
+                    try fm.copyItem(at: item.source.file, to: target)
+                } else {
+                    try TrimExporter.write(source: item.source.file, trim: item.source.trim, format: SquidLayout.exportFormat, to: target,
+                                           maxSeconds: SquidLayout.maxSeconds, declick: true, matchLevel: item.source.matchLevel)
+                }
             } catch { throw SquidExportError.failed("\(item.source.file.lastPathComponent): \(error.localizedDescription)") }
             tag(target, with: item.source.category)
             bytes += fileSize(target) + 4096

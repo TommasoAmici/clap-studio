@@ -13,6 +13,12 @@ public struct JoinSource: Sendable {
         self.name = name ?? url.deletingPathExtension().lastPathComponent
         self.sampleID = sampleID
     }
+
+    /// Roughly how long the sound plays once trimmed and sped up or slowed down; used to guess how many files joining makes.
+    public func estimatedSeconds(fileDuration: Double) -> Double {
+        let length = trim.map { min($0.length, max(0, fileDuration - $0.start)) } ?? fileDuration
+        return length / pow(2, (trim?.edit.clamped().speedSemitones ?? 0) / 12)
+    }
 }
 
 /// A published file and the source pieces written to it, in playback order.
