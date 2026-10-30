@@ -168,6 +168,7 @@ final class AppModel {
     var closedPoolFolders: Set<String> = []                   // Pool folders folded shut in the list (`closedPoolKey`)
     var showSquidExport = false
     var squidItems: [Int64] = []                              // what the export sheet will send, in order
+    var squidChannels: [Int64: Int] = [:]                     // channels the user picked in the export sheet, by sample
     var squidTarget = SquidTarget()
     @ObservationIgnored var usbSampleIDs: Set<Int64> = []
     @ObservationIgnored var usbObservers: [NSObjectProtocol] = []

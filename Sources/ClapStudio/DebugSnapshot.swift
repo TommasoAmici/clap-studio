@@ -37,6 +37,8 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_APPEARANCE=dark  light or dark, for this app only
 ///   CLAP_SNAPSHOT_MEDIA=1          use a fresh musical sketch; with USB, use the seeded scratch demonstration stick
 ///   CLAP_SNAPSHOT_ANIMATE=1        record one two-bar playback loop as a silent GIF
+///   CLAP_SNAPSHOT_SEND_BANK=1|pick  with USB: open the Send sheet for a bank with five samples (pick: the second on channel 6)
+///   CLAP_SNAPSHOT_SEND_SAME=N       with SEND_BANK: send to channel N of following banks
 ///   CLAP_SNAPSHOT_RENAME=1         with USB: put the first bank's name in edit mode
 @MainActor
 enum DebugSnapshot {
@@ -103,6 +105,12 @@ enum DebugSnapshot {
             // "Breaks/707" folds that Pool folder shut.
             if let closed = env["CLAP_SNAPSHOT_CLOSE"] { model.togglePoolFolder(drive: drive.id, path: closed.split(separator: "/").map(String.init)) }
             // Opens the Send sheet for the Pool folder NAME ("-" for the Pool itself) with the first two samples shown.
+            // Opens the Send sheet for a new bank with five samples; "pick" gives the second one channel 6.
+            if let bank = env["CLAP_SNAPSHOT_SEND_BANK"] {
+                try? await Task.sleep(for: .seconds(1))
+                model.openSquidExport(ids: Array(model.visible.prefix(5).map(\.id)), drive: drive.id, set: set, bank: nil)
+                if bank == "pick", model.squidItems.count > 1 { model.squidChannels[model.squidItems[1]] = 6 }
+            }
             if let send = env["CLAP_SNAPSHOT_SEND"] {
                 try? await Task.sleep(for: .seconds(1))
                 model.openSquidExport(ids: Array(model.visible.prefix(2).map(\.id)), drive: drive.id, pool: true, poolFolder: send == "-" ? "" : send)

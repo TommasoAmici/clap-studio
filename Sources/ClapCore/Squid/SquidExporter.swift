@@ -210,25 +210,25 @@ public enum SquidExporter {
     }
 
     /// Keeps the category in the file. A sample that cannot take the tag is still a good sample, so this never fails the export.
-    private static func tag(_ file: URL, with category: String?) {
+    static func tag(_ file: URL, with category: String?) {
         guard let category, !category.isEmpty else { return }
         try? WavInfo.appendGenre(category, to: file)
     }
 
     // MARK: checks
 
-    private static func requireVolume(_ volume: URL, fileManager fm: FileManager) throws {
+    static func requireVolume(_ volume: URL, fileManager fm: FileManager) throws {
         var isDir: ObjCBool = false
         guard fm.fileExists(atPath: volume.path, isDirectory: &isDir), isDir.boolValue else {
             throw SquidExportError.invalid("The USB stick is not available.")
         }
     }
 
-    private static func fileSize(_ url: URL) -> Int64 {
+    static func fileSize(_ url: URL) -> Int64 {
         Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
     }
 
-    private static func requireSpace(_ needed: Int64, volume: URL) throws {
+    static func requireSpace(_ needed: Int64, volume: URL) throws {
         guard let available = (try? volume.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?.volumeAvailableCapacity else { return }
         if Int64(available) < needed { throw SquidExportError.notEnoughSpace(needed: needed, available: Int64(available)) }
     }
