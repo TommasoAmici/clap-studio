@@ -44,7 +44,7 @@ I'd also like to change the numbering to have one leading zero so `01` instead o
 ## Squid bank badge background color
 
 In dark mode, the badge's background color with white text is not very readable, plase improve that
-![bg color](image.png)
+![bg color](image_3.png)
 
 ## Nested collections
 
