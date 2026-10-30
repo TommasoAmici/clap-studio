@@ -146,4 +146,11 @@ while [ ! -s "$OUT" ] && [ "$i" -lt $((DELAY + 20)) ]; do
   sleep 1; i=$((i + 1))
 done
 kill "$PID" 2>/dev/null || true
-[ -s "$OUT" ] && echo "$OUT" || { echo "no image was written" >&2; exit 1; }
+if [ -s "$OUT" ]; then
+  echo "$OUT"
+else
+  echo "no image was written" >&2
+  [ -n "${CLAP_SNAPSHOT_NATIVE:-}${CLAP_SNAPSHOT_UPDATE:-}" ] &&
+    echo "Native captures need screen capture access for this terminal: System Settings > Privacy & Security > Screen & System Audio Recording." >&2
+  exit 1
+fi

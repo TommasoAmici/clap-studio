@@ -17,6 +17,14 @@ change. Pass another output directory to make a preview without replacing these
 images. It builds the current debug app and a release seeder, then captures the
 views in a few minutes. The first build takes longer.
 
+The PNGs are native captures: macOS draws the window and the script records
+exactly that, so they match the app on the Mac that ran it, including the
+toolbar and glass of its macOS version. This needs screen capture access for
+your terminal (System Settings > Privacy & Security) and a Retina display; the
+script stops if an image is not 3200 pixels wide. Leave the window alone while
+it runs. The GIFs are drawn from the window's views instead, because the app
+steps each frame itself.
+
 The script makes a fresh temporary library with 420 original synthesised sounds,
 then removes it after capturing. No purchased samples, personal library data or
 neural models are needed. Thirty-six ambience sounds have demonstration GPS coordinates at twelve places
@@ -60,5 +68,5 @@ separate demo executable as `scripts/media-kit.sh` does to keep preferences apar
 For a single playback capture from a scratch library, use
 `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh out.gif --drums --melody --animate --scale 1`. Animation
 uses the real playback engine and records 48 frames through the same window
-renderer as the PNGs. It needs no screen capture permission or video encoder;
+renderer as the PNGs. It needs no screen capture permission or video encoder, and is not a native capture;
 GIFs carry no audio.

@@ -318,25 +318,6 @@ enum DebugSnapshot {
         return rep.representation(using: .png, properties: [:])
     }
 
-    /// Uses existing screen capture permission for system-rendered layers; never asks for new access.
-    private static func nativeWindowImage(_ window: NSWindow) -> Data? {
-        guard CGPreflightScreenCaptureAccess() else {
-            NSLog("A native window snapshot needs existing macOS screen capture access.")
-            return nil
-        }
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("clap-alert-\(UUID()).png")
-        defer { try? FileManager.default.removeItem(at: file) }
-        let capture = Process()
-        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        capture.arguments = ["-x", "-o", "-l", String(window.windowNumber), file.path]
-        do {
-            try capture.run()
-            capture.waitUntilExit()
-            guard capture.terminationStatus == 0 else { return nil }
-            return try Data(contentsOf: file)
-        } catch { return nil }
-    }
-
     /// Keep the map in its own view so SwiftUI's controls and legend stay above its captured pixels.
     private static func snapshotMetalViews(in view: NSView, scale: Double) -> [NSImageView]? {
         if let map = view as? MapMTKView {
