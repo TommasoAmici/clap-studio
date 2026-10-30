@@ -5,7 +5,7 @@
 Built in dependency order, smallest first.
 
 - [x] Squid bank badge readable in dark mode.
-- [ ] Joined samples naming: a Name field, files `<name> 01`, `<name> 02`.
+- [x] Joined samples naming: a Name field, files `<name> 01`, `<name> 02`.
 - [ ] Squid sending: pick the channel of each sample, or the same channel in following banks.
 - [ ] Squid sending joined: join the selection before sending, one joined file per bank.
 - [ ] Nested collections: one level of sub-collections.
@@ -73,3 +73,14 @@ deep orange and white is fine. Both now use `FreeSlotsBadge` (`Views/SquidNameVi
 dark mode, white in light mode, same orange fill. Checked with `scripts/snapshot.sh --media --usb Studio
 --appearance dark|light` on a library seeded by `ClapMediaSeed` (the Squid demo stick only exists in a seeded
 media library; copy it first because a snapshot indexes the stick into the library).
+
+**Joined samples naming.** `JoinNaming` (`Sources/ClapCore/Join/JoinNaming.swift`) builds `<name> NN.wav`
+(`%02d`, so 100 stays `100`) and cleans the typed name with `ExportNaming.sanitize`, trims it, caps it at 100
+characters and falls back to "Joined" when nothing usable is left. `JoinExporter.export` /
+`exportWithRegions` take a `name:` (default "Joined"), and the existing `SampleExporter.uniqueURL` still adds
+" 2" on a clash (`kicks 01 2.wav`). The name is not part of `JoinSettings`: those are the limits saved in
+presets, and a preset that also fixed a name would make two presets that differ only by name. It lives in
+`JoinState.name`, reset to "Joined" in `openJoin` and kept when the folder chooser is cancelled and the sheet
+comes back. The sheet shows the first two resulting file names as a hint. Existing tests that used a source
+called `Joined 1.wav` to check a clash now use `Joined 01.wav`. Validated with `scripts/snapshot.sh --join`.
+Joined files made when sending to Squid will use the same names if the sheet shows them (see that item).

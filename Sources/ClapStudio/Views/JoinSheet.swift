@@ -38,6 +38,7 @@ struct JoinSheet: View {
             if let presetError { Text(presetError).font(.caption).foregroundStyle(.red) }
 
             Form {
+                TextField("File name", text: Bindable(model.join).name, prompt: Text(JoinNaming.defaultName))
                 TextField("Maximum length (seconds)", value: $settings.maxSeconds,
                           format: .number.precision(.fractionLength(0...3)))
                 TextField("Silence between sounds (seconds)", value: $settings.silenceSeconds,
@@ -48,6 +49,8 @@ struct JoinSheet: View {
                     Text("Stereo").tag(false)
                 }
             }
+            Text("Files are named \(JoinNaming.fileName(base: JoinNaming.baseName(model.join.name), number: 1)), \(JoinNaming.fileName(base: JoinNaming.baseName(model.join.name), number: 2)) and so on.")
+                .font(.caption).foregroundStyle(.secondary)
             Text("16-bit WAV · 44.1 kHz. One cue set per sound or split piece; source cues are discarded in the copies. More files are made when a limit is reached.")
                 .font(.caption).foregroundStyle(.secondary)
             Text("Maximum length: above zero to 300 seconds. Silence: 0–300 seconds. Cue sets: 1–65,536. Longer sounds continue across files without added silence or lost audio.")

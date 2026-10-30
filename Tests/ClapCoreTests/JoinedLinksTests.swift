@@ -7,7 +7,7 @@ import Testing
         let (store, dir) = try TestSupport.makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }
         let sourceFolder = dir.appendingPathComponent("sources")
-        let output = TestSupport.write([1, 2, 3], to: dir.appendingPathComponent("unindexed/Joined 1.wav"))
+        let output = TestSupport.write([1, 2, 3], to: dir.appendingPathComponent("unindexed/Joined 01.wav"))
         let root = try store.addRoot(path: sourceFolder.path)
         try store.sync(rootID: root.id, scanned: [
             ScannedFile(relPath: "kick.wav", size: 1, mtime: 1),
