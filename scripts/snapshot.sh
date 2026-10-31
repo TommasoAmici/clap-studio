@@ -141,7 +141,10 @@ CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$EXECUTABLE" >/dev/null 2>&1 
 PID=$!
 # The app quits itself after writing the image; wait a little longer than its delay, then make sure it is gone.
 i=0
-while [ ! -s "$OUT" ] && [ "$i" -lt $((DELAY + 20)) ]; do
+LIMIT=$((DELAY + 20))
+# A native animation photographs the loop in several passes.
+[ -n "${CLAP_SNAPSHOT_ANIMATE:-}" ] && [ -n "${CLAP_SNAPSHOT_NATIVE:-}" ] && LIMIT=$((DELAY + 100))
+while [ ! -s "$OUT" ] && [ "$i" -lt "$LIMIT" ]; do
   kill -0 "$PID" 2>/dev/null || break
   sleep 1; i=$((i + 1))
 done
@@ -151,6 +154,6 @@ if [ -s "$OUT" ]; then
 else
   echo "no image was written" >&2
   [ -n "${CLAP_SNAPSHOT_NATIVE:-}${CLAP_SNAPSHOT_UPDATE:-}" ] &&
-    echo "Native captures need screen capture access for this terminal: System Settings > Privacy & Security > Screen & System Audio Recording." >&2
+    echo "Native captures need the Mac awake and unlocked, and screen capture access for this terminal (System Settings > Privacy & Security > Screen & System Audio Recording)." >&2
   exit 1
 fi

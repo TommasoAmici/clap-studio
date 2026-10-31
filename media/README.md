@@ -7,9 +7,9 @@ to initialize the repository and download the images together.
 Eighteen PNGs show the Library, Map, Drum Machine, Melody, and drums with melody
 together, plus field recordings on the world map and Squid Salmple banks, Pool
 and Send sheet, in light and dark appearance. Each full window is rendered at
-3200 × 2000 pixels, including its
+3400 × 2000 pixels (a 1700 × 1000 point window), including its
 toolbar and inspector. Two silent, looping GIFs show the drums and melody
-playing together, with their real moving playheads, at 1600 × 1000 pixels. Each
+playing together, with their real moving playheads, at 1700 × 1000 pixels. Each
 GIF records one two-bar phrase at 124 BPM (about four seconds).
 
 Run `scripts/media-kit.sh` from the repository to regenerate them after a UI
@@ -17,13 +17,20 @@ change. Pass another output directory to make a preview without replacing these
 images. It builds the current debug app and a release seeder, then captures the
 views in a few minutes. The first build takes longer.
 
-The PNGs are native captures: macOS draws the window and the script records
+The images are native captures: macOS draws the window and the script records
 exactly that, so they match the app on the Mac that ran it, including the
-toolbar and glass of its macOS version. This needs screen capture access for
-your terminal (System Settings > Privacy & Security) and a Retina display; the
-script stops if an image is not 3200 pixels wide. Leave the window alone while
-it runs. The GIFs are drawn from the window's views instead, because the app
-steps each frame itself.
+toolbar and Liquid Glass of its macOS version. This needs screen capture access
+for your terminal (System Settings > Privacy & Security), a Retina display, and
+a Mac that stays awake and unlocked while the script runs (it asks the display
+to stay on). The script stops if an image is not 3400 pixels wide. Leave the
+window alone while it runs.
+
+Swift builds made with only the Command Line Tools record macOS SDK 14, and
+macOS then draws the old toolbar and sidebar. The script stamps the demo app
+with the SDK that built it, as Xcode does, so it gets Liquid Glass. That design
+needs about 1700 points of width, which is why the window is wider than before.
+Each GIF is photographed in several passes of the same loop, because a native
+capture takes longer than one frame.
 
 The script makes a fresh temporary library with 420 original synthesised sounds,
 then removes it after capturing. No purchased samples, personal library data or
@@ -68,5 +75,5 @@ separate demo executable as `scripts/media-kit.sh` does to keep preferences apar
 For a single playback capture from a scratch library, use
 `CLAP_DATA_DIR=/tmp/clap-demo scripts/snapshot.sh out.gif --drums --melody --animate --scale 1`. Animation
 uses the real playback engine and records 48 frames through the same window
-renderer as the PNGs. It needs no screen capture permission or video encoder, and is not a native capture;
-GIFs carry no audio.
+renderer as the PNGs unless you add `--native`. Without it, no screen capture permission or video encoder is needed, but
+Liquid Glass is missing; GIFs carry no audio.
