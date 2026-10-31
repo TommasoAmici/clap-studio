@@ -15,14 +15,14 @@ import Testing
         let output = try JoinExporter.export([JoinSource(url: first), JoinSource(url: second)],
                                              settings: JoinSettings(), to: dir.appendingPathComponent("out"))
         let file = try AVAudioFile(forReading: #require(output.first))
-        #expect(file.length == 19_845, "The file holds two sounds and exactly one quarter-second of silence.")
+        #expect(file.length == 13_230, "The file holds two sounds and exactly a tenth of a second of silence, the default.")
         #expect(file.processingFormat.sampleRate == 44_100 && file.processingFormat.channelCount == 1)
         let audio = try TrimRender.read(url: output[0])
         let channel = try #require(audio.floatChannelData?[0])
-        #expect(abs(channel[1_000] - 0.25) < 0.0001 && abs(channel[16_000] - 0.5) < 0.0001)
-        #expect((4_410..<15_435).allSatisfy { channel[$0] == 0 }, "Only silence is inserted between the unedited sounds.")
+        #expect(abs(channel[1_000] - 0.25) < 0.0001 && abs(channel[10_000] - 0.5) < 0.0001)
+        #expect((4_410..<8_820).allSatisfy { channel[$0] == 0 }, "Only silence is inserted between the unedited sounds.")
         #expect(CueFileReader.read(url: output[0]) == [
-            FileCue(frame: 0, label: "Kick"), FileCue(frame: 15_435, label: "Snare"),
+            FileCue(frame: 0, label: "Kick"), FileCue(frame: 8_820, label: "Snare"),
         ], "Old source cues are replaced by one named start marker per sound.")
         #expect(JoinedCueWriter.regionLengths(in: try Data(contentsOf: output[0])) == [4_410, 4_410],
                 "WAV region lengths mark exact sound ends without including the gap.")

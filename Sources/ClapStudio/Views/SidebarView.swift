@@ -11,67 +11,9 @@ struct SidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             List(selection: selection) {
-                Section("Filters") {
-                    ForEach(SmartFilter.allCases.filter { $0 != .hidden || model.hiddenCount > 0 }) { filter in
-                        Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
-                    }
-                }
-                CollectionsSidebarSection()
-                if !model.categoryCounts.isEmpty {
-                    Section("Categories") {
-                        ForEach(model.categoryCounts, id: \.name) { item in
-                            HStack {
-                                Label(item.name, systemImage: SoundCategories.symbol(for: item.name))
-                                Spacer()
-                                Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
-                            }
-                            .tag("cat.\(item.name)")
-                        }
-                    }
-                }
-                if !model.moodCounts.isEmpty {
-                    Section("Moods") {
-                        ForEach(model.moodCounts, id: \.name) { item in
-                            HStack {
-                                Label(item.name, systemImage: SoundMoods.symbol(for: item.name))
-                                Spacer()
-                                Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
-                            }
-                            .tag("mood.\(item.name)")
-                        }
-                    }
-                }
-                if !model.tagCounts.isEmpty {
-                    Section("Tags") {
-                        ForEach(model.tagCounts, id: \.name) { item in
-                            HStack {
-                                Label(item.name, systemImage: "number")
-                                Spacer()
-                                Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
-                            }
-                            .tag("tag.\(item.name)")
-                        }
-                    }
-                }
-                if model.squidEnabled { SquidSidebarSection() }
-                Section("Folders") {
-                    OutlineGroup(model.folderTree, children: \.children) { node in
-                        HStack {
-                            Label(node.name, systemImage: node.path.isEmpty ? "externaldrive" : "folder")
-                            Spacer()
-                            Text("\(node.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
-                        }
-                        .tag(node.id)
-                        .contextMenu {
-                            if node.path.isEmpty, let root = model.roots.first(where: { $0.id == node.rootID }) {
-                                Button("Rescan") { model.startIndexing(scanning: root) }.disabled(model.isIndexing)
-                                Button("Reveal in Finder") { NSWorkspace.shared.open(URL(fileURLWithPath: root.path)) }
-                                Button("Remove from Library", role: .destructive) { model.removeRoot(root) }
-                            }
-                        }
-                    }
-                }
+                ForEach(model.listedSidebarSections) { section in sectionView(section) }
             }
+            .listStyle(.sidebar)
             .modifier(NoToolbarSeparator())
             Divider()
             HStack {
@@ -87,6 +29,63 @@ struct SidebarView: View {
                     .disabled(model.samples.isEmpty)
             }
             .buttonStyle(.borderless).padding(10)
+        }
+    }
+}
+
+extension SidebarView {
+    /// One block of the sidebar. Order, folding and hiding are decided by `AppModel.sidebarLayout`.
+    @ViewBuilder fileprivate func sectionView(_ section: SidebarSection) -> some View {
+        switch section {
+        case .filters:
+            SidebarSectionBox(section: .filters) {
+                ForEach(SmartFilter.allCases.filter { $0 != .hidden || model.hiddenCount > 0 }) { filter in
+                    Label(filter.rawValue, systemImage: filter.symbol).tag("smart.\(filter.rawValue)")
+                }
+            }
+        case .collections:
+            CollectionsSidebarSection()
+        case .categories:
+            countedSection(.categories, items: model.categoryCounts, prefix: "cat.") { Label($0, systemImage: SoundCategories.symbol(for: $0)) }
+        case .moods:
+            countedSection(.moods, items: model.moodCounts, prefix: "mood.") { Label($0, systemImage: SoundMoods.symbol(for: $0)) }
+        case .tags:
+            countedSection(.tags, items: model.tagCounts, prefix: "tag.") { Label($0, systemImage: "number") }
+        case .usbDrives:
+            SquidSidebarSection()
+        case .folders:
+            SidebarSectionBox(section: .folders) {
+                OutlineGroup(model.folderTree, children: \.children) { node in
+                    HStack {
+                        Label(node.name, systemImage: node.path.isEmpty ? "externaldrive" : "folder")
+                        Spacer()
+                        Text("\(node.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                    }
+                    .tag(node.id)
+                    .contextMenu {
+                        if node.path.isEmpty, let root = model.roots.first(where: { $0.id == node.rootID }) {
+                            Button("Rescan") { model.startIndexing(scanning: root) }.disabled(model.isIndexing)
+                            Button("Reveal in Finder") { NSWorkspace.shared.open(URL(fileURLWithPath: root.path)) }
+                            Button("Remove from Library", role: .destructive) { model.removeRoot(root) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// A section of names with how many samples each holds (categories, moods, tags).
+    private func countedSection<Row: View>(_ section: SidebarSection, items: [(name: String, count: Int)], prefix: String,
+                                           @ViewBuilder label: @escaping (String) -> Row) -> some View {
+        SidebarSectionBox(section: section) {
+            ForEach(items, id: \.name) { item in
+                HStack {
+                    label(item.name)
+                    Spacer()
+                    Text("\(item.count)").foregroundStyle(.secondary).monospacedDigit().font(.caption)
+                }
+                .tag("\(prefix)\(item.name)")
+            }
         }
     }
 }

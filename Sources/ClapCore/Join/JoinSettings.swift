@@ -9,7 +9,7 @@ public struct JoinSettings: Codable, Equatable, Sendable {
     public var maxCuePoints: Int
     public var mono: Bool
 
-    public init(maxSeconds: Double = 11, silenceSeconds: Double = 0.25, maxCuePoints: Int = 64, mono: Bool = true) {
+    public init(maxSeconds: Double = 11, silenceSeconds: Double = 0.1, maxCuePoints: Int = 64, mono: Bool = true) {
         self.maxSeconds = maxSeconds
         self.silenceSeconds = silenceSeconds
         self.maxCuePoints = maxCuePoints

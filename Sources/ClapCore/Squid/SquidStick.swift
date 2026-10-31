@@ -23,6 +23,8 @@ public struct SquidSet: Identifiable, Equatable, Sendable {
     public var banks: [SquidBank]
     public var id: String { name ?? "" }
     public var title: String { name ?? "Default" }
+
+    public init(name: String?, banks: [SquidBank]) { self.name = name; self.banks = banks }
 }
 
 /// What is on a stick, read from folder names and info.txt files only (no audio is opened).

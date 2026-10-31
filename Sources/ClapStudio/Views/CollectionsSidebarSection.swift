@@ -13,7 +13,7 @@ struct CollectionsSidebarSection: View {
     private var nested: Bool { model.collections.contains { $0.parentID != nil } }
 
     var body: some View {
-        Section("Collections") {
+        SidebarSectionBox(section: .collections) {
             ForEach(model.collectionTree) { node in
                 row(node.record, hasChildren: node.children != nil)
                 if openCollections.contains(node.id) {
