@@ -22,7 +22,7 @@ I think a nice approach would be to have a scrollable area with a title that inc
 with the count of warnings so users know at a glance how many warnings there are
 without scrolling the entire list.
 
-![screenshot](image.png)
+![screenshot](squid-warnings.png)
 
 ## ALM Salmple preset for joined samples
 
