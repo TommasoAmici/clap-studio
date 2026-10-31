@@ -27,6 +27,19 @@ import Testing
         #expect(plans.last?.regions.first?.startFrame == 0, "Every output starts with a sound, not silence.")
     }
 
+    @Test func theAlmSalmplePresetUsesATenthOfASecondOfSilence() {
+        #expect(JoinSettings.almSalmple.silenceSeconds == 0.1, "The module's preset leaves a tenth of a second between joined sounds.")
+        #expect(JoinSettings().silenceSeconds == 0.1, "Settings made without a choice start from the same value.")
+        #expect(JoinSettings.almSalmple.maxSeconds == 11 && JoinSettings.almSalmple.maxCuePoints == 64 && JoinSettings.almSalmple.mono)
+    }
+
+    @Test func settingsSavedBeforeKeepTheirOwnSilence() throws {
+        let saved = Data(#"{"maxSeconds":11,"silenceSeconds":0.25,"maxCuePoints":64,"mono":true}"#.utf8)
+        let settings = try JSONDecoder().decode(JoinSettings.self, from: saved)
+        #expect(settings.silenceSeconds == 0.25, "A preset saved earlier is not changed by the new default.")
+        #expect(settings != .almSalmple)
+    }
+
     @Test func emptySoundsAndInvalidLimitsAreRejected() {
         for settings in [
             JoinSettings(maxSeconds: .nan), JoinSettings(maxSeconds: .infinity),

@@ -174,7 +174,7 @@ struct SquidExportSheet: View {
                     .help("Each sample goes to the same channel of the next bank: four snares on channel 2 of banks 1 to 4.")
             }
             Toggle("Join samples before sending", isOn: $joinFirst)
-                .help("Joins the samples into as few files as possible (mono, 11 seconds at most, 0.25 seconds of silence, 64 cue sets), "
+                .help("Joins the samples into as few files as possible (mono, 11 seconds at most, 0.1 seconds of silence, 64 cue sets), "
                       + "one file per bank, all on the same channel. Your library files are not changed.")
             if joining {
                 HStack {

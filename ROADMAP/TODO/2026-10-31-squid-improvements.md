@@ -4,7 +4,7 @@
 
 - [x] Overwrite when sending
 - [x] Long list of warnings UI
-- [ ] ALM Salmple preset for joined samples
+- [x] ALM Salmple preset for joined samples
 - [ ] Collapsible left sidebar sections
 
 ## Overwrite when sending
@@ -89,3 +89,20 @@ section's title.
   PNGs: `/tmp/clap-work-HiAGrm/snapshots/squid-warnings-{light,dark}.png`.
 - Landmarks: `Sources/ClapStudio/Views/SquidPlanIssuesView.swift`, `SquidExportItems.swift`,
   `DebugSnapshotSquid.swift`; `SquidSet` gained a public `init(name:banks:)` for the snapshot helper.
+
+### ALM Salmple preset for joined samples
+
+- The one default lives in `JoinSettings.init` (`silenceSeconds: 0.1`); `JoinSettings.almSalmple` is
+  `JoinSettings()`, so the built-in *ALM Squid Salmple* preset, the Join sheet's starting values, the Squid
+  joined sender and the sheet's file-count estimate all follow it. The `.help` text in `SquidExportSheet`
+  and the README (Join samples and Squid Salmple paragraphs) say 0.1 seconds now.
+- Saved presets (`join.presets` in UserDefaults) store the whole `JoinSettings` as JSON, so presets saved
+  earlier keep their 0.25 s; `settingsSavedBeforeKeepTheirOwnSilence` decodes such a preset to prove it. A
+  preset saved at 0.25 s now shows by its own name in the Join sheet, not as the built-in one, because the
+  sheet matches the built-in preset by equality.
+- Tests that used the default: `joinsAudioWithSilentGapsAndNewNamedRegions` (13,230 frames, second cue at
+  8,820), the 20 kicks Squid test (now 10 + 10 on banks 1 and 2), the file-count estimate (2), and
+  `notEnoughBanksStopsBeforeAnythingIsWritten` (30 kicks so three files still overrun banks 98 and 99).
+  Tests with an explicit silence are untouched.
+- Verification: `scripts/snapshot.sh --media --join` shows *Silence between sounds* as 0,1 (locale comma).
+  PNG: `/tmp/clap-work-HiAGrm/snapshots/join-default-silence.png`.
