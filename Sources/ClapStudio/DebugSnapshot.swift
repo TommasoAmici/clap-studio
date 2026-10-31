@@ -40,6 +40,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_SEND_BANK=1|pick  with USB: open the Send sheet for a bank with five samples (pick: the second on channel 6)
 ///   CLAP_SNAPSHOT_SEND_JOIN=1       with SEND_BANK: join the samples before sending (SEND_BANK may be a number of samples)
 ///   CLAP_SNAPSHOT_SEND_CROWDED=1    with SEND_BANK: pretend banks 2 to 40 are full, so the sheet lists many warnings
+///   CLAP_SNAPSHOT_SETTINGS=1       capture the Settings contents (Sidebar tab, shown in a plain window) instead of the main window
 ///   CLAP_SNAPSHOT_SEND_SAME=N       with SEND_BANK: send to channel N of following banks
 ///   CLAP_SNAPSHOT_NESTED=1          make the collection Party #23 with two sub-collections and pick it (use a scratch library)
 ///   CLAP_SNAPSHOT_SEND_COLLECTION=1|big  with NESTED and USB: open "Send to Squid" for it (big: one sub-collection has nine samples)
@@ -182,6 +183,10 @@ enum DebugSnapshot {
             }
         }
         if env["CLAP_SNAPSHOT_EFFECTS_SAVE"] == "1" { model.effects.bounce() }
+        if env["CLAP_SNAPSHOT_SETTINGS"] == "1" {
+            DebugSnapshotSquid.showSettings(model: model)
+            try? await Task.sleep(for: .seconds(1))
+        }
         if env["CLAP_SNAPSHOT_JOIN"] == "1" {
             model.openJoin(ids: Array(model.visible.prefix(8).map(\.id)))
             if env["CLAP_SNAPSHOT_JOIN_FOLDER"] == "1" {
@@ -279,7 +284,9 @@ enum DebugSnapshot {
     /// The frame view holds the toolbar as well as the content.
     static func windowImage() -> Data? {
         // A sheet is a separate window. Media captures keep the main window around it for website context.
-        guard let main = NSApp.windows.first(where: { $0.isVisible && $0.styleMask.contains(.titled) }) else { return nil }
+        let titled = NSApp.windows.filter { $0.isVisible && $0.styleMask.contains(.titled) }
+        let wantsSettings = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_SETTINGS"] == "1"
+        guard let main = wantsSettings ? titled.last : titled.first else { return nil }
         let composeSheet = ProcessInfo.processInfo.environment["CLAP_SNAPSHOT_MEDIA"] == "1" && main.attachedSheet != nil
         let window = composeSheet ? main : (main.attachedSheet ?? main)
         // Native glass layers and alert contents can be absent from bitmap caching.

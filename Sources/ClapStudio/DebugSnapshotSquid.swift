@@ -1,6 +1,7 @@
 #if DEBUG
 import AppKit
 import ClapCore
+import SwiftUI
 
 /// Shows the media kit's scratch stick without looking at any connected drive.
 @MainActor
@@ -54,6 +55,18 @@ enum DebugSnapshotSquid {
         contents.sets.removeAll { SquidLayout.sameSet($0.name, set) }
         contents.sets.insert(SquidSet(name: set, banks: banks), at: 0)
         model.usbContents[driveID] = contents
+    }
+
+    /// The Settings view, on its Sidebar tab, in a window of its own that the snapshot can photograph (the real Settings
+    /// window cannot be opened from here without a menu click).
+    static func showSettings(model: AppModel) {
+        UserDefaults.standard.set(SettingsTab.sidebar.rawValue, forKey: SettingsTab.storageKey)
+        let controller = NSHostingController(rootView: SettingsView().environment(model))
+        let window = NSWindow(contentViewController: controller)
+        window.title = "Settings"
+        window.styleMask = [.titled, .closable]
+        window.center()
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// Keeps the selected stick and its folders visible in a long sidebar.

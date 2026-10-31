@@ -8,7 +8,7 @@ struct SquidSidebarSection: View {
     @State private var openSets: Set<String> = []        // sets whose banks are listed, by `key(of:in:)`
 
     var body: some View {
-        Section("USB Drives") {
+        SidebarSectionBox(section: .usbDrives) {
             ForEach(model.usbDrives) { drive in
                 DisclosureGroup(isExpanded: Binding(get: { !collapsed.contains(drive.id) },
                                                     set: { if $0 { collapsed.remove(drive.id) } else { collapsed.insert(drive.id) } })) {

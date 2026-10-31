@@ -151,6 +151,10 @@ final class AppModel {
     var trainingExportRunning = false
     var trainingExportResult: TrainingExportResult?
 
+    // MARK: Sidebar layout
+    /// Which sidebar sections are listed, in what order, and which are folded; kept in the preferences (`sidebar.*`).
+    var sidebarLayout = SidebarLayout.load() { didSet { sidebarLayout.save() } }
+
     // MARK: Squid Salmple (USB sticks)
     /// Samples sent to a stick are brought to a common loudness, so they play at similar volumes without checking each one.
     var squidMatchLevels = UserDefaults.standard.object(forKey: "squid.matchLevels") as? Bool ?? true {

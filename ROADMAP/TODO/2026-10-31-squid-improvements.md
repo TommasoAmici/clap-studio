@@ -5,7 +5,7 @@
 - [x] Overwrite when sending
 - [x] Long list of warnings UI
 - [x] ALM Salmple preset for joined samples
-- [ ] Collapsible left sidebar sections
+- [x] Collapsible left sidebar sections
 
 ## Overwrite when sending
 
@@ -106,3 +106,46 @@ section's title.
   Tests with an explicit silence are untouched.
 - Verification: `scripts/snapshot.sh --media --join` shows *Silence between sounds* as 0,1 (locale comma).
   PNG: `/tmp/clap-work-HiAGrm/snapshots/join-default-silence.png`.
+
+### Collapsible left sidebar sections
+
+- Pure logic is `SidebarLayout` and `SidebarSection` in `Sources/ClapCore/Library/SidebarLayout.swift`
+  (13 tests in `SidebarLayoutTests`): the known sections in default order, the stored order merged with
+  them (unknown and repeated ids dropped; a section missing from the stored order is inserted after the
+  section that precedes it by default, so one added by a later version lands where it belongs), the hidden
+  and collapsed sets, drag moves (`move(fromOffsets:toOffset:)`, same semantics as SwiftUI's), one-step moves
+  among the listed sections that jump over hidden ones, `reset()`, and load/save with `UserDefaults`.
+  A value of the wrong kind in a key is ignored. Keys: `sidebar.order`, `sidebar.hidden`,
+  `sidebar.collapsed` (arrays of section ids).
+- `AppModel.sidebarLayout` holds it (saved in `didSet`); `AppModel+Sidebar.swift` decides which sections have
+  something to show now (`availableSidebarSections`: categories, moods and tags only when non-empty, USB
+  Drives only while a drive is connected) and hides sections.
+- `SidebarSectionBox` wraps each section in a native `Section(isExpanded:)` (macOS 14), with the title's
+  context menu (`SidebarSectionMenu`): Collapse/Expand, Move Up, Move Down, Hide <Section>, Show Hidden
+  Section submenu, Sidebar Settings… `SidebarView` now loops over `listedSidebarSections`;
+  `CollectionsSidebarSection` and `SquidSidebarSection` use the box instead of a bare `Section`. The USB
+  section keeps its existing title, "USB Drives" (the request said "Squid drives").
+- Settings: new first tab *Sidebar* (`SidebarSettingsView`), a `List` with `.onMove` (drag to reorder), a
+  checkbox per section, up/down arrow buttons (keyboard and VoiceOver; also "Move Up"/"Move Down" custom
+  accessibility actions and a context menu) and a Reset button. `SettingsTab` remembers the last tab
+  (`settings.tab`); a tab missing from the build (Birds with `NON_COMMERCIAL=0`) falls back to Sidebar.
+  The context menu's *Sidebar Settings…* opens Settings with `showSettingsWindow:` on that tab.
+- Decisions (ambiguous, most conventional macOS behaviour):
+  - Hiding the section that holds the current selection goes back to All Samples (Filters hidden with All
+    Samples selected is left alone), so no filter is active without a sidebar row for it. Folding a section
+    keeps the selection (as Finder and Mail do); filters set from the filter bar are unaffected.
+  - Everything is hideable, Filters included. Hidden sections come back from Settings or from the *Show
+    Hidden Section* submenu of any title's menu; no View menu entry was added, as asked.
+  - A section with no content (no moods yet, no drive) is not listed whatever its setting; the Settings
+    row says so. Hidden stays hidden while it has no content.
+  - *Reset* restores order and hidden sections but leaves the folded state alone.
+- Keyboard: the sidebar's own titles are not keyboard focusable in SwiftUI, so the keyboard route is
+  Settings > Sidebar (Tab to the checkboxes and arrows). Full keyboard fold of a title is a limitation.
+- Verification (`scripts/snapshot.sh`, scratch library from `ClapMediaSeed`): new options `--sidebar-order`,
+  `--sidebar-hidden`, `--sidebar-collapsed` (passed as launch arguments, so preferences are not changed)
+  and `--settings` (the Settings view in a plain window; the real Settings window cannot be opened from
+  the snapshot hook). PNGs in `/tmp/clap-work-HiAGrm/snapshots/`: `sidebar-default.png`,
+  `sidebar-custom.png` (Folders first, Collections and Categories folded, Moods hidden),
+  `sidebar-settings.png`. Builds with and without `NON_COMMERCIAL` are clean.
+- Not verified by hand: clicking a title's arrow and dragging rows in Settings (no GUI scripting
+  available); both use stock SwiftUI (`Section(isExpanded:)`, `onMove`).

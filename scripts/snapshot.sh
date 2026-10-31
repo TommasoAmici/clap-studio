@@ -56,6 +56,9 @@
 #                 --send-join with it: join the samples before sending;
 #                 --send-same N with it: send to channel N of the following banks;
 #                 --send-crowded with it: pretend banks 2 to 40 are full, so the sheet lists many warnings
+#     --settings  capture the Settings window (Sidebar tab) instead of the main window
+#     --sidebar-order A,B,..  --sidebar-hidden A,B  --sidebar-collapsed A,B  lay the sidebar out for this run only (section ids:
+#                 filters, collections, categories, moods, tags, usbDrives, folders; launch arguments, so your preferences are not changed)
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
 set -e
@@ -64,6 +67,7 @@ cd "$ROOT"
 OUT=/tmp/clap-snapshot.png
 case "${1:-}" in ""|--*) ;; *) OUT="$1"; shift ;; esac
 DELAY=9
+LAUNCH_ARGS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --update) export CLAP_SNAPSHOT_UPDATE=1 ;;
@@ -126,6 +130,10 @@ while [ $# -gt 0 ]; do
     --send-same) shift; export CLAP_SNAPSHOT_SEND_SAME="$1" ;;
     --send-crowded) export CLAP_SNAPSHOT_SEND_CROWDED=1 ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
+    --settings) export CLAP_SNAPSHOT_SETTINGS=1 ;;
+    --sidebar-order) shift; LAUNCH_ARGS="$LAUNCH_ARGS -sidebar.order ($1)" ;;
+    --sidebar-hidden) shift; LAUNCH_ARGS="$LAUNCH_ARGS -sidebar.hidden ($1)" ;;
+    --sidebar-collapsed) shift; LAUNCH_ARGS="$LAUNCH_ARGS -sidebar.collapsed ($1)" ;;
     --delay) shift; DELAY="$1" ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -139,7 +147,7 @@ else
   EXECUTABLE="$("$SWIFT" build --show-bin-path)/ClapStudio"
 fi
 rm -f "$OUT"
-CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$EXECUTABLE" >/dev/null 2>&1 &
+CLAP_SNAPSHOT="$OUT" CLAP_SNAPSHOT_DELAY="$DELAY" "$EXECUTABLE" $LAUNCH_ARGS >/dev/null 2>&1 &
 PID=$!
 # The app quits itself after writing the image; wait a little longer than its delay, then make sure it is gone.
 i=0
