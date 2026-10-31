@@ -5,6 +5,8 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+## 0.34.0
+
 - Sending to a Squid with Same channel in following banks now replaces a
   channel that already holds a sample, and warns you which banks are
   replaced. Replaced samples are deleted, not moved to the Trash.
