@@ -5,6 +5,23 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+## 0.33.0
+
+- Group collections into sub-collections, one level deep. Right-click a
+  collection and choose New Sub-collection. Picking a parent lists its own
+  sounds and its children's. Deleting a parent asks first; files are never
+  deleted, and undo brings everything back.
+- Right-click a collection while a Squid drive is connected and choose Send to
+  Squid Salmple. Sub-collections become banks of a new set; a plain collection
+  becomes a Pool folder. Nothing is written if it will not fit.
+- Choose the channel for each sound in the Send to Squid sheet, or send them to
+  one channel across following banks.
+- Join sounds as you send them to a Squid, using its limits for length and
+  silence. Cue markers survive the copy.
+- Name joined files in the Join sheet. Files are numbered Joined 01, Joined 02
+  and so on.
+- The free-channel count on Squid banks is easier to read in dark mode.
+
 ## 0.32.0
 
 - Newly joined files remember their source sounds. Once indexed, find them
