@@ -1,0 +1,5 @@
+interface:
+  display_name: "Design websites"
+  short_description: "Typography, hierarchy, and grids for the web"
+policy:
+  allow_implicit_invocation: true
