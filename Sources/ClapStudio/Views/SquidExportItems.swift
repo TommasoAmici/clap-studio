@@ -86,6 +86,7 @@ struct SquidExportItems: View {
     private func channelMenu(id: Int64, slot: SquidSlot?) -> some View {
         let picked = model.squidChannels[id]
         let conflict = slot.map { problem(with: $0) } ?? false
+        let overwritten = slot.map { overwrites($0) } ?? false
         return Menu {
             ForEach(1...SquidLayout.slotsPerBank, id: \.self) { channel in
                 Button { model.squidChannels[id] = channel } label: {
@@ -96,12 +97,15 @@ struct SquidExportItems: View {
             Button("Automatic") { model.squidChannels[id] = nil }.disabled(picked == nil)
         } label: {
             Text(slot.map { String($0.channel) } ?? "–").monospacedDigit()
-                .foregroundStyle(conflict ? Color.red : (picked == nil ? Color.secondary : Color.accentColor))
+                .foregroundStyle(conflict ? Color.red : (overwritten ? Color.orange : (picked == nil ? Color.secondary : Color.accentColor)))
         }
         .menuStyle(.borderlessButton).fixedSize()
         .help("Channel on the module. Choose another, or Automatic to follow the order.")
         .accessibilityLabel(slot.map { "Channel \($0.channel)" } ?? "Not sent")
     }
+
+    /// Whether the sample going to this slot replaces one that is on the stick.
+    private func overwrites(_ slot: SquidSlot) -> Bool { plan.issues.contains(.overwritesChannel(bank: slot.bank, channel: slot.channel)) }
 
     /// Whether a slot is one a plan issue is about (two samples on it, or a sample already there).
     private func problem(with slot: SquidSlot) -> Bool {

@@ -16,17 +16,20 @@ public enum SquidChannelRule: Equatable, Sendable {
 }
 
 /// Something to tell the musician about a plan. Blocking ones stop the send; the others only explain.
+/// Following the same channel through the banks replaces what is there (with a warning); picking a taken channel by hand
+/// while adding to one bank still stops the send, because that bank can be replaced as a whole instead.
 public enum SquidPlanIssue: Equatable, Sendable {
     case duplicateChannel(bank: Int, channel: Int)
     case channelTaken(bank: Int, channel: Int)
     case doesNotFit(count: Int)
-    case skippedBank(bank: Int, channel: Int)
+    /// The channel already holds a sample and the new one replaces it.
+    case overwritesChannel(bank: Int, channel: Int)
     case notEnoughBanks(missing: Int)
 
     public var isBlocking: Bool {
         switch self {
         case .duplicateChannel, .channelTaken, .notEnoughBanks: return true
-        case .doesNotFit, .skippedBank: return false
+        case .doesNotFit, .overwritesChannel: return false
         }
     }
 
@@ -38,8 +41,8 @@ public enum SquidPlanIssue: Equatable, Sendable {
             return "Channel \(channel) of bank \(bank) already holds a sample. Pick another channel; nothing is overwritten."
         case .doesNotFit(let count):
             return "\(count) \(count == 1 ? "sample does" : "samples do") not fit in the bank's free channels and \(count == 1 ? "is" : "are") not sent."
-        case .skippedBank(let bank, let channel):
-            return "Bank \(bank) was skipped: its channel \(channel) already holds a sample."
+        case .overwritesChannel(let bank, let channel):
+            return "Bank \(bank): channel \(channel) already holds a sample and will be overwritten."
         case .notEnoughBanks(let missing):
             return "A set holds \(SquidLayout.maxBanksPerSet) banks, so \(missing) \(missing == 1 ? "sample does" : "samples do") not fit. Nothing was sent."
         }
@@ -87,11 +90,8 @@ public struct SquidChannelPlan: Equatable, Sendable {
             var missing = 0
             for (index, channel) in chosen.enumerated() {
                 let channel = channel ?? standard
-                while bank <= SquidLayout.maxBanksPerSet, filled[bank]?.contains(channel) == true {
-                    plan.issues.append(.skippedBank(bank: bank, channel: channel))
-                    bank += 1
-                }
                 if bank > SquidLayout.maxBanksPerSet { missing += 1; continue }
+                if filled[bank]?.contains(channel) == true { plan.issues.append(.overwritesChannel(bank: bank, channel: channel)) }
                 plan.slots[index] = SquidSlot(bank: bank, channel: channel)
                 bank += 1
             }

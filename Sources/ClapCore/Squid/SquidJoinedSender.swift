@@ -1,7 +1,8 @@
 import Foundation
 
 /// Joins sounds with the ALM Squid Salmple limits and puts the joined files on one channel of following banks:
-/// 20 kicks might become 8, 8 and 4 sounds on channel 1 of banks 1, 2 and 3.
+/// 20 kicks might become 8, 8 and 4 sounds on channel 1 of banks 1, 2 and 3. A channel that already holds a sample is
+/// overwritten (the sheet warned about it).
 public enum SquidJoinedSender {
     /// Returns the bank and channel each joined file went to. The joined files are made in a temporary folder inside
     /// `workFolder` and removed again; library files are only read, and nothing reaches the stick unless every
@@ -32,7 +33,7 @@ public enum SquidJoinedSender {
                                                   category: category, keepAudio: true), slot: slot)
         }
         try SquidExporter.place(placed, set: set, bankNames: Dictionary(uniqueKeysWithValues: slots.map { ($0.bank, bankName) }),
-                                toVolume: volume, fileManager: fm)
+                                toVolume: volume, overwrite: true, fileManager: fm)
         return slots
     }
 }

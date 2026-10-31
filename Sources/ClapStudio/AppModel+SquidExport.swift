@@ -4,7 +4,8 @@ import Foundation
 /// What the export sheet asks for.
 enum SquidPlan {
     /// `slots` has one entry per sheet row (nil: not sent). `replace` writes the first bank afresh after moving the old one to the Trash.
-    case banks(set: String?, firstBank: Int, bankName: String, slots: [SquidSlot?], replace: Bool)
+    /// `overwrite` lets a channel that already holds a sample be replaced (following banks; the sheet warned about it).
+    case banks(set: String?, firstBank: Int, bankName: String, slots: [SquidSlot?], replace: Bool, overwrite: Bool)
     case pool(subfolder: String)
     /// The samples are joined first (ALM Squid Salmple limits), then sent to `channel` of `firstBank` and the banks after it.
     case joined(set: String?, firstBank: Int, channel: Int, bankName: String, name: String)
@@ -63,7 +64,7 @@ extension AppModel {
     /// Remembers where samples went, for the next time the sheet opens.
     func rememberSquidDestination(_ plan: SquidPlan, driveID: String) {
         switch plan {
-        case .banks(let set, let firstBank, _, _, _):
+        case .banks(let set, let firstBank, _, _, _, _):
             SquidLastDestination(drive: driveID, pool: false, set: set, bank: firstBank, poolFolder: "").save()
         case .joined(let set, let firstBank, _, _, _):
             SquidLastDestination(drive: driveID, pool: false, set: set, bank: firstBank, poolFolder: "").save()
@@ -94,7 +95,7 @@ extension AppModel {
         let outcome: Result<Void, Error> = await Task.detached {
             do {
                 switch plan {
-                case .banks(let set, let firstBank, let bankName, let slots, let replace):
+                case .banks(let set, let firstBank, let bankName, let slots, let replace, let overwrite):
                     let placed = zip(rows, slots).compactMap { row, slot in
                         row.flatMap { source in slot.map { SquidPlacedSource(source: source, slot: $0) } }
                     }
@@ -106,7 +107,7 @@ extension AppModel {
                     } else {
                         let banks = Set(placed.map(\.slot.bank))
                         try SquidExporter.place(placed, set: set, bankNames: Dictionary(uniqueKeysWithValues: banks.map { ($0, bankName) }),
-                                                toVolume: volume)
+                                                toVolume: volume, overwrite: overwrite)
                     }
                 case .pool(let subfolder):
                     try SquidExporter.exportToPool(rows.compactMap { $0 }, subfolder: subfolder, toVolume: volume)

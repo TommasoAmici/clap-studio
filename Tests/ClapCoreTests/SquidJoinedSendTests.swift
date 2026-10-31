@@ -43,15 +43,17 @@ import Testing
         #expect(CueFileReader.read(url: url).count == 3, "Tagging the file leaves the cue markers alone.")
     }
 
-    @Test func aBankWhoseChannelIsTakenIsSkipped() throws {
+    @Test func aBankWhoseChannelIsTakenIsOverwritten() throws {
         let dir = TestSupport.tempDir(), stick = TestSupport.tempDir()
         let taken = dir.appendingPathComponent("old.wav")
         try writeTestWav(taken, seconds: 0.2) { _ in 0.3 }
         try SquidExporter.export(SquidBankRequest(set: nil, number: 1, name: "Old", slots: [SquidSource(file: taken, name: "old")]), toVolume: stick)
         let slots = try SquidJoinedSender.send(try kicks(2, in: dir), name: "Joined", channel: 1, set: nil, firstBank: 1, bankName: "New",
                                                category: nil, toVolume: stick)
-        #expect(slots == [SquidSlot(bank: 2, channel: 1)], "Channel 1 of bank 1 has a sample, so the joined file goes to the next free bank.")
-        #expect(FileManager.default.fileExists(atPath: file(stick, "Bank 1/1/old.wav").path))
+        #expect(slots == [SquidSlot(bank: 1, channel: 1)], "The joined file goes where it was asked to, over the sample that was there.")
+        #expect(!FileManager.default.fileExists(atPath: file(stick, "Bank 1/1/old.wav").path), "The old sample is replaced.")
+        #expect(FileManager.default.fileExists(atPath: file(stick, "Bank 1/1/Joined 01.wav").path))
+        #expect(SquidStick.read(volume: stick).set(named: nil)?.banks.first?.name == "Old", "An existing bank keeps its name.")
     }
 
     @Test func notEnoughBanksStopsBeforeAnythingIsWritten() throws {

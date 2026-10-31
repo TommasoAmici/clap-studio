@@ -263,7 +263,7 @@ struct SquidExportSheet: View {
         let plan: SquidPlan = toPool ? .pool(subfolder: poolSubfolder)
             : (joining ? .joined(set: chosenSet, firstBank: bankNumber, channel: standardChannel, bankName: bankName, name: joinName)
                        : .banks(set: chosenSet, firstBank: bankNumber, bankName: bankName, slots: channelPlan.slots,
-                                replace: replace && !sameChannel))
+                                replace: replace && !sameChannel, overwrite: sameChannel))
         busy = true
         problem = nil
         Task {

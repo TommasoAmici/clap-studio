@@ -52,11 +52,21 @@ import Testing
         #expect(slots(plan) == [[1, 2], [2, 2], [3, 2], [4, 2]], "Four snares on channel 2 of banks 1 to 4.")
     }
 
-    @Test func aBankWhoseChannelIsTakenIsSkipped() {
+    @Test func aBankWhoseChannelIsTakenIsOverwrittenWithAWarning() {
         let plan = SquidChannelPlan.make(overrides: [nil, nil, nil], rule: .sameChannel(2), startBank: 1, filled: [2: [2], 3: [1]])
-        #expect(slots(plan) == [[1, 2], [3, 2], [4, 2]], "Bank 2 has a sample on channel 2; bank 3 only uses channel 1.")
-        #expect(plan.issues == [.skippedBank(bank: 2, channel: 2)], "The skip is reported, not silent.")
-        #expect(!plan.isBlocked)
+        #expect(slots(plan) == [[1, 2], [2, 2], [3, 2]], "Every sample keeps its own bank, even where channel 2 already holds a sample.")
+        #expect(plan.issues == [.overwritesChannel(bank: 2, channel: 2)], "The overwrite is announced, not silent.")
+        #expect(!plan.isBlocked, "Overwriting is what the musician asked for with this mode, so the send is allowed.")
+    }
+
+    @Test func eachOverwrittenBankGetsItsOwnWarning() {
+        let plan = SquidChannelPlan.make(overrides: [nil, nil, nil], rule: .sameChannel(1), startBank: 3, filled: [3: [1], 4: [1, 2], 5: [2]])
+        #expect(plan.issues == [.overwritesChannel(bank: 3, channel: 1), .overwritesChannel(bank: 4, channel: 1)])
+    }
+
+    @Test func aChannelPickedForOneSampleIsCheckedInItsOwnBank() {
+        let plan = SquidChannelPlan.make(overrides: [nil, 4], rule: .sameChannel(2), startBank: 1, filled: [1: [4], 2: [4]])
+        #expect(plan.issues == [.overwritesChannel(bank: 2, channel: 4)], "Bank 1 holds channel 4 but the first sample goes to channel 2.")
     }
 
     @Test func aSampleCanOverrideTheChannelInTheSameChannelMode() {
@@ -74,5 +84,6 @@ import Testing
     @Test func messagesSayWhatIsWrongInPlainWords() {
         #expect(SquidPlanIssue.duplicateChannel(bank: 2, channel: 3).message.contains("channel 3"))
         #expect(SquidPlanIssue.notEnoughBanks(missing: 2).message.contains("2"))
+        #expect(SquidPlanIssue.overwritesChannel(bank: 3, channel: 1).message == "Bank 3: channel 1 already holds a sample and will be overwritten.")
     }
 }
