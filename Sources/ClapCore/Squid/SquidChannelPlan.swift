@@ -55,6 +55,8 @@ public struct SquidChannelPlan: Equatable, Sendable {
     public var slots: [SquidSlot?] = []
     public var issues: [SquidPlanIssue] = []
     public var isBlocked: Bool { issues.contains(where: \.isBlocking) }
+    /// The issues as the sheet lists them: the ones that stop the send first, so a long scrolled list never hides them.
+    public var orderedIssues: [SquidPlanIssue] { issues.filter(\.isBlocking) + issues.filter { !$0.isBlocking } }
 
     /// `overrides` holds the channel chosen for each sample (nil: decide for it). `filled` maps the banks already on the
     /// stick to the channels that hold a sample; a bank that is not there yet is missing from it. `replacingStartBank`

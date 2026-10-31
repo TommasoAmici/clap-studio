@@ -3,7 +3,7 @@
 ## Work
 
 - [x] Overwrite when sending
-- [ ] Long list of warnings UI
+- [x] Long list of warnings UI
 - [ ] ALM Salmple preset for joined samples
 - [ ] Collapsible left sidebar sections
 
@@ -72,3 +72,20 @@ section's title.
 - Surprise: the bank-level `export` and `add` paths are untouched; only `place` can overwrite.
 - Limitation: if the app is killed between the swap steps, hidden `.clap-new-*`/`.clap-old-*` folders can
   stay in a bank. They start with a dot, so the module and the app ignore them.
+
+### Long list of warnings UI
+
+- New `SquidPlanIssuesView` (ClapStudio) replaces the loose lines under the sample list: a `Warnings` title
+  with a capsule count badge, and the messages in a `ScrollView` limited to 96 pt (about six lines). The
+  height is measured with a preference key so one or two warnings take only the space they need, which a
+  plain `ScrollView` with `maxHeight` would not do inside the sheet's `fixedSize`. Badge and text use system
+  colours (red when anything blocks the send, orange otherwise), so light and dark both work; the title
+  row reads as "Warnings, N" to VoiceOver. The list uses `.scrollBounceBehavior(.basedOnSize)` (macOS 13.3+).
+- Decision: blocking issues are listed first (`SquidChannelPlan.orderedIssues`, tested), so a red message is
+  never hidden below the fold of a long orange list.
+- Verification: `scripts/snapshot.sh --media --usb Studio --send-bank 12 --send-same 1 --send-crowded`
+  (new `--send-crowded` option; it pretends banks 2 to 40 of the set are full, in memory only). Checked in
+  light and dark with 11 and 29 warnings: the sheet keeps its size and the list scrolls.
+  PNGs: `/tmp/clap-work-HiAGrm/snapshots/squid-warnings-{light,dark}.png`.
+- Landmarks: `Sources/ClapStudio/Views/SquidPlanIssuesView.swift`, `SquidExportItems.swift`,
+  `DebugSnapshotSquid.swift`; `SquidSet` gained a public `init(name:banks:)` for the snapshot helper.

@@ -54,7 +54,8 @@
 #                 --send Breaks opens the Send sheet for that Pool folder ("-" for the Pool)
 #                 --send-bank [pick|N] opens the Send sheet for a bank with five (or N) samples (pick: the second on channel 6);
 #                 --send-join with it: join the samples before sending;
-#                 --send-same N with it: send to channel N of the following banks
+#                 --send-same N with it: send to channel N of the following banks;
+#                 --send-crowded with it: pretend banks 2 to 40 are full, so the sheet lists many warnings
 # Uses the library already on this Mac. The image is a debug-build rendering: close to the real window, but views
 # drawn by AppKit (focus rings, some toolbar styling) may differ a little.
 set -e
@@ -123,6 +124,7 @@ while [ $# -gt 0 ]; do
       case "${2:-}" in big) export CLAP_SNAPSHOT_SEND_COLLECTION=big; shift ;; esac ;;
     --send-join) export CLAP_SNAPSHOT_SEND_JOIN=1 ;;
     --send-same) shift; export CLAP_SNAPSHOT_SEND_SAME="$1" ;;
+    --send-crowded) export CLAP_SNAPSHOT_SEND_CROWDED=1 ;;
     --rename) export CLAP_SNAPSHOT_RENAME=1 ;;
     --delay) shift; DELAY="$1" ;;
     *) echo "unknown option $1" >&2; exit 2 ;;

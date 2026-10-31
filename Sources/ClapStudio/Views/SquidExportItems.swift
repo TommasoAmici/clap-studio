@@ -49,11 +49,7 @@ struct SquidExportItems: View {
                      + (files == 0 ? "" : " The exact count is known once they are joined."))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            if !toPool {
-                ForEach(Array(plan.issues.enumerated()), id: \.offset) { _, issue in
-                    Text(issue.message).font(.caption).foregroundStyle(issue.isBlocking ? Color.red : Color.orange)
-                }
-            }
+            if !toPool { SquidPlanIssuesView(issues: plan.orderedIssues) }
         }
     }
 

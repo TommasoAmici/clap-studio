@@ -39,6 +39,7 @@ import CoreGraphics
 ///   CLAP_SNAPSHOT_ANIMATE=1        record one two-bar playback loop as a silent GIF
 ///   CLAP_SNAPSHOT_SEND_BANK=1|pick  with USB: open the Send sheet for a bank with five samples (pick: the second on channel 6)
 ///   CLAP_SNAPSHOT_SEND_JOIN=1       with SEND_BANK: join the samples before sending (SEND_BANK may be a number of samples)
+///   CLAP_SNAPSHOT_SEND_CROWDED=1    with SEND_BANK: pretend banks 2 to 40 are full, so the sheet lists many warnings
 ///   CLAP_SNAPSHOT_SEND_SAME=N       with SEND_BANK: send to channel N of following banks
 ///   CLAP_SNAPSHOT_NESTED=1          make the collection Party #23 with two sub-collections and pick it (use a scratch library)
 ///   CLAP_SNAPSHOT_SEND_COLLECTION=1|big  with NESTED and USB: open "Send to Squid" for it (big: one sub-collection has nine samples)
@@ -121,6 +122,7 @@ enum DebugSnapshot {
             // Opens the Send sheet for a new bank with five samples; "pick" gives the second one channel 6.
             if let bank = env["CLAP_SNAPSHOT_SEND_BANK"] {
                 try? await Task.sleep(for: .seconds(1))
+                if env["CLAP_SNAPSHOT_SEND_CROWDED"] == "1" { DebugSnapshotSquid.crowd(model: model, driveID: drive.id, set: set) }
                 model.openSquidExport(ids: Array(model.visible.prefix(Int(bank) ?? 5).map(\.id)), drive: drive.id, set: set, bank: nil)
                 if bank == "pick", model.squidItems.count > 1 { model.squidChannels[model.squidItems[1]] = 6 }
             }

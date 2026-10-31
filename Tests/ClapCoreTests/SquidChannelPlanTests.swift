@@ -81,6 +81,16 @@ import Testing
         #expect(plan.isBlocked, "Sending part of the samples would leave the rest silently behind.")
     }
 
+    @Test func blockingIssuesComeFirstSoTheyAreNeverHiddenInAScrolledList() {
+        let plan = SquidChannelPlan(slots: [], issues: [.overwritesChannel(bank: 1, channel: 1), .doesNotFit(count: 1),
+                                                         .duplicateChannel(bank: 2, channel: 3), .overwritesChannel(bank: 2, channel: 1),
+                                                         .notEnoughBanks(missing: 1)])
+        #expect(plan.orderedIssues == [.duplicateChannel(bank: 2, channel: 3), .notEnoughBanks(missing: 1),
+                                       .overwritesChannel(bank: 1, channel: 1), .doesNotFit(count: 1),
+                                       .overwritesChannel(bank: 2, channel: 1)],
+                "Problems that stop the send are listed first; each group keeps its own order.")
+    }
+
     @Test func messagesSayWhatIsWrongInPlainWords() {
         #expect(SquidPlanIssue.duplicateChannel(bank: 2, channel: 3).message.contains("channel 3"))
         #expect(SquidPlanIssue.notEnoughBanks(missing: 2).message.contains("2"))

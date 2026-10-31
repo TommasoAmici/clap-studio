@@ -46,6 +46,16 @@ enum DebugSnapshotSquid {
         model.reloadSamples()
     }
 
+    /// Pretends banks 2 to 40 of a set are full (in memory only; the stick is not touched), to show a long list of warnings.
+    static func crowd(model: AppModel, driveID: String, set: String?) {
+        guard var contents = model.usbContents[driveID] else { return }
+        let full = Set(1...SquidLayout.slotsPerBank)
+        let banks = (2...40).map { SquidBank(set: set, number: $0, name: "", filled: full) }
+        contents.sets.removeAll { SquidLayout.sameSet($0.name, set) }
+        contents.sets.insert(SquidSet(name: set, banks: banks), at: 0)
+        model.usbContents[driveID] = contents
+    }
+
     /// Keeps the selected stick and its folders visible in a long sidebar.
     static func revealSidebar() {
         guard let window = NSApp.windows.first(where: \.isVisible), let content = window.contentView else { return }
