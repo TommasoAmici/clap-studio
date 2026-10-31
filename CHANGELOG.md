@@ -5,6 +5,17 @@ version bumps; earlier GitHub releases may include several builds of one version
 
 ## Unreleased
 
+- Sending to a Squid with Same channel in following banks now replaces a
+  channel that already holds a sample, and warns you which banks are
+  replaced. Replaced samples are deleted, not moved to the Trash.
+- A long list of warnings in the Send to Squid sheet scrolls under a Warnings
+  title with a count, so the sheet keeps its shape.
+- Sounds joined with the ALM Squid Salmple preset now have 0.1 seconds of
+  silence between them instead of 0.25. Presets you saved keep their values.
+- Fold, reorder and hide the sidebar sections (Filters, Collections,
+  Categories, Moods, Tags, USB Drives and Folders). Right-click a section title
+  or use the new Sidebar tab in Settings. Your choices are remembered.
+
 ## 0.33.0
 
 - Group collections into sub-collections, one level deep. Right-click a
